@@ -6,6 +6,10 @@ node_modules/
 backend/dist/
 frontend/.next/
 frontend/out/
+*.tsbuildinfo
+
+# Claude Code (keep shared settings.json; ignore personal/local)
+.claude/settings.local.json
 
 # env
 .env
