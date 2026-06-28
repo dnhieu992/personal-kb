@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# builds
+backend/dist/
+frontend/.next/
+frontend/out/
+
+# env
+.env
+**/.env
+!**/.env.example
+frontend/.env.local
+
+# logs
+*.log
+npm-debug.log*
+
+# misc
+.DS_Store
+.idea/
+.vscode/
+
+# transformers.js model cache
+.cache/
+**/.cache/

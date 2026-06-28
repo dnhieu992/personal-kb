@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900;
+}
+
+/* Minimal markdown styling for previews / rendered content */
+.prose-kb h1 { @apply text-xl font-bold mt-4 mb-2; }
+.prose-kb h2 { @apply text-lg font-semibold mt-3 mb-2; }
+.prose-kb h3 { @apply text-base font-semibold mt-2 mb-1; }
+.prose-kb p  { @apply my-2 leading-relaxed; }
+.prose-kb ul { @apply list-disc pl-5 my-2; }
+.prose-kb ol { @apply list-decimal pl-5 my-2; }
+.prose-kb code { @apply bg-slate-100 px-1 py-0.5 rounded text-sm font-mono; }
+.prose-kb pre { @apply bg-slate-900 text-slate-100 p-3 rounded-lg overflow-x-auto my-3 text-sm; }
+.prose-kb pre code { @apply bg-transparent p-0 text-inherit; }
+.prose-kb a { @apply text-indigo-600 underline; }
