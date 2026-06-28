@@ -26,14 +26,16 @@ export class KnowledgeController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List entries, optionally filtered by type and tag' })
+  @ApiOperation({ summary: 'List entries, optionally filtered by type, tag and project' })
   @ApiQuery({ name: 'type', enum: KnowledgeType, required: false })
   @ApiQuery({ name: 'tag', required: false })
+  @ApiQuery({ name: 'projectId', required: false })
   findAll(
     @Query('type') type?: KnowledgeType,
     @Query('tag') tag?: string,
+    @Query('projectId') projectId?: string,
   ) {
-    return this.service.findAll(type, tag);
+    return this.service.findAll(type, tag, projectId);
   }
 
   // Declared before :id so "/search" and "/stats" are not matched as an id.

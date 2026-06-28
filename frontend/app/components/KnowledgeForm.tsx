@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -8,13 +8,15 @@ import {
   Knowledge,
   KNOWLEDGE_TYPES,
   KnowledgeType,
+  Project,
 } from '../lib/api';
 
 interface Props {
   initial?: Knowledge;
+  defaultProjectId?: string;
 }
 
-export default function KnowledgeForm({ initial }: Props) {
+export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
   const router = useRouter();
   const editing = !!initial;
 
@@ -24,6 +26,17 @@ export default function KnowledgeForm({ initial }: Props) {
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
   const [preview, setPreview] = useState(false);
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectId, setProjectId] = useState<string>(
+    initial?.projectId ?? defaultProjectId ?? '',
+  );
+
+  useEffect(() => {
+    api.projects.list().then(setProjects).catch(() => {
+      /* non-fatal — selector just stays empty */
+    });
+  }, []);
 
   const [suggesting, setSuggesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -59,7 +72,7 @@ export default function KnowledgeForm({ initial }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const body = { title, content, type, tags };
+      const body = { title, content, type, tags, projectId: projectId || null };
       const saved = editing
         ? await api.update(initial!.id, body)
         : await api.create(body);
@@ -85,19 +98,37 @@ export default function KnowledgeForm({ initial }: Props) {
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Type</label>
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value as KnowledgeType)}
-          className="rounded-md border border-slate-300 px-3 py-2"
-        >
-          {KNOWLEDGE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-wrap gap-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Type</label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as KnowledgeType)}
+            className="rounded-md border border-slate-300 px-3 py-2"
+          >
+            {KNOWLEDGE_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Project</label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="rounded-md border border-slate-300 px-3 py-2"
+          >
+            <option value="">No project</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div>

@@ -27,16 +27,22 @@ export class KnowledgeService {
       tags: dto.tags?.length ? dto.tags : enrichment.tags,
       summary: enrichment.summary,
       codeSnippets: enrichment.codeSnippets,
+      projectId: dto.projectId ?? null,
     });
     const saved = await this.repo.save(entity);
     await this.embedToQdrant(saved);
     return saved;
   }
 
-  /** List, optionally filtered by type and/or a tag. */
-  async findAll(type?: KnowledgeType, tag?: string): Promise<Knowledge[]> {
+  /** List, optionally filtered by type, tag and/or project. */
+  async findAll(
+    type?: KnowledgeType,
+    tag?: string,
+    projectId?: string,
+  ): Promise<Knowledge[]> {
     const qb = this.repo.createQueryBuilder('k').orderBy('k.createdAt', 'DESC');
     if (type) qb.andWhere('k.type = :type', { type });
+    if (projectId) qb.andWhere('k.projectId = :projectId', { projectId });
     let rows = await qb.getMany();
     if (tag) {
       rows = rows.filter((r) => (r.tags ?? []).includes(tag));
@@ -61,6 +67,8 @@ export class KnowledgeService {
       content: dto.content ?? entry.content,
       type: dto.type ?? entry.type,
       tags: dto.tags ?? entry.tags,
+      // undefined → leave as-is; null → unfile from its project.
+      projectId: dto.projectId === undefined ? entry.projectId : dto.projectId,
     });
 
     // Re-run enrichment if the body changed.
@@ -133,6 +141,7 @@ export class KnowledgeService {
       summary: entry.summary ?? '',
       type: entry.type,
       tags: entry.tags ?? [],
+      projectId: entry.projectId ?? null,
     });
   }
 }

@@ -87,7 +87,13 @@ export class EmbeddingService implements OnModuleInit {
   async upsert(
     id: string,
     text: string,
-    payload: { title: string; summary: string; type: string; tags: string[] },
+    payload: {
+      title: string;
+      summary: string;
+      type: string;
+      tags: string[];
+      projectId?: string | null;
+    },
   ): Promise<void> {
     try {
       const vector = await this.embed(text);

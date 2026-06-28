@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: '/', label: 'Dashboard' },
+  { href: '/projects', label: 'Projects' },
   { href: '/knowledge', label: 'Knowledge' },
   { href: '/chat', label: 'AI Chat' },
 ];

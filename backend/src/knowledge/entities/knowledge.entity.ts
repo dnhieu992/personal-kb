@@ -1,11 +1,14 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Project } from '../../project/entities/project.entity';
 
 export enum KnowledgeType {
   BUG_FIX = 'BUG_FIX',
@@ -44,6 +47,22 @@ export class Knowledge {
   @ApiProperty({ description: 'One-line AI summary' })
   @Column({ type: 'text', nullable: true })
   summary: string;
+
+  @ApiPropertyOptional({
+    description: 'Owning project id (null = not filed under a project)',
+    nullable: true,
+  })
+  @Column({ type: 'uuid', nullable: true })
+  projectId: string | null;
+
+  // Owning side of the relation. Deleting the project nulls this FK rather than
+  // deleting the entry (entries can live without a project).
+  @ManyToOne(() => Project, (project) => project.knowledge, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'projectId' })
+  project?: Project;
 
   @ApiProperty()
   @CreateDateColumn()

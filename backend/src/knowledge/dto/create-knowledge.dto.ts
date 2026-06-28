@@ -4,7 +4,9 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { KnowledgeType } from '../entities/knowledge.entity';
 
@@ -31,4 +33,14 @@ export class CreateKnowledgeDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Project this entry belongs to. Omit to leave unchanged, or send null to unfile.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o) => o.projectId !== null)
+  @IsUUID()
+  projectId?: string | null;
 }

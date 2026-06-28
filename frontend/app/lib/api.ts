@@ -28,9 +28,19 @@ export interface Knowledge {
   type: KnowledgeType;
   codeSnippets: string[];
   summary: string;
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
   score?: number;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  knowledgeCount?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Stats {
@@ -61,10 +71,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   stats: () => request<Stats>('/knowledge/stats'),
 
-  list: (params?: { type?: string; tag?: string }) => {
+  list: (params?: { type?: string; tag?: string; projectId?: string }) => {
     const q = new URLSearchParams();
     if (params?.type) q.set('type', params.type);
     if (params?.tag) q.set('tag', params.tag);
+    if (params?.projectId) q.set('projectId', params.projectId);
     const qs = q.toString();
     return request<Knowledge[]>(`/knowledge${qs ? `?${qs}` : ''}`);
   },
@@ -79,6 +90,7 @@ export const api = {
     content: string;
     type: KnowledgeType;
     tags: string[];
+    projectId?: string | null;
   }) =>
     request<Knowledge>('/knowledge', {
       method: 'POST',
@@ -87,12 +99,39 @@ export const api = {
 
   update: (
     id: string,
-    body: { title: string; content: string; type: KnowledgeType; tags: string[] },
+    body: {
+      title: string;
+      content: string;
+      type: KnowledgeType;
+      tags: string[];
+      projectId?: string | null;
+    },
   ) =>
     request<Knowledge>(`/knowledge/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+
+  projects: {
+    list: () => request<Project[]>('/projects'),
+
+    get: (id: string) => request<Project>(`/projects/${id}`),
+
+    create: (body: { name: string; description?: string }) =>
+      request<Project>('/projects', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (id: string, body: { name: string; description?: string }) =>
+      request<Project>(`/projects/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+
+    remove: (id: string) =>
+      request<{ deleted: boolean }>(`/projects/${id}`, { method: 'DELETE' }),
+  },
 
   remove: (id: string) =>
     request<{ deleted: boolean }>(`/knowledge/${id}`, { method: 'DELETE' }),
