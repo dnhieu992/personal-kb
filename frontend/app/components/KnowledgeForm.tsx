@@ -213,7 +213,11 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
         />
       </div>
 
-      <ImageUploader value={images} onChange={setImages} />
+      <ImageUploader
+        value={images}
+        onChange={setImages}
+        label="Ảnh (không bắt buộc)"
+      />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

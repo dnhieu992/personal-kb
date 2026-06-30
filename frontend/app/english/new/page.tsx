@@ -154,7 +154,11 @@ export default function NewJournalPage() {
           className="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
         />
 
-        <ImageUploader value={images} onChange={setImages} label="Ảnh đính kèm" />
+        <ImageUploader
+          value={images}
+          onChange={setImages}
+          label="Ảnh đính kèm (không bắt buộc)"
+        />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
