@@ -29,6 +29,26 @@ export enum CefrLevel {
   C2 = 'C2',
 }
 
+/**
+ * Sub-kind of an ENGLISH entry. JOURNAL is a free-form learning-diary entry the
+ * user writes; the rest are reviewable items the AI extracts from a JOURNAL.
+ */
+export enum EnglishKind {
+  JOURNAL = 'JOURNAL',
+  SENTENCE = 'SENTENCE',
+  GRAMMAR = 'GRAMMAR',
+  MISTAKE = 'MISTAKE',
+  VOCAB = 'VOCAB',
+}
+
+/** ENGLISH kinds that are flashcard-reviewable (everything except JOURNAL). */
+export const REVIEWABLE_KINDS: EnglishKind[] = [
+  EnglishKind.SENTENCE,
+  EnglishKind.GRAMMAR,
+  EnglishKind.MISTAKE,
+  EnglishKind.VOCAB,
+];
+
 @Entity('knowledge')
 export class Knowledge {
   @ApiProperty({ example: 'a3f1c2e4-...' })
@@ -78,9 +98,28 @@ export class Knowledge {
   // --- English-journey fields (only meaningful when type === ENGLISH) ---
 
   @ApiPropertyOptional({
+    enum: EnglishKind,
+    nullable: true,
+    description: 'JOURNAL diary entry, or a reviewable item extracted from one',
+  })
+  @Column({ type: 'enum', enum: EnglishKind, nullable: true })
+  englishKind: EnglishKind | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'For an extracted item: the id of the JOURNAL entry it came from',
+  })
+  @Column({ type: 'uuid', nullable: true })
+  sourceId: string | null;
+
+  @ApiProperty({ description: 'AI flagged this item as hard to remember' })
+  @Column({ type: 'boolean', default: false })
+  hard: boolean;
+
+  @ApiPropertyOptional({
     enum: CefrLevel,
     nullable: true,
-    description: 'AI-graded CEFR difficulty of an English sentence',
+    description: 'AI-graded CEFR difficulty of an English item',
   })
   @Column({ type: 'enum', enum: CefrLevel, nullable: true })
   cefrLevel: CefrLevel | null;

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
-import { CefrLevel } from '../knowledge/entities/knowledge.entity';
+import { CefrLevel, EnglishKind } from '../knowledge/entities/knowledge.entity';
 
 // claude-haiku-3-5 (requested in the brief) is retired and 404s; use current Haiku.
 const MODEL = 'claude-haiku-4-5';
@@ -12,10 +12,18 @@ export interface Enrichment {
   codeSnippets: string[];
 }
 
-export interface EnglishAssessment {
-  meaning: string;
+/** One reviewable item the AI pulls out of a free-form journal entry. */
+export interface ExtractedItem {
+  kind: EnglishKind; // SENTENCE | GRAMMAR | MISTAKE | VOCAB
+  front: string; // the sentence / word / grammar point / wrong usage
+  meaning: string; // translation, explanation, or the correction
   cefrLevel: CefrLevel;
-  tags: string[];
+  hard: boolean; // user signalled this is hard to remember
+}
+
+export interface JournalExtraction {
+  summary: string;
+  items: ExtractedItem[];
 }
 
 export interface RagSource {
@@ -115,41 +123,64 @@ export class AiService {
   }
 
   /**
-   * Assess an English sentence the user is learning: produce a plain-English
-   * meaning, a CEFR difficulty level, and a few grammar/vocab tags. One Claude
-   * call with structured JSON output; falls back gracefully without a key.
+   * Read a free-form English-learning journal entry (the user may write in
+   * Vietnamese mixed with English) and (1) summarise it, (2) extract the
+   * reviewable items worth keeping — sentences, grammar points, common
+   * mistakes, vocabulary — grading each and flagging the ones the user found
+   * hard to remember. One Claude call, structured JSON, graceful fallback.
    */
-  async assessEnglish(sentence: string): Promise<EnglishAssessment> {
-    if (!this.enabled || !sentence.trim()) {
-      return { meaning: sentence, cefrLevel: CefrLevel.B1, tags: [] };
+  async extractEnglishJournal(text: string): Promise<JournalExtraction> {
+    if (!this.enabled || !text.trim()) {
+      return { summary: text.split('\n')[0]?.slice(0, 140) ?? text, items: [] };
     }
     try {
       const response = await this.client.messages.create({
         model: MODEL,
-        max_tokens: 512,
+        max_tokens: 1500,
         system:
-          'You are an English tutor. For the given English sentence respond with ' +
-          'ONLY a JSON object (no prose, no markdown fences) of the shape: ' +
-          '{"meaning": string, "cefrLevel": "A1"|"A2"|"B1"|"B2"|"C1"|"C2", "tags": string[]}. ' +
-          'meaning: a clear plain-English paraphrase or definition of the sentence. ' +
-          'cefrLevel: the CEFR difficulty band of the sentence. ' +
-          'tags: up to 4 concise, lowercase, hyphenated grammar or vocabulary topics ' +
-          '(e.g. "past-perfect", "phrasal-verb").',
-        messages: [{ role: 'user', content: sentence }],
+          'You are an English-learning journal assistant. The user writes a free-form ' +
+          'diary entry about what they studied today (often in Vietnamese, quoting ' +
+          'English sentences/words). Respond with ONLY a JSON object (no prose, no ' +
+          'markdown fences) of the shape: ' +
+          '{"summary": string, "items": [{"kind": "SENTENCE"|"GRAMMAR"|"MISTAKE"|"VOCAB", ' +
+          '"front": string, "meaning": string, "cefrLevel": "A1"|"A2"|"B1"|"B2"|"C1"|"C2", ' +
+          '"hard": boolean}]}. ' +
+          'summary: 1-2 sentences capturing what was learned (in the user\'s language). ' +
+          'items: every English sentence, phrase, word, grammar point, or recurring ' +
+          'mistake worth reviewing. front = the English item itself (for MISTAKE, the ' +
+          'wrong usage). meaning = a clear explanation/translation (for MISTAKE, the ' +
+          'correction and why). cefrLevel = its difficulty. hard = true when the user ' +
+          'signals difficulty (e.g. "khó nhớ", "phải tra từ điển", "gặp lần thứ 3"). ' +
+          'If there is nothing concrete to review, return an empty items array.',
+        messages: [{ role: 'user', content: text }],
       });
-      const parsed = this.parseJson<EnglishAssessment>(
-        this.firstText(response),
-      );
-      const level = (parsed.cefrLevel ?? '').toString().toUpperCase();
+      const parsed = this.parseJson<JournalExtraction>(this.firstText(response));
+      const items = (parsed.items ?? [])
+        .map((it) => this.normaliseItem(it))
+        .filter((it): it is ExtractedItem => it !== null);
       return {
-        meaning: parsed.meaning?.trim() || sentence,
-        cefrLevel: (CefrLevel as Record<string, CefrLevel>)[level] ?? CefrLevel.B1,
-        tags: parsed.tags ?? [],
+        summary: parsed.summary?.trim() || text.slice(0, 140),
+        items,
       };
     } catch (e) {
-      this.logger.error(`assessEnglish() failed: ${e.message}`);
-      return { meaning: sentence, cefrLevel: CefrLevel.B1, tags: [] };
+      this.logger.error(`extractEnglishJournal() failed: ${e.message}`);
+      return { summary: text.split('\n')[0]?.slice(0, 140) ?? text, items: [] };
     }
+  }
+
+  /** Coerce one raw extracted item into a valid ExtractedItem, or drop it. */
+  private normaliseItem(raw: Partial<ExtractedItem>): ExtractedItem | null {
+    const front = raw.front?.toString().trim();
+    if (!front) return null;
+    const kind = (raw.kind ?? '').toString().toUpperCase();
+    const level = (raw.cefrLevel ?? '').toString().toUpperCase();
+    return {
+      kind: (EnglishKind as Record<string, EnglishKind>)[kind] ?? EnglishKind.SENTENCE,
+      front,
+      meaning: raw.meaning?.toString().trim() || front,
+      cefrLevel: (CefrLevel as Record<string, CefrLevel>)[level] ?? CefrLevel.B1,
+      hard: !!raw.hard,
+    };
   }
 
   /**

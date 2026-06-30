@@ -5,7 +5,19 @@ import { AiService } from '../ai/ai.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { UpdateKnowledgeDto } from './dto/update-knowledge.dto';
-import { CefrLevel, Knowledge, KnowledgeType } from './entities/knowledge.entity';
+import {
+  CefrLevel,
+  EnglishKind,
+  Knowledge,
+  KnowledgeType,
+  REVIEWABLE_KINDS,
+} from './entities/knowledge.entity';
+
+/** A journal diary entry together with the items the AI extracted from it. */
+export interface JournalWithItems {
+  journal: Knowledge;
+  items: Knowledge[];
+}
 
 @Injectable()
 export class KnowledgeService {
@@ -19,26 +31,27 @@ export class KnowledgeService {
   /** Run AI enrichment then persist + embed. */
   async create(dto: CreateKnowledgeDto): Promise<Knowledge> {
     const type = dto.type ?? KnowledgeType.INSIGHT;
+
+    // ENGLISH entries are free-form journal entries: extract + store review items.
+    if (type === KnowledgeType.ENGLISH) {
+      const { journal } = await this.ingestEnglishJournal(
+        dto.content,
+        dto.projectId ?? null,
+      );
+      return journal;
+    }
+
+    const enrichment = await this.ai.enrich(dto.title, dto.content);
     const entity = this.repo.create({
       title: dto.title,
       content: dto.content,
       type,
       projectId: dto.projectId ?? null,
-    });
-
-    if (type === KnowledgeType.ENGLISH) {
-      const assessment = await this.ai.assessEnglish(dto.content);
-      entity.summary = assessment.meaning;
-      entity.cefrLevel = assessment.cefrLevel;
-      entity.tags = dto.tags?.length ? dto.tags : assessment.tags;
-      entity.codeSnippets = [];
-    } else {
-      const enrichment = await this.ai.enrich(dto.title, dto.content);
       // Honour user-supplied tags, otherwise use the AI's.
-      entity.tags = dto.tags?.length ? dto.tags : enrichment.tags;
-      entity.summary = enrichment.summary;
-      entity.codeSnippets = enrichment.codeSnippets;
-    }
+      tags: dto.tags?.length ? dto.tags : enrichment.tags,
+      summary: enrichment.summary,
+      codeSnippets: enrichment.codeSnippets,
+    });
 
     const saved = await this.repo.save(entity);
     await this.embedToQdrant(saved);
@@ -82,19 +95,14 @@ export class KnowledgeService {
       projectId: dto.projectId === undefined ? entry.projectId : dto.projectId,
     });
 
-    // Re-run enrichment if the body changed.
-    if (titleOrContentChanged) {
-      if (entry.type === KnowledgeType.ENGLISH) {
-        const assessment = await this.ai.assessEnglish(entry.content);
-        entry.summary = assessment.meaning;
-        entry.cefrLevel = assessment.cefrLevel;
-        if (!dto.tags?.length) entry.tags = assessment.tags;
-      } else {
-        const enrichment = await this.ai.enrich(entry.title, entry.content);
-        entry.summary = enrichment.summary;
-        entry.codeSnippets = enrichment.codeSnippets;
-        if (!dto.tags?.length) entry.tags = enrichment.tags;
-      }
+    // Re-run enrichment if the body changed. ENGLISH entries keep their existing
+    // summary/level on edit (the journal extraction only runs at create time, so
+    // hand-edits to an item or journal aren't silently overwritten).
+    if (titleOrContentChanged && entry.type !== KnowledgeType.ENGLISH) {
+      const enrichment = await this.ai.enrich(entry.title, entry.content);
+      entry.summary = enrichment.summary;
+      entry.codeSnippets = enrichment.codeSnippets;
+      if (!dto.tags?.length) entry.tags = enrichment.tags;
     }
 
     const saved = await this.repo.save(entry);
@@ -104,6 +112,17 @@ export class KnowledgeService {
 
   async remove(id: string): Promise<{ deleted: boolean }> {
     const entry = await this.findOne(id);
+
+    // Deleting a journal entry also removes the items extracted from it.
+    if (entry.englishKind === EnglishKind.JOURNAL) {
+      const items = await this.repo.find({ where: { sourceId: id } });
+      for (const item of items) {
+        const itemId = item.id; // repo.remove() clears the id off the entity
+        await this.repo.remove(item);
+        await this.embedding.remove(itemId);
+      }
+    }
+
     await this.repo.remove(entry);
     await this.embedding.remove(id);
     return { deleted: true };
@@ -130,15 +149,89 @@ export class KnowledgeService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Flashcard review queue: least-recently-seen English sentences first
-   * (never-reviewed rows have a null lastReviewedAt and sort first).
+   * Ingest a free-form journal entry: store it as a JOURNAL row, have the AI
+   * summarise it and extract reviewable items, then store + embed each item
+   * linked back to the journal. Used by both create() and the journal endpoint.
+   */
+  async ingestEnglishJournal(
+    text: string,
+    projectId: string | null = null,
+  ): Promise<JournalWithItems> {
+    const extraction = await this.ai.extractEnglishJournal(text);
+
+    const journal = await this.repo.save(
+      this.repo.create({
+        title: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+        content: text,
+        type: KnowledgeType.ENGLISH,
+        englishKind: EnglishKind.JOURNAL,
+        summary: extraction.summary,
+        tags: [],
+        projectId,
+      }),
+    );
+    await this.embedToQdrant(journal);
+
+    const items: Knowledge[] = [];
+    for (const it of extraction.items) {
+      const item = await this.repo.save(
+        this.repo.create({
+          title: it.front.length > 80 ? `${it.front.slice(0, 77)}…` : it.front,
+          content: it.front,
+          type: KnowledgeType.ENGLISH,
+          englishKind: it.kind,
+          summary: it.meaning,
+          cefrLevel: it.cefrLevel,
+          hard: it.hard,
+          sourceId: journal.id,
+          tags: [],
+          projectId,
+        }),
+      );
+      await this.embedToQdrant(item);
+      items.push(item);
+    }
+
+    return { journal, items };
+  }
+
+  /** Diary timeline: JOURNAL entries newest-first, each with its review items. */
+  async englishJournal(): Promise<JournalWithItems[]> {
+    const journals = await this.repo.find({
+      where: { type: KnowledgeType.ENGLISH, englishKind: EnglishKind.JOURNAL },
+      order: { createdAt: 'DESC' },
+    });
+    if (!journals.length) return [];
+
+    const items = await this.repo.find({
+      where: { sourceId: In(journals.map((j) => j.id)) },
+      order: { createdAt: 'ASC' },
+    });
+    const bySource = new Map<string, Knowledge[]>();
+    for (const item of items) {
+      const list = bySource.get(item.sourceId!) ?? [];
+      list.push(item);
+      bySource.set(item.sourceId!, list);
+    }
+
+    return journals.map((journal) => ({
+      journal,
+      items: bySource.get(journal.id) ?? [],
+    }));
+  }
+
+  /**
+   * Flashcard review queue: only reviewable items (not journal entries).
+   * Hard-flagged items lead, then least-recently-seen (never-reviewed first).
    */
   async englishReviewQueue(limit = 20): Promise<Knowledge[]> {
     return this.repo
       .createQueryBuilder('k')
       .where('k.type = :type', { type: KnowledgeType.ENGLISH })
-      // NULLs first so brand-new cards lead; then oldest review, then oldest card.
-      .orderBy('k.lastReviewedAt IS NULL', 'DESC')
+      .andWhere('k.englishKind IN (:...kinds)', { kinds: REVIEWABLE_KINDS })
+      // Hard items first; then NULL lastReviewedAt (new); then oldest review/card.
+      .orderBy('k.hard', 'DESC')
+      .addOrderBy('k.lastReviewedAt IS NULL', 'DESC')
       .addOrderBy('k.lastReviewedAt', 'ASC')
       .addOrderBy('k.createdAt', 'ASC')
       .take(limit)
@@ -149,32 +242,47 @@ export class KnowledgeService {
   async recordReview(id: string, remembered: boolean): Promise<Knowledge> {
     const entry = await this.findOne(id);
     entry.reviewCount = (entry.reviewCount ?? 0) + 1;
-    if (remembered) entry.correctCount = (entry.correctCount ?? 0) + 1;
+    if (remembered) {
+      entry.correctCount = (entry.correctCount ?? 0) + 1;
+      // Remembering an item clears its "hard" flag so it stops being prioritised.
+      entry.hard = false;
+    }
     entry.lastReviewedAt = new Date();
     return this.repo.save(entry);
   }
 
-  /** English-journey dashboard: level distribution, accuracy, weekly trend. */
+  /** English-journey dashboard: counts, level/kind distribution, accuracy, trend. */
   async englishStats() {
     const rows = await this.repo.find({
       where: { type: KnowledgeType.ENGLISH },
     });
+    const journals = rows.filter(
+      (r) => r.englishKind === EnglishKind.JOURNAL,
+    );
+    const items = rows.filter((r) =>
+      REVIEWABLE_KINDS.includes(r.englishKind as EnglishKind),
+    );
 
     const byLevel = Object.values(CefrLevel).reduce(
       (acc, lvl) => ({ ...acc, [lvl]: 0 }),
       {} as Record<CefrLevel, number>,
     );
+    const byKind = REVIEWABLE_KINDS.reduce(
+      (acc, k) => ({ ...acc, [k]: 0 }),
+      {} as Record<string, number>,
+    );
     let reviews = 0;
     let correct = 0;
     let dueForReview = 0;
-    for (const r of rows) {
-      if (r.cefrLevel) byLevel[r.cefrLevel] += 1;
-      reviews += r.reviewCount ?? 0;
-      correct += r.correctCount ?? 0;
-      if (!r.lastReviewedAt) dueForReview += 1;
+    for (const it of items) {
+      if (it.cefrLevel) byLevel[it.cefrLevel] += 1;
+      if (it.englishKind) byKind[it.englishKind] += 1;
+      reviews += it.reviewCount ?? 0;
+      correct += it.correctCount ?? 0;
+      if (!it.lastReviewedAt) dueForReview += 1;
     }
 
-    // New sentences per day for the last 7 days (oldest → newest).
+    // New journal entries per day for the last 7 days (oldest → newest).
     const weekly: { date: string; count: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const day = new Date();
@@ -184,15 +292,17 @@ export class KnowledgeService {
       next.setDate(next.getDate() + 1);
       weekly.push({
         date: day.toISOString().slice(0, 10),
-        count: rows.filter(
-          (r) => r.createdAt >= day && r.createdAt < next,
+        count: journals.filter(
+          (j) => j.createdAt >= day && j.createdAt < next,
         ).length,
       });
     }
 
     return {
-      total: rows.length,
+      journalCount: journals.length,
+      itemCount: items.length,
       byLevel,
+      byKind,
       reviewAccuracy: reviews ? Math.round((correct / reviews) * 100) : 0,
       dueForReview,
       weekly,
@@ -232,6 +342,7 @@ export class KnowledgeService {
       title: entry.title,
       summary: entry.summary ?? '',
       type: entry.type,
+      englishKind: entry.englishKind ?? null,
       tags: entry.tags ?? [],
       projectId: entry.projectId ?? null,
     });

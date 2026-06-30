@@ -26,6 +26,36 @@ export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export const CEFR_LEVELS: CefrLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
+export type EnglishKind =
+  | 'JOURNAL'
+  | 'SENTENCE'
+  | 'GRAMMAR'
+  | 'MISTAKE'
+  | 'VOCAB';
+
+export const REVIEWABLE_KINDS: EnglishKind[] = [
+  'SENTENCE',
+  'GRAMMAR',
+  'MISTAKE',
+  'VOCAB',
+];
+
+export const KIND_LABELS: Record<EnglishKind, string> = {
+  JOURNAL: 'Nhật ký',
+  SENTENCE: 'Câu',
+  GRAMMAR: 'Ngữ pháp',
+  MISTAKE: 'Lỗi',
+  VOCAB: 'Từ vựng',
+};
+
+export const KIND_COLORS: Record<EnglishKind, string> = {
+  JOURNAL: 'bg-slate-100 text-slate-600',
+  SENTENCE: 'bg-sky-100 text-sky-700',
+  GRAMMAR: 'bg-violet-100 text-violet-700',
+  MISTAKE: 'bg-red-100 text-red-700',
+  VOCAB: 'bg-amber-100 text-amber-700',
+};
+
 export interface Knowledge {
   id: string;
   title: string;
@@ -35,6 +65,9 @@ export interface Knowledge {
   codeSnippets: string[];
   summary: string;
   projectId: string | null;
+  englishKind: EnglishKind | null;
+  sourceId: string | null;
+  hard: boolean;
   cefrLevel: CefrLevel | null;
   reviewCount: number;
   correctCount: number;
@@ -44,9 +77,16 @@ export interface Knowledge {
   score?: number;
 }
 
+export interface JournalWithItems {
+  journal: Knowledge;
+  items: Knowledge[];
+}
+
 export interface EnglishStats {
-  total: number;
+  journalCount: number;
+  itemCount: number;
   byLevel: Record<CefrLevel, number>;
+  byKind: Record<string, number>;
   reviewAccuracy: number;
   dueForReview: number;
   weekly: { date: string; count: number }[];
@@ -167,6 +207,15 @@ export const api = {
     }),
 
   english: {
+    createJournal: (text: string, projectId?: string | null) =>
+      request<JournalWithItems>('/knowledge/english/journal', {
+        method: 'POST',
+        body: JSON.stringify({ text, projectId: projectId ?? null }),
+      }),
+
+    journal: () =>
+      request<JournalWithItems[]>('/knowledge/english/journal'),
+
     review: (limit?: number) =>
       request<Knowledge[]>(
         `/knowledge/english/review${limit ? `?limit=${limit}` : ''}`,

@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { CreateJournalDto } from './dto/create-journal.dto';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { RecordReviewDto } from './dto/record-review.dto';
 import { UpdateKnowledgeDto } from './dto/update-knowledge.dto';
@@ -53,8 +54,20 @@ export class KnowledgeController {
     return this.service.stats();
   }
 
+  @Post('english/journal')
+  @ApiOperation({ summary: 'Add a journal entry; AI extracts reviewable items' })
+  createJournal(@Body() dto: CreateJournalDto) {
+    return this.service.ingestEnglishJournal(dto.text, dto.projectId ?? null);
+  }
+
+  @Get('english/journal')
+  @ApiOperation({ summary: 'Diary timeline: journal entries with their items' })
+  englishJournal() {
+    return this.service.englishJournal();
+  }
+
   @Get('english/review')
-  @ApiOperation({ summary: 'English flashcard review queue (least recently seen first)' })
+  @ApiOperation({ summary: 'English flashcard review queue (hard + least recently seen first)' })
   @ApiQuery({ name: 'limit', required: false })
   englishReview(@Query('limit') limit?: string) {
     return this.service.englishReviewQueue(limit ? Number(limit) : undefined);

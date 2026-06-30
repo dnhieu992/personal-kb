@@ -91,6 +91,7 @@ export class EmbeddingService implements OnModuleInit {
       title: string;
       summary: string;
       type: string;
+      englishKind?: string | null;
       tags: string[];
       projectId?: string | null;
     },
