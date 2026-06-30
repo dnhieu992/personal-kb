@@ -25,8 +25,9 @@ Create `/opt/personal-kb/backend.env` with the real values:
 ```bash
 sudo mkdir -p /opt/personal-kb
 sudo tee /opt/personal-kb/backend.env >/dev/null <<'EOF'
-# host.docker.internal = the VPS host, where MySQL (3306) runs
-DATABASE_URL=mysql://pkb:pkbpass@host.docker.internal:3306/personal_kb
+# The backend container runs with network_mode: host, so 127.0.0.1 = the VPS host
+# where MySQL listens (it only binds localhost, shared with market-analysis).
+DATABASE_URL=mysql://pkb:<real-password>@127.0.0.1:3306/personal_kb
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
 FRONTEND_URL=http://<your-domain-or-ip>:4000
 EOF
