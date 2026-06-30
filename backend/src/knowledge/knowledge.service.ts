@@ -5,7 +5,7 @@ import { AiService } from '../ai/ai.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { UpdateKnowledgeDto } from './dto/update-knowledge.dto';
-import { Knowledge, KnowledgeType } from './entities/knowledge.entity';
+import { CefrLevel, Knowledge, KnowledgeType } from './entities/knowledge.entity';
 
 @Injectable()
 export class KnowledgeService {
@@ -18,17 +18,28 @@ export class KnowledgeService {
 
   /** Run AI enrichment then persist + embed. */
   async create(dto: CreateKnowledgeDto): Promise<Knowledge> {
-    const enrichment = await this.ai.enrich(dto.title, dto.content);
+    const type = dto.type ?? KnowledgeType.INSIGHT;
     const entity = this.repo.create({
       title: dto.title,
       content: dto.content,
-      type: dto.type ?? KnowledgeType.INSIGHT,
-      // Honour user-supplied tags, otherwise use the AI's.
-      tags: dto.tags?.length ? dto.tags : enrichment.tags,
-      summary: enrichment.summary,
-      codeSnippets: enrichment.codeSnippets,
+      type,
       projectId: dto.projectId ?? null,
     });
+
+    if (type === KnowledgeType.ENGLISH) {
+      const assessment = await this.ai.assessEnglish(dto.content);
+      entity.summary = assessment.meaning;
+      entity.cefrLevel = assessment.cefrLevel;
+      entity.tags = dto.tags?.length ? dto.tags : assessment.tags;
+      entity.codeSnippets = [];
+    } else {
+      const enrichment = await this.ai.enrich(dto.title, dto.content);
+      // Honour user-supplied tags, otherwise use the AI's.
+      entity.tags = dto.tags?.length ? dto.tags : enrichment.tags;
+      entity.summary = enrichment.summary;
+      entity.codeSnippets = enrichment.codeSnippets;
+    }
+
     const saved = await this.repo.save(entity);
     await this.embedToQdrant(saved);
     return saved;
@@ -73,10 +84,17 @@ export class KnowledgeService {
 
     // Re-run enrichment if the body changed.
     if (titleOrContentChanged) {
-      const enrichment = await this.ai.enrich(entry.title, entry.content);
-      entry.summary = enrichment.summary;
-      entry.codeSnippets = enrichment.codeSnippets;
-      if (!dto.tags?.length) entry.tags = enrichment.tags;
+      if (entry.type === KnowledgeType.ENGLISH) {
+        const assessment = await this.ai.assessEnglish(entry.content);
+        entry.summary = assessment.meaning;
+        entry.cefrLevel = assessment.cefrLevel;
+        if (!dto.tags?.length) entry.tags = assessment.tags;
+      } else {
+        const enrichment = await this.ai.enrich(entry.title, entry.content);
+        entry.summary = enrichment.summary;
+        entry.codeSnippets = enrichment.codeSnippets;
+        if (!dto.tags?.length) entry.tags = enrichment.tags;
+      }
     }
 
     const saved = await this.repo.save(entry);
@@ -105,6 +123,80 @@ export class KnowledgeService {
         return row ? { ...row, score: Number(h.score.toFixed(3)) } : null;
       })
       .filter((r): r is Knowledge & { score: number } => !!r);
+  }
+
+  // ---------------------------------------------------------------------------
+  // English journey
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Flashcard review queue: least-recently-seen English sentences first
+   * (never-reviewed rows have a null lastReviewedAt and sort first).
+   */
+  async englishReviewQueue(limit = 20): Promise<Knowledge[]> {
+    return this.repo
+      .createQueryBuilder('k')
+      .where('k.type = :type', { type: KnowledgeType.ENGLISH })
+      // NULLs first so brand-new cards lead; then oldest review, then oldest card.
+      .orderBy('k.lastReviewedAt IS NULL', 'DESC')
+      .addOrderBy('k.lastReviewedAt', 'ASC')
+      .addOrderBy('k.createdAt', 'ASC')
+      .take(limit)
+      .getMany();
+  }
+
+  /** Record the result of reviewing one flashcard (no re-embed needed). */
+  async recordReview(id: string, remembered: boolean): Promise<Knowledge> {
+    const entry = await this.findOne(id);
+    entry.reviewCount = (entry.reviewCount ?? 0) + 1;
+    if (remembered) entry.correctCount = (entry.correctCount ?? 0) + 1;
+    entry.lastReviewedAt = new Date();
+    return this.repo.save(entry);
+  }
+
+  /** English-journey dashboard: level distribution, accuracy, weekly trend. */
+  async englishStats() {
+    const rows = await this.repo.find({
+      where: { type: KnowledgeType.ENGLISH },
+    });
+
+    const byLevel = Object.values(CefrLevel).reduce(
+      (acc, lvl) => ({ ...acc, [lvl]: 0 }),
+      {} as Record<CefrLevel, number>,
+    );
+    let reviews = 0;
+    let correct = 0;
+    let dueForReview = 0;
+    for (const r of rows) {
+      if (r.cefrLevel) byLevel[r.cefrLevel] += 1;
+      reviews += r.reviewCount ?? 0;
+      correct += r.correctCount ?? 0;
+      if (!r.lastReviewedAt) dueForReview += 1;
+    }
+
+    // New sentences per day for the last 7 days (oldest → newest).
+    const weekly: { date: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - i);
+      const next = new Date(day);
+      next.setDate(next.getDate() + 1);
+      weekly.push({
+        date: day.toISOString().slice(0, 10),
+        count: rows.filter(
+          (r) => r.createdAt >= day && r.createdAt < next,
+        ).length,
+      });
+    }
+
+    return {
+      total: rows.length,
+      byLevel,
+      reviewAccuracy: reviews ? Math.round((correct / reviews) * 100) : 0,
+      dueForReview,
+      weekly,
+    };
   }
 
   /** Dashboard statistics. */

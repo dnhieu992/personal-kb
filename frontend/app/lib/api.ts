@@ -10,7 +10,8 @@ export type KnowledgeType =
   | 'HOW_TO'
   | 'ARCHITECTURE'
   | 'INSIGHT'
-  | 'DAILY_LOG';
+  | 'DAILY_LOG'
+  | 'ENGLISH';
 
 export const KNOWLEDGE_TYPES: KnowledgeType[] = [
   'BUG_FIX',
@@ -18,7 +19,12 @@ export const KNOWLEDGE_TYPES: KnowledgeType[] = [
   'ARCHITECTURE',
   'INSIGHT',
   'DAILY_LOG',
+  'ENGLISH',
 ];
+
+export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+
+export const CEFR_LEVELS: CefrLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
 export interface Knowledge {
   id: string;
@@ -29,9 +35,21 @@ export interface Knowledge {
   codeSnippets: string[];
   summary: string;
   projectId: string | null;
+  cefrLevel: CefrLevel | null;
+  reviewCount: number;
+  correctCount: number;
+  lastReviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
   score?: number;
+}
+
+export interface EnglishStats {
+  total: number;
+  byLevel: Record<CefrLevel, number>;
+  reviewAccuracy: number;
+  dueForReview: number;
+  weekly: { date: string; count: number }[];
 }
 
 export interface Project {
@@ -147,6 +165,21 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ question }),
     }),
+
+  english: {
+    review: (limit?: number) =>
+      request<Knowledge[]>(
+        `/knowledge/english/review${limit ? `?limit=${limit}` : ''}`,
+      ),
+
+    stats: () => request<EnglishStats>('/knowledge/english/stats'),
+
+    recordReview: (id: string, remembered: boolean) =>
+      request<Knowledge>(`/knowledge/${id}/review`, {
+        method: 'POST',
+        body: JSON.stringify({ remembered }),
+      }),
+  },
 };
 
 export const TYPE_COLORS: Record<KnowledgeType, string> = {
@@ -155,4 +188,5 @@ export const TYPE_COLORS: Record<KnowledgeType, string> = {
   ARCHITECTURE: 'bg-purple-100 text-purple-700',
   INSIGHT: 'bg-amber-100 text-amber-700',
   DAILY_LOG: 'bg-emerald-100 text-emerald-700',
+  ENGLISH: 'bg-sky-100 text-sky-700',
 };

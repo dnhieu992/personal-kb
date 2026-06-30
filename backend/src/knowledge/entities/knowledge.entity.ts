@@ -16,6 +16,17 @@ export enum KnowledgeType {
   ARCHITECTURE = 'ARCHITECTURE',
   INSIGHT = 'INSIGHT',
   DAILY_LOG = 'DAILY_LOG',
+  ENGLISH = 'ENGLISH',
+}
+
+/** CEFR difficulty bands, used for ENGLISH entries. */
+export enum CefrLevel {
+  A1 = 'A1',
+  A2 = 'A2',
+  B1 = 'B1',
+  B2 = 'B2',
+  C1 = 'C1',
+  C2 = 'C2',
 }
 
 @Entity('knowledge')
@@ -63,6 +74,28 @@ export class Knowledge {
   })
   @JoinColumn({ name: 'projectId' })
   project?: Project;
+
+  // --- English-journey fields (only meaningful when type === ENGLISH) ---
+
+  @ApiPropertyOptional({
+    enum: CefrLevel,
+    nullable: true,
+    description: 'AI-graded CEFR difficulty of an English sentence',
+  })
+  @Column({ type: 'enum', enum: CefrLevel, nullable: true })
+  cefrLevel: CefrLevel | null;
+
+  @ApiProperty({ description: 'Times this card has been reviewed' })
+  @Column({ type: 'int', default: 0 })
+  reviewCount: number;
+
+  @ApiProperty({ description: 'Times this card was marked remembered' })
+  @Column({ type: 'int', default: 0 })
+  correctCount: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ type: 'datetime', nullable: true })
+  lastReviewedAt: Date | null;
 
   @ApiProperty()
   @CreateDateColumn()

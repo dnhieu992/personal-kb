@@ -11,6 +11,7 @@ const navItems = [
   { href: '/', label: 'Dashboard' },
   { href: '/projects', label: 'Projects' },
   { href: '/knowledge', label: 'Knowledge' },
+  { href: '/english', label: 'English' },
   { href: '/chat', label: 'AI Chat' },
 ];
 

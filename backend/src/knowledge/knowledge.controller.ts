@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
+import { RecordReviewDto } from './dto/record-review.dto';
 import { UpdateKnowledgeDto } from './dto/update-knowledge.dto';
 import { KnowledgeType } from './entities/knowledge.entity';
 import { KnowledgeService } from './knowledge.service';
@@ -50,6 +51,25 @@ export class KnowledgeController {
   @ApiOperation({ summary: 'Dashboard stats (totals, today, popular tags, recent)' })
   stats() {
     return this.service.stats();
+  }
+
+  @Get('english/review')
+  @ApiOperation({ summary: 'English flashcard review queue (least recently seen first)' })
+  @ApiQuery({ name: 'limit', required: false })
+  englishReview(@Query('limit') limit?: string) {
+    return this.service.englishReviewQueue(limit ? Number(limit) : undefined);
+  }
+
+  @Get('english/stats')
+  @ApiOperation({ summary: 'English journey stats (level distribution, accuracy, trend)' })
+  englishStats() {
+    return this.service.englishStats();
+  }
+
+  @Post(':id/review')
+  @ApiOperation({ summary: 'Record a flashcard review result' })
+  recordReview(@Param('id') id: string, @Body() dto: RecordReviewDto) {
+    return this.service.recordReview(id, dto.remembered);
   }
 
   @Get(':id')

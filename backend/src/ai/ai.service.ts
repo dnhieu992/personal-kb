@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
+import { CefrLevel } from '../knowledge/entities/knowledge.entity';
 
 // claude-haiku-3-5 (requested in the brief) is retired and 404s; use current Haiku.
 const MODEL = 'claude-haiku-4-5';
@@ -9,6 +10,12 @@ export interface Enrichment {
   tags: string[];
   summary: string;
   codeSnippets: string[];
+}
+
+export interface EnglishAssessment {
+  meaning: string;
+  cefrLevel: CefrLevel;
+  tags: string[];
 }
 
 export interface RagSource {
@@ -104,6 +111,44 @@ export class AiService {
     } catch (e) {
       this.logger.error(`suggestTags() failed: ${e.message}`);
       return [];
+    }
+  }
+
+  /**
+   * Assess an English sentence the user is learning: produce a plain-English
+   * meaning, a CEFR difficulty level, and a few grammar/vocab tags. One Claude
+   * call with structured JSON output; falls back gracefully without a key.
+   */
+  async assessEnglish(sentence: string): Promise<EnglishAssessment> {
+    if (!this.enabled || !sentence.trim()) {
+      return { meaning: sentence, cefrLevel: CefrLevel.B1, tags: [] };
+    }
+    try {
+      const response = await this.client.messages.create({
+        model: MODEL,
+        max_tokens: 512,
+        system:
+          'You are an English tutor. For the given English sentence respond with ' +
+          'ONLY a JSON object (no prose, no markdown fences) of the shape: ' +
+          '{"meaning": string, "cefrLevel": "A1"|"A2"|"B1"|"B2"|"C1"|"C2", "tags": string[]}. ' +
+          'meaning: a clear plain-English paraphrase or definition of the sentence. ' +
+          'cefrLevel: the CEFR difficulty band of the sentence. ' +
+          'tags: up to 4 concise, lowercase, hyphenated grammar or vocabulary topics ' +
+          '(e.g. "past-perfect", "phrasal-verb").',
+        messages: [{ role: 'user', content: sentence }],
+      });
+      const parsed = this.parseJson<EnglishAssessment>(
+        this.firstText(response),
+      );
+      const level = (parsed.cefrLevel ?? '').toString().toUpperCase();
+      return {
+        meaning: parsed.meaning?.trim() || sentence,
+        cefrLevel: (CefrLevel as Record<string, CefrLevel>)[level] ?? CefrLevel.B1,
+        tags: parsed.tags ?? [],
+      };
+    } catch (e) {
+      this.logger.error(`assessEnglish() failed: ${e.message}`);
+      return { meaning: sentence, cefrLevel: CefrLevel.B1, tags: [] };
     }
   }
 
