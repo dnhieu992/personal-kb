@@ -1,0 +1,51 @@
+# Production stack for the VPS. Images are built in CI and pulled from GHCR —
+# nothing is built here. Run via the GitHub Actions self-hosted-runner deploy
+# job, or manually:
+#   TAG=latest docker compose -f docker-compose.prod.yml up -d
+#
+# Secrets live ONLY on the VPS at /opt/personal-kb/backend.env (never in git).
+name: personal-kb
+
+services:
+  qdrant:
+    image: qdrant/qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    # Internal only — the backend reaches it as http://qdrant:6333.
+
+  backend:
+    image: ghcr.io/dnhieu992/personal-kb-backend:${TAG:-latest}
+    restart: unless-stopped
+    # DATABASE_URL, ANTHROPIC_API_KEY, FRONTEND_URL, etc. come from here:
+    env_file:
+      - /opt/personal-kb/backend.env
+    environment:
+      # Overrides so the container talks to the right neighbours:
+      - QDRANT_URL=http://qdrant:6333
+      - PORT=4001
+    # Lets the container reach MySQL running on the VPS host (port 3306).
+    # In backend.env set: DATABASE_URL=mysql://pkb:pkbpass@host.docker.internal:3306/personal_kb
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - model_cache:/app/.cache
+    depends_on:
+      - qdrant
+    # Not published to the host — only the frontend talks to it (via the proxy).
+
+  frontend:
+    image: ghcr.io/dnhieu992/personal-kb-frontend:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      - API_INTERNAL_URL=http://backend:4001
+      - PORT=4000
+      - HOSTNAME=0.0.0.0
+    ports:
+      - "4000:4000" # the only port exposed to the outside world
+    depends_on:
+      - backend
+
+volumes:
+  qdrant_data:
+  model_cache:
