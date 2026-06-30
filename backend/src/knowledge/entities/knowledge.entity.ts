@@ -49,6 +49,15 @@ export const REVIEWABLE_KINDS: EnglishKind[] = [
   EnglishKind.VOCAB,
 ];
 
+/** A file stored in R2 and referenced from an entry. */
+export interface ImageRef {
+  key: string;
+  url: string;
+  name?: string;
+  size?: number;
+  type?: string;
+}
+
 @Entity('knowledge')
 export class Knowledge {
   @ApiProperty({ example: 'a3f1c2e4-...' })
@@ -74,6 +83,14 @@ export class Knowledge {
   @ApiProperty({ type: [String], description: 'Extracted code snippets' })
   @Column({ type: 'simple-json', nullable: true })
   codeSnippets: string[];
+
+  @ApiPropertyOptional({
+    description: 'Attached images stored in R2',
+    type: 'array',
+    items: { type: 'object' },
+  })
+  @Column({ type: 'simple-json', nullable: true })
+  images: ImageRef[] | null;
 
   @ApiProperty({ description: 'One-line AI summary' })
   @Column({ type: 'text', nullable: true })

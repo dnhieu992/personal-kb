@@ -3,11 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AiService } from '../ai/ai.service';
 import { EmbeddingService } from '../embedding/embedding.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { UpdateKnowledgeDto } from './dto/update-knowledge.dto';
 import {
   CefrLevel,
   EnglishKind,
+  ImageRef,
   Knowledge,
   KnowledgeType,
   REVIEWABLE_KINDS,
@@ -26,6 +28,7 @@ export class KnowledgeService {
     private readonly repo: Repository<Knowledge>,
     private readonly ai: AiService,
     private readonly embedding: EmbeddingService,
+    private readonly storage: StorageService,
   ) {}
 
   /** Run AI enrichment then persist + embed. */
@@ -37,6 +40,7 @@ export class KnowledgeService {
       const { journal } = await this.ingestEnglishJournal(
         dto.content,
         dto.projectId ?? null,
+        dto.images ?? [],
       );
       return journal;
     }
@@ -51,6 +55,7 @@ export class KnowledgeService {
       tags: dto.tags?.length ? dto.tags : enrichment.tags,
       summary: enrichment.summary,
       codeSnippets: enrichment.codeSnippets,
+      images: dto.images ?? [],
     });
 
     const saved = await this.repo.save(entity);
@@ -93,6 +98,7 @@ export class KnowledgeService {
       tags: dto.tags ?? entry.tags,
       // undefined → leave as-is; null → unfile from its project.
       projectId: dto.projectId === undefined ? entry.projectId : dto.projectId,
+      images: dto.images ?? entry.images,
     });
 
     // Re-run enrichment if the body changed. ENGLISH entries keep their existing
@@ -112,12 +118,14 @@ export class KnowledgeService {
 
   async remove(id: string): Promise<{ deleted: boolean }> {
     const entry = await this.findOne(id);
+    const imageKeys = (entry.images ?? []).map((img) => img.key);
 
     // Deleting a journal entry also removes the items extracted from it.
     if (entry.englishKind === EnglishKind.JOURNAL) {
       const items = await this.repo.find({ where: { sourceId: id } });
       for (const item of items) {
         const itemId = item.id; // repo.remove() clears the id off the entity
+        imageKeys.push(...(item.images ?? []).map((img) => img.key));
         await this.repo.remove(item);
         await this.embedding.remove(itemId);
       }
@@ -125,6 +133,8 @@ export class KnowledgeService {
 
     await this.repo.remove(entry);
     await this.embedding.remove(id);
+    // Best-effort cleanup of the entry's images in R2.
+    await this.storage.deleteMany(imageKeys);
     return { deleted: true };
   }
 
@@ -156,6 +166,7 @@ export class KnowledgeService {
   async ingestEnglishJournal(
     text: string,
     projectId: string | null = null,
+    images: ImageRef[] = [],
   ): Promise<JournalWithItems> {
     const extraction = await this.ai.extractEnglishJournal(text);
 
@@ -168,6 +179,7 @@ export class KnowledgeService {
         summary: extraction.summary,
         tags: [],
         projectId,
+        images,
       }),
     );
     await this.embedToQdrant(journal);

@@ -56,11 +56,20 @@ export const KIND_COLORS: Record<EnglishKind, string> = {
   VOCAB: 'bg-amber-100 text-amber-700',
 };
 
+export interface ImageRef {
+  key: string;
+  url: string;
+  name?: string;
+  size?: number;
+  type?: string;
+}
+
 export interface Knowledge {
   id: string;
   title: string;
   content: string;
   tags: string[];
+  images: ImageRef[] | null;
   type: KnowledgeType;
   codeSnippets: string[];
   summary: string;
@@ -149,6 +158,7 @@ export const api = {
     type: KnowledgeType;
     tags: string[];
     projectId?: string | null;
+    images?: ImageRef[];
   }) =>
     request<Knowledge>('/knowledge', {
       method: 'POST',
@@ -163,12 +173,30 @@ export const api = {
       type: KnowledgeType;
       tags: string[];
       projectId?: string | null;
+      images?: ImageRef[];
     },
   ) =>
     request<Knowledge>(`/knowledge/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+
+  // Multipart upload — must NOT set a JSON Content-Type (the browser sets the
+  // multipart boundary). Returns the stored image refs to attach to an entry.
+  uploadImages: async (files: File[]): Promise<ImageRef[]> => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    const res = await fetch(`${API}/uploads/images`, {
+      method: 'POST',
+      body: fd,
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`${res.status} ${res.statusText} — ${text}`);
+    }
+    return res.json() as Promise<ImageRef[]>;
+  },
 
   projects: {
     list: () => request<Project[]>('/projects'),
@@ -207,10 +235,18 @@ export const api = {
     }),
 
   english: {
-    createJournal: (text: string, projectId?: string | null) =>
+    createJournal: (
+      text: string,
+      images?: ImageRef[],
+      projectId?: string | null,
+    ) =>
       request<JournalWithItems>('/knowledge/english/journal', {
         method: 'POST',
-        body: JSON.stringify({ text, projectId: projectId ?? null }),
+        body: JSON.stringify({
+          text,
+          images: images ?? [],
+          projectId: projectId ?? null,
+        }),
       }),
 
     journal: () =>

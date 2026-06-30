@@ -5,15 +5,18 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   api,
+  ImageRef,
   JournalWithItems,
   KIND_COLORS,
   KIND_LABELS,
   EnglishKind,
 } from '../../lib/api';
+import ImageUploader from '../../components/ImageUploader';
 
 export default function NewJournalPage() {
   const router = useRouter();
   const [text, setText] = useState('');
+  const [images, setImages] = useState<ImageRef[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JournalWithItems | null>(null);
@@ -25,7 +28,7 @@ export default function NewJournalPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await api.english.createJournal(body);
+      const res = await api.english.createJournal(body, images);
       setResult(res);
       router.refresh();
     } catch (e) {
@@ -45,6 +48,19 @@ export default function NewJournalPage() {
             Tóm tắt
           </p>
           <p className="mt-1 text-slate-700">{result.journal.summary}</p>
+          {result.journal.images && result.journal.images.length > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {result.journal.images.map((img) => (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  key={img.key}
+                  src={img.url}
+                  alt={img.name ?? ''}
+                  className="aspect-square w-full rounded-md border object-cover"
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -91,6 +107,7 @@ export default function NewJournalPage() {
             onClick={() => {
               setResult(null);
               setText('');
+              setImages([]);
             }}
             className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
@@ -136,6 +153,8 @@ export default function NewJournalPage() {
           }
           className="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
         />
+
+        <ImageUploader value={images} onChange={setImages} label="Ảnh đính kèm" />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

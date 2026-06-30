@@ -5,6 +5,7 @@ import { AiModule } from './ai/ai.module';
 import { EmbeddingModule } from './embedding/embedding.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { ProjectModule } from './project/project.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ProjectModule } from './project/project.module';
         synchronize: true,
       }),
     }),
+    StorageModule,
     EmbeddingModule,
     AiModule,
     KnowledgeModule,

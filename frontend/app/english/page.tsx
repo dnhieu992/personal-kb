@@ -148,6 +148,27 @@ export default async function EnglishPage() {
                 </div>
                 <p className="text-slate-700">{journal.summary}</p>
 
+                {journal.images && journal.images.length > 0 && (
+                  <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                    {journal.images.map((img) => (
+                      <a
+                        key={img.key}
+                        href={img.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block aspect-square overflow-hidden rounded-md border"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.url}
+                          alt={img.name ?? ''}
+                          className="h-full w-full object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
                 {items.length > 0 && (
                   <ul className="mt-3 space-y-1.5 border-t pt-3">
                     {items.map((it) => (

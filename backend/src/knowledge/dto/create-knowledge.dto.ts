@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -7,8 +8,10 @@ import {
   IsUUID,
   MaxLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { KnowledgeType } from '../entities/knowledge.entity';
+import { ImageRefDto } from './image-ref.dto';
 
 export class CreateKnowledgeDto {
   @ApiProperty({ example: 'Fixing the N+1 query in the orders endpoint' })
@@ -43,4 +46,14 @@ export class CreateKnowledgeDto {
   @ValidateIf((o) => o.projectId !== null)
   @IsUUID()
   projectId?: string | null;
+
+  @ApiPropertyOptional({
+    type: [ImageRefDto],
+    description: 'Images already uploaded via POST /uploads/images',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ImageRefDto)
+  images?: ImageRefDto[];
 }

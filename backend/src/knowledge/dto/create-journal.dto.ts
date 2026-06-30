@@ -1,5 +1,14 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
+import { ImageRefDto } from './image-ref.dto';
 
 export class CreateJournalDto {
   @ApiProperty({
@@ -15,4 +24,11 @@ export class CreateJournalDto {
   @ValidateIf((o) => o.projectId !== null)
   @IsUUID()
   projectId?: string | null;
+
+  @ApiPropertyOptional({ type: [ImageRefDto], description: 'Attached images' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ImageRefDto)
+  images?: ImageRefDto[];
 }

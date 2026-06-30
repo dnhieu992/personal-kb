@@ -57,7 +57,11 @@ export class KnowledgeController {
   @Post('english/journal')
   @ApiOperation({ summary: 'Add a journal entry; AI extracts reviewable items' })
   createJournal(@Body() dto: CreateJournalDto) {
-    return this.service.ingestEnglishJournal(dto.text, dto.projectId ?? null);
+    return this.service.ingestEnglishJournal(
+      dto.text,
+      dto.projectId ?? null,
+      dto.images ?? [],
+    );
   }
 
   @Get('english/journal')

@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import {
   api,
+  ImageRef,
   Knowledge,
   KNOWLEDGE_TYPES,
   KnowledgeType,
   Project,
 } from '../lib/api';
+import ImageUploader from './ImageUploader';
 
 interface Props {
   initial?: Knowledge;
@@ -25,6 +27,7 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
   const [type, setType] = useState<KnowledgeType>(initial?.type ?? 'INSIGHT');
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
+  const [images, setImages] = useState<ImageRef[]>(initial?.images ?? []);
   const [preview, setPreview] = useState(false);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -72,7 +75,14 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const body = { title, content, type, tags, projectId: projectId || null };
+      const body = {
+        title,
+        content,
+        type,
+        tags,
+        projectId: projectId || null,
+        images,
+      };
       const saved = editing
         ? await api.update(initial!.id, body)
         : await api.create(body);
@@ -202,6 +212,8 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
           className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
         />
       </div>
+
+      <ImageUploader value={images} onChange={setImages} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
