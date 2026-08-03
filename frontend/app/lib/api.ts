@@ -147,6 +147,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// The Next proxy pools keep-alive sockets to the backend; one that gets closed
+// as it is reused surfaces as a 500 "Internal Server Error" (socket hang up).
+// Retry once for read-only AI calls — never for anything that persists data.
+async function requestRetrying<T>(path: string, init?: RequestInit): Promise<T> {
+  try {
+    return await request<T>(path, init);
+  } catch (e) {
+    const message = (e as Error).message ?? '';
+    const transient = !/^\d/.test(message) || /^5\d\d/.test(message);
+    if (!transient) throw e;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return request<T>(path, init);
+  }
+}
+
 export const api = {
   stats: () => request<Stats>('/knowledge/stats'),
 
@@ -218,7 +233,7 @@ export const api = {
     request<{ deleted: boolean }>(`/knowledge/${id}`, { method: 'DELETE' }),
 
   suggestTags: (content: string) =>
-    request<{ tags: string[] }>('/ai/suggest-tags', {
+    requestRetrying<{ tags: string[] }>('/ai/suggest-tags', {
       method: 'POST',
       body: JSON.stringify({ content }),
     }),
@@ -226,7 +241,7 @@ export const api = {
   // Reformat content into structured Markdown without saving — used by the
   // editor's "format now" button so the result can be reviewed first.
   formatContent: (content: string, title?: string, type?: string) =>
-    request<{ content: string }>('/ai/format', {
+    requestRetrying<{ content: string }>('/ai/format', {
       method: 'POST',
       body: JSON.stringify({ content, title, type }),
     }),
