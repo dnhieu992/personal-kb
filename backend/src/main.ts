@@ -29,12 +29,13 @@ async function bootstrap() {
   const port = config.get<number>('PORT', 3001);
   const server = await app.listen(port);
 
-  // The frontend proxies through Next, which pools keep-alive sockets to us.
-  // Node closes an idle socket after 5s by default, so a socket the proxy is
-  // about to reuse can be closed mid-flight — the browser then sees a 500 with
-  // "socket hang up" in the Next log. Outliving the proxy's idle window fixes
-  // it; headersTimeout must stay above keepAliveTimeout.
-  server.keepAliveTimeout = 65_000;
+  // The frontend proxies through Next, whose agent pools keep-alive sockets to
+  // us and never expires them. Any idle timeout on our side is therefore a race:
+  // we close a socket the proxy still believes is good, it sends a request into
+  // it, and the browser gets a 500 ("socket hang up" in the Next log). 0 means
+  // we never close an idle socket — the proxy owns that decision. requestTimeout
+  // (5 min, unchanged) still caps a request that stalls mid-flight.
+  server.keepAliveTimeout = 0;
   server.headersTimeout = 66_000;
   // eslint-disable-next-line no-console
   console.log(`Backend running on http://localhost:${port} (docs: /api/docs)`);

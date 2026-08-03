@@ -134,7 +134,7 @@ export interface ChatResponse {
   sources: { id: string; title: string; score: number }[];
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestOnce<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
@@ -147,20 +147,36 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// The Next proxy pools keep-alive sockets to the backend; one that gets closed
-// as it is reused surfaces as a 500 "Internal Server Error" (socket hang up).
-// Retry once for read-only AI calls — never for anything that persists data.
-async function requestRetrying<T>(path: string, init?: RequestInit): Promise<T> {
+// A pooled keep-alive socket that dies as the Next proxy reuses it surfaces as
+// a 500 "Internal Server Error" (the proxy logs "socket hang up"). Network
+// errors look the same. Both are worth one retry; a 4xx never is.
+function isTransient(e: unknown): boolean {
+  const message = (e as Error)?.message ?? '';
+  return !/^\d/.test(message) || /^5\d\d/.test(message);
+}
+
+async function withRetry<T>(path: string, init?: RequestInit): Promise<T> {
   try {
-    return await request<T>(path, init);
+    return await requestOnce<T>(path, init);
   } catch (e) {
-    const message = (e as Error).message ?? '';
-    const transient = !/^\d/.test(message) || /^5\d\d/.test(message);
-    if (!transient) throw e;
+    if (!isTransient(e)) throw e;
     await new Promise((resolve) => setTimeout(resolve, 300));
-    return request<T>(path, init);
+    return requestOnce<T>(path, init);
   }
 }
+
+// GETs are idempotent, so they always get the retry. Writes never do — a retried
+// POST /knowledge would create a second entry.
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  return method === 'GET'
+    ? withRetry<T>(path, init)
+    : requestOnce<T>(path, init);
+}
+
+// Opt-in for the writes that are safe to repeat: the AI endpoints persist
+// nothing, so a lost socket should never reach the user.
+const requestRetrying = withRetry;
 
 export const api = {
   stats: () => request<Stats>('/knowledge/stats'),
