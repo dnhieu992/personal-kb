@@ -116,7 +116,9 @@ export class AiService {
     try {
       const response = await this.client.messages.create({
         model: MODEL,
-        max_tokens: 4096,
+        // Generous, because the reply restates the whole entry: too low and the
+        // model stops mid-entry (see the stop_reason guard below).
+        max_tokens: 16_000,
         system:
           'You reformat personal knowledge-base entries into clean Markdown. ' +
           'Respond with ONLY the reformatted Markdown body — no preamble, no ' +
@@ -150,8 +152,17 @@ export class AiService {
           },
         ],
       });
+      // A reply cut off at the token ceiling would silently truncate the
+      // entry, so keep the original instead of saving half of it.
+      if (response.stop_reason === 'max_tokens') {
+        this.logger.warn(
+          `formatContent(): reply hit max_tokens for a ${content.length}-char ` +
+            'entry — keeping the original content.',
+        );
+        return content;
+      }
       const formatted = this.stripOuterFence(this.firstText(response));
-      // Never let a truncated/empty reply clobber the user's text.
+      // Never let an empty reply clobber the user's text.
       return formatted.trim() ? formatted : content;
     } catch (e) {
       this.logger.error(`formatContent() failed: ${e.message}`);

@@ -108,9 +108,11 @@ export class KnowledgeService {
 
     // Reformat the incoming body first, so enrichment + embedding see the
     // cleaned-up text and the change detection below compares like with like.
+    // An unchanged body is left alone: it was already formatted on the way in,
+    // and re-running costs the user a slow save for an identical result.
     const content =
-      dto.content === undefined
-        ? undefined
+      dto.content === undefined || dto.content === entry.content
+        ? dto.content
         : await this.formatIfRequested(
             dto.content,
             dto.title ?? entry.title,

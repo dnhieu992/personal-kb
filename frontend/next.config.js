@@ -8,6 +8,12 @@ const nextConfig = {
   // server's own (public) port, and Next proxies it to the backend internally.
   // This means only the web port (4000) needs to be reachable from outside, and
   // there are no CORS issues.
+  experimental: {
+    // Rewrites give up on the upstream after 30s by default, which is less than
+    // an AI reformat of a long entry takes (~35s for ~9k chars) — the browser
+    // then gets a 500 while the backend quietly finishes the save.
+    proxyTimeout: 180_000,
+  },
   async rewrites() {
     const apiBase = process.env.API_INTERNAL_URL ?? 'http://localhost:4001';
     return [
