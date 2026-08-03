@@ -123,11 +123,15 @@ export class AiService {
           'explanation, and do NOT wrap the whole answer in a code fence.\n' +
           'Rules:\n' +
           '- Preserve 100% of the meaning. Never add facts, opinions or ' +
-          'conclusions that are not already there, and never drop any.\n' +
+          'conclusions that are not already there, and never drop any — ' +
+          'including time markers ("hôm nay"), asides and hedges.\n' +
           "- Keep the author's language (Vietnamese stays Vietnamese, English " +
-          'stays English) and their voice; do not translate.\n' +
+          'stays English) and their voice; do not translate. Headings must be ' +
+          'in that same language too.\n' +
           '- Structure with `##`/`###` headings when the entry has distinct ' +
           'sections; short entries can stay a single paragraph or list.\n' +
+          '- The title is shown separately by the UI — never repeat it as a ' +
+          'heading and never open with an `#` heading of the whole entry.\n' +
           '- Ordered lists for step-by-step flows, bullets otherwise; bold key ' +
           'numbers; wrap identifiers (files, tables, columns, functions, env ' +
           'vars, commands) in inline `code`.\n' +
