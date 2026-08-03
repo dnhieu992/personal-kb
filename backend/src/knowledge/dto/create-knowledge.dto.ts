@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsOptional,
   IsString,
@@ -56,4 +57,14 @@ export class CreateKnowledgeDto {
   @ValidateNested({ each: true })
   @Type(() => ImageRefDto)
   images?: ImageRefDto[];
+
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      'Let the AI reformat the content into structured Markdown on save. ' +
+      'Send false to store the text exactly as typed.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  autoFormat?: boolean;
 }

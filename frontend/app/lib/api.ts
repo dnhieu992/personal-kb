@@ -86,6 +86,18 @@ export interface Knowledge {
   score?: number;
 }
 
+/** Body sent when creating or updating an entry. */
+export interface KnowledgeInput {
+  title: string;
+  content: string;
+  type: KnowledgeType;
+  tags: string[];
+  projectId?: string | null;
+  images?: ImageRef[];
+  /** false = store the content exactly as typed (default: AI reformats it). */
+  autoFormat?: boolean;
+}
+
 export interface JournalWithItems {
   journal: Knowledge;
   items: Knowledge[];
@@ -152,30 +164,13 @@ export const api = {
   search: (q: string) =>
     request<Knowledge[]>(`/knowledge/search?q=${encodeURIComponent(q)}`),
 
-  create: (body: {
-    title: string;
-    content: string;
-    type: KnowledgeType;
-    tags: string[];
-    projectId?: string | null;
-    images?: ImageRef[];
-  }) =>
+  create: (body: KnowledgeInput) =>
     request<Knowledge>('/knowledge', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
 
-  update: (
-    id: string,
-    body: {
-      title: string;
-      content: string;
-      type: KnowledgeType;
-      tags: string[];
-      projectId?: string | null;
-      images?: ImageRef[];
-    },
-  ) =>
+  update: (id: string, body: KnowledgeInput) =>
     request<Knowledge>(`/knowledge/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -226,6 +221,14 @@ export const api = {
     request<{ tags: string[] }>('/ai/suggest-tags', {
       method: 'POST',
       body: JSON.stringify({ content }),
+    }),
+
+  // Reformat content into structured Markdown without saving — used by the
+  // editor's "format now" button so the result can be reviewed first.
+  formatContent: (content: string, title?: string, type?: string) =>
+    request<{ content: string }>('/ai/format', {
+      method: 'POST',
+      body: JSON.stringify({ content, title, type }),
     }),
 
   chat: (question: string) =>

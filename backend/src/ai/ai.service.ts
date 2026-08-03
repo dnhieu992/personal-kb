@@ -101,6 +101,67 @@ export class AiService {
     }
   }
 
+  /**
+   * Rewrite a raw entry body into clean, structured Markdown — headings, lists,
+   * fenced code blocks — without changing what it says. Used on save/update so
+   * entries stay readable in the UI and easier to retrieve semantically.
+   * Returns the original content untouched when AI is off or the call fails.
+   */
+  async formatContent(
+    content: string,
+    title = '',
+    type = '',
+  ): Promise<string> {
+    if (!this.enabled || !content.trim()) return content;
+    try {
+      const response = await this.client.messages.create({
+        model: MODEL,
+        max_tokens: 4096,
+        system:
+          'You reformat personal knowledge-base entries into clean Markdown. ' +
+          'Respond with ONLY the reformatted Markdown body — no preamble, no ' +
+          'explanation, and do NOT wrap the whole answer in a code fence.\n' +
+          'Rules:\n' +
+          '- Preserve 100% of the meaning. Never add facts, opinions or ' +
+          'conclusions that are not already there, and never drop any.\n' +
+          "- Keep the author's language (Vietnamese stays Vietnamese, English " +
+          'stays English) and their voice; do not translate.\n' +
+          '- Structure with `##`/`###` headings when the entry has distinct ' +
+          'sections; short entries can stay a single paragraph or list.\n' +
+          '- Ordered lists for step-by-step flows, bullets otherwise; bold key ' +
+          'numbers; wrap identifiers (files, tables, columns, functions, env ' +
+          'vars, commands) in inline `code`.\n' +
+          '- Put code in fenced blocks with a language hint.\n' +
+          '- Reproduce Markdown images and links verbatim, URLs unchanged.\n' +
+          '- Fix obvious typos and spacing only; do not rewrite sentences that ' +
+          'are already clear.\n' +
+          '- If the content is already well-formatted Markdown, return it ' +
+          'essentially unchanged.',
+        messages: [
+          {
+            role: 'user',
+            content:
+              `Title: ${title || '(none)'}\nType: ${type || '(none)'}\n\n` +
+              `Content to reformat:\n${content}`,
+          },
+        ],
+      });
+      const formatted = this.stripOuterFence(this.firstText(response));
+      // Never let a truncated/empty reply clobber the user's text.
+      return formatted.trim() ? formatted : content;
+    } catch (e) {
+      this.logger.error(`formatContent() failed: ${e.message}`);
+      return content;
+    }
+  }
+
+  /** Drop a ```markdown fence the model may have wrapped the whole reply in. */
+  private stripOuterFence(raw: string): string {
+    const text = raw.trim();
+    const match = /^```[a-z]*\n([\s\S]*)\n```$/i.exec(text);
+    return match ? match[1] : text;
+  }
+
   /** Suggest tags only (used by the frontend when content is pasted). */
   async suggestTags(content: string): Promise<string[]> {
     if (!this.enabled || !content.trim()) return [];

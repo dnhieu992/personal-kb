@@ -45,10 +45,13 @@ export class KnowledgeService {
       return journal;
     }
 
-    const enrichment = await this.ai.enrich(dto.title, dto.content);
+    // Clean the body up into structured Markdown before it is stored/embedded.
+    const content = await this.formatIfRequested(dto.content, dto.title, type, dto.autoFormat);
+
+    const enrichment = await this.ai.enrich(dto.title, content);
     const entity = this.repo.create({
       title: dto.title,
-      content: dto.content,
+      content,
       type,
       projectId: dto.projectId ?? null,
       // Honour user-supplied tags, otherwise use the AI's.
@@ -61,6 +64,21 @@ export class KnowledgeService {
     const saved = await this.repo.save(entity);
     await this.embedToQdrant(saved);
     return saved;
+  }
+
+  /**
+   * AI-reformat an entry body unless the caller opted out. ENGLISH entries are
+   * free-form diary text and are always kept verbatim (the journal extraction
+   * reads the user's own wording).
+   */
+  private async formatIfRequested(
+    content: string,
+    title: string,
+    type: KnowledgeType,
+    autoFormat?: boolean,
+  ): Promise<string> {
+    if (autoFormat === false || type === KnowledgeType.ENGLISH) return content;
+    return this.ai.formatContent(content, title, type);
   }
 
   /** List, optionally filtered by type, tag and/or project. */
@@ -87,13 +105,26 @@ export class KnowledgeService {
 
   async update(id: string, dto: UpdateKnowledgeDto): Promise<Knowledge> {
     const entry = await this.findOne(id);
+
+    // Reformat the incoming body first, so enrichment + embedding see the
+    // cleaned-up text and the change detection below compares like with like.
+    const content =
+      dto.content === undefined
+        ? undefined
+        : await this.formatIfRequested(
+            dto.content,
+            dto.title ?? entry.title,
+            dto.type ?? entry.type,
+            dto.autoFormat,
+          );
+
     const titleOrContentChanged =
       (dto.title && dto.title !== entry.title) ||
-      (dto.content && dto.content !== entry.content);
+      (content && content !== entry.content);
 
     Object.assign(entry, {
       title: dto.title ?? entry.title,
-      content: dto.content ?? entry.content,
+      content: content ?? entry.content,
       type: dto.type ?? entry.type,
       tags: dto.tags ?? entry.tags,
       // undefined → leave as-is; null → unfile from its project.

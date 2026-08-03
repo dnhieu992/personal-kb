@@ -5,7 +5,7 @@ import { In, Repository } from 'typeorm';
 import { Knowledge } from '../knowledge/entities/knowledge.entity';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { AiService } from './ai.service';
-import { ChatDto, SuggestTagsDto } from './dto/ai.dto';
+import { ChatDto, FormatContentDto, SuggestTagsDto } from './dto/ai.dto';
 
 @ApiTags('ai')
 @Controller('ai')
@@ -21,6 +21,16 @@ export class AiController {
   @ApiOperation({ summary: 'Suggest tags from pasted content (used by the editor)' })
   async suggestTags(@Body() dto: SuggestTagsDto): Promise<{ tags: string[] }> {
     return { tags: await this.ai.suggestTags(dto.content) };
+  }
+
+  @Post('format')
+  @ApiOperation({
+    summary: 'Reformat an entry body into structured Markdown (no persistence)',
+  })
+  async format(@Body() dto: FormatContentDto): Promise<{ content: string }> {
+    return {
+      content: await this.ai.formatContent(dto.content, dto.title, dto.type),
+    };
   }
 
   @Post('chat')

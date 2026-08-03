@@ -42,8 +42,14 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
   }, []);
 
   const [suggesting, setSuggesting] = useState(false);
+  const [formatting, setFormatting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // On save the backend runs the content through the AI to reformat it as
+  // structured Markdown. ENGLISH journals are always kept verbatim.
+  const [autoFormat, setAutoFormat] = useState(true);
+  const canFormat = type !== 'ENGLISH';
 
   function addTag(raw: string) {
     const t = raw.trim().toLowerCase();
@@ -70,6 +76,26 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
     }
   }
 
+  // Reformat the content right now so it can be reviewed before saving.
+  async function formatNow() {
+    if (!content.trim()) return;
+    setFormatting(true);
+    setError(null);
+    try {
+      const { content: formatted } = await api.formatContent(
+        content,
+        title,
+        type,
+      );
+      setContent(formatted);
+      setPreview(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setFormatting(false);
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -82,6 +108,7 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
         tags,
         projectId: projectId || null,
         images,
+        autoFormat: canFormat && autoFormat,
       };
       const saved = editing
         ? await api.update(initial!.id, body)
@@ -144,13 +171,25 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
       <div>
         <div className="mb-1 flex items-center justify-between">
           <label className="text-sm font-medium">Content (Markdown)</label>
-          <button
-            type="button"
-            onClick={() => setPreview((p) => !p)}
-            className="text-xs text-indigo-600 hover:underline"
-          >
-            {preview ? 'Edit' : 'Preview'}
-          </button>
+          <div className="flex items-center gap-3">
+            {canFormat && (
+              <button
+                type="button"
+                onClick={formatNow}
+                disabled={formatting || !content.trim()}
+                className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
+              >
+                {formatting ? 'Đang format…' : '✨ Format ngay với AI'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setPreview((p) => !p)}
+              className="text-xs text-indigo-600 hover:underline"
+            >
+              {preview ? 'Edit' : 'Preview'}
+            </button>
+          </div>
         </div>
         {preview ? (
           <div className="prose-kb min-h-[12rem] rounded-md border border-slate-200 bg-white p-3">
@@ -221,13 +260,37 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
+      {canFormat && (
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={autoFormat}
+            onChange={(e) => setAutoFormat(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            ✨ Để AI format lại nội dung khi lưu
+            <span className="block text-xs text-slate-500">
+              Nội dung được viết lại thành Markdown có cấu trúc (heading, list,
+              code block) — giữ nguyên ý, chỉ đổi cách trình bày.
+            </span>
+          </span>
+        </label>
+      )}
+
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={saving}
           className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
-          {saving ? 'Saving…' : editing ? 'Update' : 'Create'}
+          {saving
+            ? canFormat && autoFormat
+              ? 'Đang format & lưu…'
+              : 'Saving…'
+            : editing
+              ? 'Update'
+              : 'Create'}
         </button>
         <button
           type="button"
