@@ -41,7 +41,6 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
     });
   }, []);
 
-  const [suggesting, setSuggesting] = useState(false);
   const [formatting, setFormatting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,21 +58,6 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
 
   function removeTag(t: string) {
     setTags(tags.filter((x) => x !== t));
-  }
-
-  // Called when content is pasted/blurred — AI suggests tags.
-  async function suggestTags() {
-    if (!content.trim()) return;
-    setSuggesting(true);
-    try {
-      const { tags: suggested } = await api.suggestTags(content);
-      const merged = Array.from(new Set([...tags, ...suggested]));
-      setTags(merged);
-    } catch {
-      /* non-fatal */
-    } finally {
-      setSuggesting(false);
-    }
   }
 
   // Reformat the content right now so it can be reviewed before saving.
@@ -200,27 +184,15 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
             required
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            onBlur={suggestTags}
-            onPaste={() => setTimeout(suggestTags, 50)}
             rows={12}
-            placeholder="Write in Markdown… tags are auto-suggested when you paste or leave this field."
+            placeholder="Write in Markdown…"
             className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-sm focus:border-indigo-500 focus:outline-none"
           />
         )}
       </div>
 
       <div>
-        <div className="mb-1 flex items-center justify-between">
-          <label className="text-sm font-medium">Tags</label>
-          <button
-            type="button"
-            onClick={suggestTags}
-            disabled={suggesting}
-            className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
-          >
-            {suggesting ? 'Suggesting…' : '✨ Auto-suggest with AI'}
-          </button>
-        </div>
+        <label className="mb-1 block text-sm font-medium">Tags</label>
         <div className="flex flex-wrap gap-2">
           {tags.map((t) => (
             <span
