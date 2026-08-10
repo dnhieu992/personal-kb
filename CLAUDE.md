@@ -64,6 +64,13 @@ docker compose up -d
 
 ## Conventions
 
+- **The knowledge base is English-only.** Saving a non-ENGLISH entry runs the body and
+  title through Claude: reformat to Markdown **and translate to English**, whatever
+  language it was typed in. What the author typed is kept in `knowledge.originalContent`
+  (null when the AI changed nothing). Send `autoFormat: false` to store text verbatim.
+- **Entries double as English practice.** The same save collects the grammar the author
+  got wrong and the words they didn't know into ENGLISH review items (`sourceId` = the
+  entry), so they show up in `/english/review`. Deleting the entry deletes them.
 - **TypeScript everywhere.** Match existing style; no new lint config.
 - **Secrets stay out of git.** `backend/.env` and `frontend/.env.local` are gitignored;
   only `*.env.example` is committed. Never print or commit real keys.

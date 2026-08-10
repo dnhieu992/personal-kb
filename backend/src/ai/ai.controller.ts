@@ -25,7 +25,8 @@ export class AiController {
 
   @Post('format')
   @ApiOperation({
-    summary: 'Reformat an entry body into structured Markdown (no persistence)',
+    summary:
+      'Reformat an entry body into structured English Markdown (no persistence)',
   })
   async format(@Body() dto: FormatContentDto): Promise<{ content: string }> {
     return {

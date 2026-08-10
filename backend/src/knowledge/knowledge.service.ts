@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
-import { AiService } from '../ai/ai.service';
+import { In, IsNull, Not, Repository } from 'typeorm';
+import { AiService, ExtractedItem, LanguageReview } from '../ai/ai.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
@@ -21,8 +21,16 @@ export interface JournalWithItems {
   items: Knowledge[];
 }
 
+/** An ordinary entry together with the English items collected while saving it. */
+export interface CollectedFromEntry {
+  source: Knowledge;
+  items: Knowledge[];
+}
+
 @Injectable()
 export class KnowledgeService {
+  private readonly logger = new Logger(KnowledgeService.name);
+
   constructor(
     @InjectRepository(Knowledge)
     private readonly repo: Repository<Knowledge>,
@@ -45,13 +53,21 @@ export class KnowledgeService {
       return journal;
     }
 
-    // Clean the body up into structured Markdown before it is stored/embedded.
-    const content = await this.formatIfRequested(dto.content, dto.title, type, dto.autoFormat);
+    // Clean the body up into structured English Markdown before it is
+    // stored/embedded, and — from the same raw text — collect the English the
+    // author still needs to learn. Two independent calls, so run them together.
+    const [content, review] = await Promise.all([
+      this.formatIfRequested(dto.content, dto.title, type, dto.autoFormat),
+      this.reviewIfRequested(dto.content, dto.title, type, dto.autoFormat),
+    ]);
+    const title = review?.title || dto.title;
 
-    const enrichment = await this.ai.enrich(dto.title, content);
+    const enrichment = await this.ai.enrich(title, content);
     const entity = this.repo.create({
-      title: dto.title,
+      title,
       content,
+      // Only worth keeping when the AI actually rewrote what was typed.
+      originalContent: content === dto.content ? null : dto.content,
       type,
       projectId: dto.projectId ?? null,
       // Honour user-supplied tags, otherwise use the AI's.
@@ -63,13 +79,14 @@ export class KnowledgeService {
 
     const saved = await this.repo.save(entity);
     await this.embedToQdrant(saved);
+    await this.collectEnglishItems(review?.items ?? [], saved);
     return saved;
   }
 
   /**
-   * AI-reformat an entry body unless the caller opted out. ENGLISH entries are
-   * free-form diary text and are always kept verbatim (the journal extraction
-   * reads the user's own wording).
+   * AI-reformat an entry body into English unless the caller opted out. ENGLISH
+   * entries are free-form diary text and are always kept verbatim (the journal
+   * extraction reads the user's own wording).
    */
   private async formatIfRequested(
     content: string,
@@ -79,6 +96,21 @@ export class KnowledgeService {
   ): Promise<string> {
     if (autoFormat === false || type === KnowledgeType.ENGLISH) return content;
     return this.ai.formatContent(content, title, type);
+  }
+
+  /**
+   * Mine the raw text for English worth revising, on the same terms as the
+   * reformat: opting out of the AI rewrite opts out of the coaching too, and
+   * ENGLISH journals already have their own extraction.
+   */
+  private async reviewIfRequested(
+    content: string,
+    title: string,
+    type: KnowledgeType,
+    autoFormat?: boolean,
+  ): Promise<LanguageReview | null> {
+    if (autoFormat === false || type === KnowledgeType.ENGLISH) return null;
+    return this.ai.reviewEnglishUsage(title, content);
   }
 
   /** List, optionally filtered by type, tag and/or project. */
@@ -106,28 +138,51 @@ export class KnowledgeService {
   async update(id: string, dto: UpdateKnowledgeDto): Promise<Knowledge> {
     const entry = await this.findOne(id);
 
+    const type = dto.type ?? entry.type;
+    const rawContent = dto.content;
+    const contentChanged =
+      rawContent !== undefined && rawContent !== entry.content;
+    const titleChanged = !!dto.title && dto.title !== entry.title;
+
     // Reformat the incoming body first, so enrichment + embedding see the
     // cleaned-up text and the change detection below compares like with like.
     // An unchanged body is left alone: it was already formatted on the way in,
-    // and re-running costs the user a slow save for an identical result.
-    const content =
-      dto.content === undefined || dto.content === entry.content
-        ? dto.content
-        : await this.formatIfRequested(
-            dto.content,
+    // and re-running costs the user a slow save for an identical result. The
+    // coaching pass reads whichever text is newest — a title edit alone still
+    // needs translating.
+    const [formatted, review] = await Promise.all([
+      contentChanged
+        ? this.formatIfRequested(
+            rawContent!,
             dto.title ?? entry.title,
-            dto.type ?? entry.type,
+            type,
             dto.autoFormat,
-          );
+          )
+        : Promise.resolve<string | undefined>(undefined),
+      contentChanged || titleChanged
+        ? this.reviewIfRequested(
+            rawContent ?? entry.content,
+            dto.title ?? entry.title,
+            type,
+            dto.autoFormat,
+          )
+        : Promise.resolve<LanguageReview | null>(null),
+    ]);
 
+    const content = contentChanged ? formatted : dto.content;
     const titleOrContentChanged =
-      (dto.title && dto.title !== entry.title) ||
-      (content && content !== entry.content);
+      titleChanged || (!!content && content !== entry.content);
+
+    if (contentChanged) {
+      entry.originalContent = content === rawContent ? null : rawContent!;
+    }
 
     Object.assign(entry, {
-      title: dto.title ?? entry.title,
+      // Only take the AI's English title when the user actually touched the
+      // title — otherwise an edit elsewhere would keep re-wording it.
+      title: (titleChanged && review?.title) || dto.title || entry.title,
       content: content ?? entry.content,
-      type: dto.type ?? entry.type,
+      type,
       tags: dto.tags ?? entry.tags,
       // undefined → leave as-is; null → unfile from its project.
       projectId: dto.projectId === undefined ? entry.projectId : dto.projectId,
@@ -146,6 +201,7 @@ export class KnowledgeService {
 
     const saved = await this.repo.save(entry);
     await this.embedToQdrant(saved);
+    await this.collectEnglishItems(review?.items ?? [], saved);
     return saved;
   }
 
@@ -153,15 +209,14 @@ export class KnowledgeService {
     const entry = await this.findOne(id);
     const imageKeys = (entry.images ?? []).map((img) => img.key);
 
-    // Deleting a journal entry also removes the items extracted from it.
-    if (entry.englishKind === EnglishKind.JOURNAL) {
-      const items = await this.repo.find({ where: { sourceId: id } });
-      for (const item of items) {
-        const itemId = item.id; // repo.remove() clears the id off the entity
-        imageKeys.push(...(item.images ?? []).map((img) => img.key));
-        await this.repo.remove(item);
-        await this.embedding.remove(itemId);
-      }
+    // Deleting an entry also removes whatever the AI pulled out of it: a
+    // journal's review items, or the English notes collected while translating.
+    const items = await this.repo.find({ where: { sourceId: id } });
+    for (const item of items) {
+      const itemId = item.id; // repo.remove() clears the id off the entity
+      imageKeys.push(...(item.images ?? []).map((img) => img.key));
+      await this.repo.remove(item);
+      await this.embedding.remove(itemId);
     }
 
     await this.repo.remove(entry);
@@ -219,25 +274,122 @@ export class KnowledgeService {
 
     const items: Knowledge[] = [];
     for (const it of extraction.items) {
-      const item = await this.repo.save(
-        this.repo.create({
-          title: it.front.length > 80 ? `${it.front.slice(0, 77)}…` : it.front,
-          content: it.front,
-          type: KnowledgeType.ENGLISH,
-          englishKind: it.kind,
-          summary: it.meaning,
-          cefrLevel: it.cefrLevel,
-          hard: it.hard,
-          sourceId: journal.id,
-          tags: [],
-          projectId,
-        }),
-      );
-      await this.embedToQdrant(item);
-      items.push(item);
+      items.push(await this.saveEnglishItem(it, journal.id, projectId));
     }
 
     return { journal, items };
+  }
+
+  /** Store one extracted item as a reviewable ENGLISH row, and index it. */
+  private async saveEnglishItem(
+    it: ExtractedItem,
+    sourceId: string,
+    projectId: string | null,
+  ): Promise<Knowledge> {
+    const item = await this.repo.save(
+      this.repo.create({
+        title: it.front.length > 80 ? `${it.front.slice(0, 77)}…` : it.front,
+        content: it.front,
+        type: KnowledgeType.ENGLISH,
+        englishKind: it.kind,
+        summary: it.meaning,
+        cefrLevel: it.cefrLevel,
+        hard: it.hard,
+        sourceId,
+        tags: [],
+        projectId,
+      }),
+    );
+    await this.embedToQdrant(item);
+    return item;
+  }
+
+  /**
+   * File the English the AI collected from an ordinary entry as review cards
+   * linked back to that entry, so they surface in the English review queue.
+   * They stay unfiled (`projectId: null`) — study cards would otherwise clutter
+   * the project the entry belongs to.
+   *
+   * An item already collected for this same entry is skipped; one already
+   * collected elsewhere is re-flagged as hard instead of duplicated, since
+   * making the same mistake twice means more review, not two cards.
+   *
+   * Best-effort: the entry is already saved by this point, so a failure here is
+   * logged rather than turned into a failed save.
+   */
+  private async collectEnglishItems(
+    items: ExtractedItem[],
+    source: Knowledge,
+  ): Promise<Knowledge[]> {
+    const created: Knowledge[] = [];
+    for (const it of items) {
+      try {
+        const existing = await this.repo.findOne({
+          where: {
+            type: KnowledgeType.ENGLISH,
+            englishKind: In(REVIEWABLE_KINDS),
+            content: it.front,
+          },
+        });
+        if (existing) {
+          if (existing.sourceId !== source.id && !existing.hard) {
+            existing.hard = true;
+            await this.repo.save(existing);
+          }
+          continue;
+        }
+        created.push(await this.saveEnglishItem(it, source.id, null));
+      } catch (e) {
+        this.logger.error(
+          `collectEnglishItems(): could not store "${it.front}" from entry ` +
+            `${source.id}: ${e.message}`,
+        );
+      }
+    }
+    return created;
+  }
+
+  /**
+   * The other half of the English journey: items collected from ordinary
+   * knowledge entries (not from journal entries), newest first, grouped by the
+   * entry they came from.
+   */
+  async englishCollected(limit = 20): Promise<CollectedFromEntry[]> {
+    const items = await this.repo.find({
+      where: {
+        type: KnowledgeType.ENGLISH,
+        englishKind: In(REVIEWABLE_KINDS),
+        sourceId: Not(IsNull()),
+      },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+    if (!items.length) return [];
+
+    const sources = await this.repo.find({
+      where: { id: In([...new Set(items.map((it) => it.sourceId!))]) },
+    });
+    // Journal-sourced items belong to the timeline, not here.
+    const bySourceId = new Map(
+      sources
+        .filter((s) => s.type !== KnowledgeType.ENGLISH)
+        .map((s) => [s.id, s]),
+    );
+
+    const groups: CollectedFromEntry[] = [];
+    const byId = new Map<string, CollectedFromEntry>();
+    for (const item of items) {
+      const source = bySourceId.get(item.sourceId!);
+      if (!source) continue;
+      let group = byId.get(source.id);
+      if (!group) {
+        group = { source, items: [] };
+        byId.set(source.id, group);
+        groups.push(group);
+      }
+      group.items.push(item);
+    }
+    return groups;
   }
 
   /** Diary timeline: JOURNAL entries newest-first, each with its review items. */

@@ -9,7 +9,7 @@ NestJS + TypeORM API for the knowledge base. Entry point `src/main.ts`, root mod
 |--------|------|----------------|
 | `knowledge` | `src/knowledge/` | CRUD over the `Knowledge` entity (MySQL). Controller → service → TypeORM repo. On create/update it calls `ai` to enrich and `embedding` to (re)index. |
 | `embedding` | `src/embedding/` | Generates 384-dim vectors locally with `@xenova/transformers` and upserts/searches/deletes them in Qdrant (collection `knowledge`). No external API. |
-| `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks). |
+| `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks). |
 
 ## Conventions
 
@@ -30,6 +30,12 @@ npm run build       # → dist/
 
 ## Gotchas
 
+- Saving a non-ENGLISH entry makes **two** Claude calls in parallel (`formatContent`
+  translates the body to English; `reviewEnglishUsage` mines the raw text for grammar and
+  vocabulary to revise), then a third for `enrich`. Budget ~6–8s per save.
+- Items collected by `reviewEnglishUsage` are stored as ENGLISH rows with `sourceId` set to
+  the entry, `projectId: null`. They are deduped by `content`: a repeat from another entry
+  flips the existing card's `hard` flag instead of creating a second card.
 - `synchronize: true` auto-creates/updates the MySQL schema from entities in dev.
 - Editing the `KnowledgeType` enum here? Mirror it in `frontend/app/lib/api.ts`.
 - Embedding model lazy-loads on first use and caches to `.cache/` (gitignored).

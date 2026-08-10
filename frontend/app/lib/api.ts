@@ -67,7 +67,10 @@ export interface ImageRef {
 export interface Knowledge {
   id: string;
   title: string;
+  /** Formatted, English body. */
   content: string;
+  /** What the author typed, when the AI translated/rewrote it. */
+  originalContent: string | null;
   tags: string[];
   images: ImageRef[] | null;
   type: KnowledgeType;
@@ -100,6 +103,12 @@ export interface KnowledgeInput {
 
 export interface JournalWithItems {
   journal: Knowledge;
+  items: Knowledge[];
+}
+
+/** English items collected while saving an ordinary entry, with that entry. */
+export interface CollectedFromEntry {
+  source: Knowledge;
   items: Knowledge[];
 }
 
@@ -254,8 +263,9 @@ export const api = {
       body: JSON.stringify({ content }),
     }),
 
-  // Reformat content into structured Markdown without saving — used by the
-  // editor's "format now" button so the result can be reviewed first.
+  // Reformat content into structured English Markdown (translating it) without
+  // saving — used by the editor's "format now" button so the result can be
+  // reviewed first.
   formatContent: (content: string, title?: string, type?: string) =>
     requestRetrying<{ content: string }>('/ai/format', {
       method: 'POST',
@@ -285,6 +295,11 @@ export const api = {
 
     journal: () =>
       request<JournalWithItems[]>('/knowledge/english/journal'),
+
+    collected: (limit?: number) =>
+      request<CollectedFromEntry[]>(
+        `/knowledge/english/collected${limit ? `?limit=${limit}` : ''}`,
+      ),
 
     review: (limit?: number) =>
       request<Knowledge[]>(

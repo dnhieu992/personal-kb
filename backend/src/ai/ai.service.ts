@@ -26,6 +26,15 @@ export interface JournalExtraction {
   items: ExtractedItem[];
 }
 
+/**
+ * What an entry written in Vietnamese (or shaky English) teaches its author:
+ * the title in correct English, plus the points worth revising later.
+ */
+export interface LanguageReview {
+  title: string;
+  items: ExtractedItem[];
+}
+
 export interface RagSource {
   title: string;
   content: string;
@@ -103,8 +112,9 @@ export class AiService {
 
   /**
    * Rewrite a raw entry body into clean, structured Markdown — headings, lists,
-   * fenced code blocks — without changing what it says. Used on save/update so
-   * entries stay readable in the UI and easier to retrieve semantically.
+   * fenced code blocks — and translate it into English, without changing what
+   * it says. Used on save/update so the knowledge base stays English-only and
+   * entries are readable in the UI and easier to retrieve semantically.
    * Returns the original content untouched when AI is off or the call fails.
    */
   async formatContent(
@@ -120,16 +130,26 @@ export class AiService {
         // model stops mid-entry (see the stop_reason guard below).
         max_tokens: 16_000,
         system:
-          'You reformat personal knowledge-base entries into clean Markdown. ' +
+          'You reformat personal knowledge-base entries into clean Markdown and ' +
+          'translate them into English. ' +
           'Respond with ONLY the reformatted Markdown body — no preamble, no ' +
           'explanation, and do NOT wrap the whole answer in a code fence.\n' +
           'Rules:\n' +
           '- Preserve 100% of the meaning. Never add facts, opinions or ' +
           'conclusions that are not already there, and never drop any — ' +
-          'including time markers ("hôm nay"), asides and hedges.\n' +
-          "- Keep the author's language (Vietnamese stays Vietnamese, English " +
-          'stays English) and their voice; do not translate. Headings must be ' +
-          'in that same language too.\n' +
+          'including time markers ("today"), asides and hedges.\n' +
+          '- ALWAYS write the result in English. The author is Vietnamese and may ' +
+          'write in Vietnamese, in English, or mix the two: translate every ' +
+          'sentence — headings, list items, table cells, image captions and link ' +
+          'text included — into natural, idiomatic English with correct grammar. ' +
+          'No Vietnamese prose may remain in the output.\n' +
+          '- Translate the meaning, not the words: write what a fluent engineer ' +
+          'would write, silently fixing the grammar and word choice of any ' +
+          'English the author wrote. Keep their voice and register.\n' +
+          '- Leave untranslated and byte-for-byte unchanged: anything inside ' +
+          'fenced or inline code, identifiers, file paths, commands, env vars, ' +
+          'URLs, log and error output, and proper nouns (product, service, ' +
+          'people and company names).\n' +
           '- Structure with `##`/`###` headings when the entry has distinct ' +
           'sections; short entries can stay a single paragraph or list.\n' +
           '- The title is shown separately by the UI — never repeat it as a ' +
@@ -139,10 +159,10 @@ export class AiService {
           'vars, commands) in inline `code`.\n' +
           '- Put code in fenced blocks with a language hint.\n' +
           '- Reproduce Markdown images and links verbatim, URLs unchanged.\n' +
-          '- Fix obvious typos and spacing only; do not rewrite sentences that ' +
-          'are already clear.\n' +
-          '- If the content is already well-formatted Markdown, return it ' +
-          'essentially unchanged.',
+          '- Beyond the translation, do not rewrite sentences that are already ' +
+          'clear correct English — fix typos and spacing and leave them be.\n' +
+          '- If the content is already well-formatted English Markdown, return ' +
+          'it essentially unchanged.',
         messages: [
           {
             role: 'user',
@@ -175,6 +195,73 @@ export class AiService {
     const text = raw.trim();
     const match = /^```[a-z]*\n([\s\S]*)\n```$/i.exec(text);
     return match ? match[1] : text;
+  }
+
+  /**
+   * Read what the author actually typed (before translation) and collect the
+   * English they should revise later: grammar they got wrong or avoided, words
+   * they wrote in Vietnamese because they did not know the English one, and
+   * words used in the wrong context. Also returns the title in correct English.
+   * Runs alongside formatContent() on save; falls back to "nothing to review".
+   */
+  async reviewEnglishUsage(
+    title: string,
+    content: string,
+  ): Promise<LanguageReview> {
+    if (!this.enabled || !content.trim()) return { title, items: [] };
+    try {
+      const response = await this.client.messages.create({
+        model: MODEL,
+        max_tokens: 2048,
+        system:
+          'You are an English coach for a Vietnamese software engineer. They ' +
+          'write knowledge-base entries in Vietnamese, in English, or a mix; ' +
+          'the app translates the entry for them, and your job is to collect ' +
+          'what they should study so their own English improves. ' +
+          'Respond with ONLY a JSON object (no prose, no markdown fences) of the ' +
+          'shape: {"title": string, "items": [{"kind": "GRAMMAR"|"MISTAKE"|' +
+          '"VOCAB"|"SENTENCE", "front": string, "meaning": string, "cefrLevel": ' +
+          '"A1"|"A2"|"B1"|"B2"|"C1"|"C2", "hard": boolean}]}.\n' +
+          'title: the entry title in natural, correct English — translate it if ' +
+          'needed. Under 120 characters, no trailing period.\n' +
+          'items: at most 8, each a distinct thing THIS author got wrong or ' +
+          'could not say. Never invent generic lessons the entry does not ' +
+          'support.\n' +
+          '- MISTAKE: English they wrote with wrong grammar or wrong word ' +
+          'choice. front = their wording, verbatim. meaning = the corrected ' +
+          'English, then a short reason in Vietnamese.\n' +
+          '- GRAMMAR: a grammar point they need to revise (articles, tense, ' +
+          'conditionals, word order…). front = the point named in English with ' +
+          'a correct example. meaning = the rule in Vietnamese, pointing at what ' +
+          'they wrote.\n' +
+          '- VOCAB: a word or phrase they wrote in Vietnamese (so they likely ' +
+          'did not know the English), or an English word they used in the wrong ' +
+          'context. front = the correct English word/phrase. meaning = the ' +
+          'Vietnamese meaning plus a short example of correct use.\n' +
+          '- SENTENCE: only for a genuinely useful sentence from the entry worth ' +
+          'memorising as a model.\n' +
+          'hard = true when the same problem shows up more than once in the ' +
+          'entry. cefrLevel = the difficulty of the item itself.\n' +
+          'Ignore code, identifiers, commands, URLs, log output and proper nouns ' +
+          '— never mine them for vocabulary. Skip pure typos and anything ' +
+          'trivial. If the entry is already correct, natural English, return an ' +
+          'empty items array.',
+        messages: [
+          {
+            role: 'user',
+            content: `Title: ${title || '(none)'}\n\nEntry as typed:\n${content}`,
+          },
+        ],
+      });
+      const parsed = this.parseJson<LanguageReview>(this.firstText(response));
+      const items = (parsed.items ?? [])
+        .map((it) => this.normaliseItem(it))
+        .filter((it): it is ExtractedItem => it !== null);
+      return { title: parsed.title?.trim() || title, items };
+    } catch (e) {
+      this.logger.error(`reviewEnglishUsage() failed: ${e.message}`);
+      return { title, items: [] };
+    }
   }
 
   /** Suggest tags only (used by the frontend when content is pasted). */

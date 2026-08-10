@@ -61,8 +61,9 @@ export class CreateKnowledgeDto {
   @ApiPropertyOptional({
     default: true,
     description:
-      'Let the AI reformat the content into structured Markdown on save. ' +
-      'Send false to store the text exactly as typed.',
+      'Let the AI reformat the content into structured English Markdown on ' +
+      'save (translating it) and collect the grammar/vocabulary to revise. ' +
+      'Send false to store the text exactly as typed and skip both.',
   })
   @IsOptional()
   @IsBoolean()

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -45,9 +46,10 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On save the backend runs the content through the AI to reformat it as
-  // structured Markdown. ENGLISH journals are always kept verbatim.
-  const [autoFormat, setAutoFormat] = useState(true);
+  // On save the backend runs the content through the AI: reformat as structured
+  // Markdown, translate to English, and collect the grammar/vocabulary to
+  // revise. Not optional — the knowledge base is English-only. ENGLISH journals
+  // are the exception and stay verbatim.
   const canFormat = type !== 'ENGLISH';
 
   function addTag(raw: string) {
@@ -92,7 +94,6 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
         tags,
         projectId: projectId || null,
         images,
-        autoFormat: canFormat && autoFormat,
       };
       const saved = editing
         ? await api.update(initial!.id, body)
@@ -163,7 +164,9 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
                 disabled={formatting || !content.trim()}
                 className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
               >
-                {formatting ? 'Đang format…' : '✨ Format ngay với AI'}
+                {formatting
+                  ? 'Đang dịch…'
+                  : '✨ Format & dịch sang tiếng Anh ngay'}
               </button>
             )}
             <button
@@ -190,6 +193,17 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
           />
         )}
       </div>
+
+      {initial?.originalContent && (
+        <details className="rounded-md border border-slate-200 bg-slate-50 p-3">
+          <summary className="cursor-pointer text-sm font-medium text-slate-600">
+            Bản gốc bạn đã viết (trước khi AI dịch)
+          </summary>
+          <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-slate-600">
+            {initial.originalContent}
+          </pre>
+        </details>
+      )}
 
       <div>
         <label className="mb-1 block text-sm font-medium">Tags</label>
@@ -233,21 +247,18 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {canFormat && (
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={autoFormat}
-            onChange={(e) => setAutoFormat(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span>
-            ✨ Để AI format lại nội dung khi lưu
-            <span className="block text-xs text-slate-500">
-              Nội dung được viết lại thành Markdown có cấu trúc (heading, list,
-              code block) — giữ nguyên ý, chỉ đổi cách trình bày.
-            </span>
+        <p className="rounded-md bg-indigo-50 p-3 text-sm text-indigo-900">
+          ✨ Khi lưu, AI sẽ format lại thành Markdown có cấu trúc và dịch toàn bộ
+          sang tiếng Anh (giữ nguyên ý).
+          <span className="mt-1 block text-xs text-indigo-700">
+            Lỗi ngữ pháp, từ dùng sai và từ bạn viết bằng tiếng Việt được thu
+            thập vào{' '}
+            <Link href="/english/review" className="underline">
+              phần ôn tập English
+            </Link>
+            . Bản gốc bạn viết vẫn được giữ lại.
           </span>
-        </label>
+        </p>
       )}
 
       <div className="flex gap-3">
@@ -257,8 +268,8 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
           className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {saving
-            ? canFormat && autoFormat
-              ? 'Đang format & lưu…'
+            ? canFormat
+              ? 'Đang dịch & lưu…'
               : 'Saving…'
             : editing
               ? 'Update'

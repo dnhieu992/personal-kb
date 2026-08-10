@@ -70,6 +70,15 @@ export class KnowledgeController {
     return this.service.englishJournal();
   }
 
+  @Get('english/collected')
+  @ApiOperation({
+    summary: 'English items collected from ordinary entries, grouped by entry',
+  })
+  @ApiQuery({ name: 'limit', required: false })
+  englishCollected(@Query('limit') limit?: string) {
+    return this.service.englishCollected(limit ? Number(limit) : undefined);
+  }
+
   @Get('english/review')
   @ApiOperation({ summary: 'English flashcard review queue (hard + least recently seen first)' })
   @ApiQuery({ name: 'limit', required: false })

@@ -68,9 +68,18 @@ export class Knowledge {
   @Column({ length: 255 })
   title: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Formatted, English body (what the UI shows)' })
   @Column({ type: 'text' })
   content: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'What the author actually typed, kept when the AI rewrote/translated it. ' +
+      'Null when content is exactly what was submitted.',
+  })
+  @Column({ type: 'text', nullable: true })
+  originalContent: string | null;
 
   @ApiProperty({ type: [String], example: ['nestjs', 'typeorm'] })
   @Column({ type: 'simple-json', nullable: true })

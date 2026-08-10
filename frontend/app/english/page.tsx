@@ -2,8 +2,10 @@ import Link from 'next/link';
 import {
   api,
   CEFR_LEVELS,
+  CollectedFromEntry,
   EnglishStats,
   JournalWithItems,
+  Knowledge,
   KIND_COLORS,
   KIND_LABELS,
   REVIEWABLE_KINDS,
@@ -24,11 +26,13 @@ const LEVEL_COLORS: Record<string, string> = {
 export default async function EnglishPage() {
   let stats: EnglishStats | null = null;
   let timeline: JournalWithItems[] = [];
+  let collected: CollectedFromEntry[] = [];
   let error: string | null = null;
   try {
-    [stats, timeline] = await Promise.all([
+    [stats, timeline, collected] = await Promise.all([
       api.english.stats(),
       api.english.journal(),
+      api.english.collected(30),
     ]);
   } catch (e) {
     error = (e as Error).message;
@@ -123,6 +127,39 @@ export default async function EnglishPage() {
         </div>
       )}
 
+      {/* Collected while writing knowledge entries */}
+      {collected.length > 0 && (
+        <section>
+          <h2 className="mb-1 text-lg font-semibold">Thu thập từ entry</h2>
+          <p className="mb-3 text-sm text-slate-500">
+            Ngữ pháp và từ vựng AI nhặt ra khi dịch các entry của bạn sang tiếng
+            Anh — đã nằm sẵn trong hàng đợi ôn tập.
+          </p>
+          <div className="space-y-4">
+            {collected.map(({ source, items }) => (
+              <article key={source.id} className="rounded-lg border bg-white p-4">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <Link
+                    href={`/knowledge/${source.id}/edit`}
+                    className="font-medium text-indigo-700 hover:underline"
+                  >
+                    {source.title}
+                  </Link>
+                  <time className="shrink-0 text-xs text-slate-400">
+                    {new Date(source.createdAt).toLocaleDateString('vi-VN')}
+                  </time>
+                </div>
+                <ul className="space-y-1.5 border-t pt-3">
+                  {items.map((it) => (
+                    <ItemLine key={it.id} item={it} />
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Diary timeline */}
       <section>
         <h2 className="mb-3 text-lg font-semibold">Dòng thời gian</h2>
@@ -172,27 +209,7 @@ export default async function EnglishPage() {
                 {items.length > 0 && (
                   <ul className="mt-3 space-y-1.5 border-t pt-3">
                     {items.map((it) => (
-                      <li
-                        key={it.id}
-                        className="flex items-start gap-2 text-sm"
-                      >
-                        <span
-                          className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            KIND_COLORS[it.englishKind as EnglishKind]
-                          }`}
-                        >
-                          {KIND_LABELS[it.englishKind as EnglishKind]}
-                        </span>
-                        <span>
-                          <span className="font-medium">{it.content}</span>
-                          {it.summary && (
-                            <span className="text-slate-500"> — {it.summary}</span>
-                          )}
-                          {it.hard && (
-                            <span className="ml-1 text-orange-600">★</span>
-                          )}
-                        </span>
-                      </li>
+                      <ItemLine key={it.id} item={it} />
                     ))}
                   </ul>
                 )}
@@ -202,6 +219,28 @@ export default async function EnglishPage() {
         )}
       </section>
     </div>
+  );
+}
+
+/** One reviewable item: kind badge, the item itself, then its meaning. */
+function ItemLine({ item }: { item: Knowledge }) {
+  return (
+    <li className="flex items-start gap-2 text-sm">
+      <span
+        className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+          KIND_COLORS[item.englishKind as EnglishKind]
+        }`}
+      >
+        {KIND_LABELS[item.englishKind as EnglishKind]}
+      </span>
+      <span>
+        <span className="font-medium">{item.content}</span>
+        {item.summary && (
+          <span className="text-slate-500"> — {item.summary}</span>
+        )}
+        {item.hard && <span className="ml-1 text-orange-600">★</span>}
+      </span>
+    </li>
   );
 }
 
