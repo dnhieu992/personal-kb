@@ -10,10 +10,16 @@ app/
 ├── page.tsx                  # dashboard (stats + recent)
 ├── layout.tsx, globals.css   # shell + Tailwind
 ├── knowledge/                # list, new, [id]/edit pages
+├── plan/                     # daily planner + plan/lists (long-term todo lists)
+├── english/                  # journey dashboard, journal, review queue
 ├── chat/page.tsx             # RAG chat UI
-├── components/               # shared UI (e.g. KnowledgeForm)
+├── components/               # shared UI (KnowledgeForm, TaskRow, TaskQuickAdd)
 └── lib/api.ts                # typed API client + shared types
 ```
+
+The planner pages poll `api.tasks.day()` while any task still has
+`coachStatus === 'PENDING'` — tasks are saved before the AI finishes correcting their
+English — and stop polling once everything has settled.
 
 ## API access (important)
 

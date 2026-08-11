@@ -72,7 +72,8 @@ export class KnowledgeController {
 
   @Get('english/collected')
   @ApiOperation({
-    summary: 'English items collected from ordinary entries, grouped by entry',
+    summary:
+      'English cards collected from ordinary entries and tasks, grouped by source',
   })
   @ApiQuery({ name: 'limit', required: false })
   englishCollected(@Query('limit') limit?: string) {

@@ -1,8 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Not, Repository } from 'typeorm';
-import { AiService, ExtractedItem, LanguageReview } from '../ai/ai.service';
+import { In, Repository } from 'typeorm';
+import { AiService, LanguageReview } from '../ai/ai.service';
 import { EmbeddingService } from '../embedding/embedding.service';
+import { EnglishCoachService } from '../english/english-coach.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { UpdateKnowledgeDto } from './dto/update-knowledge.dto';
@@ -21,21 +22,14 @@ export interface JournalWithItems {
   items: Knowledge[];
 }
 
-/** An ordinary entry together with the English items collected while saving it. */
-export interface CollectedFromEntry {
-  source: Knowledge;
-  items: Knowledge[];
-}
-
 @Injectable()
 export class KnowledgeService {
-  private readonly logger = new Logger(KnowledgeService.name);
-
   constructor(
     @InjectRepository(Knowledge)
     private readonly repo: Repository<Knowledge>,
     private readonly ai: AiService,
     private readonly embedding: EmbeddingService,
+    private readonly english: EnglishCoachService,
     private readonly storage: StorageService,
   ) {}
 
@@ -79,7 +73,7 @@ export class KnowledgeService {
 
     const saved = await this.repo.save(entity);
     await this.embedToQdrant(saved);
-    await this.collectEnglishItems(review?.items ?? [], saved);
+    await this.english.collect(review?.items ?? [], saved.id);
     return saved;
   }
 
@@ -110,7 +104,7 @@ export class KnowledgeService {
     autoFormat?: boolean,
   ): Promise<LanguageReview | null> {
     if (autoFormat === false || type === KnowledgeType.ENGLISH) return null;
-    return this.ai.reviewEnglishUsage(title, content);
+    return this.english.review(title, content);
   }
 
   /** List, optionally filtered by type, tag and/or project. */
@@ -201,7 +195,7 @@ export class KnowledgeService {
 
     const saved = await this.repo.save(entry);
     await this.embedToQdrant(saved);
-    await this.collectEnglishItems(review?.items ?? [], saved);
+    await this.english.collect(review?.items ?? [], saved.id);
     return saved;
   }
 
@@ -211,12 +205,9 @@ export class KnowledgeService {
 
     // Deleting an entry also removes whatever the AI pulled out of it: a
     // journal's review items, or the English notes collected while translating.
-    const items = await this.repo.find({ where: { sourceId: id } });
+    const items = await this.english.removeCollected(id);
     for (const item of items) {
-      const itemId = item.id; // repo.remove() clears the id off the entity
       imageKeys.push(...(item.images ?? []).map((img) => img.key));
-      await this.repo.remove(item);
-      await this.embedding.remove(itemId);
     }
 
     await this.repo.remove(entry);
@@ -274,122 +265,19 @@ export class KnowledgeService {
 
     const items: Knowledge[] = [];
     for (const it of extraction.items) {
-      items.push(await this.saveEnglishItem(it, journal.id, projectId));
+      items.push(await this.english.saveItem(it, journal.id, projectId));
     }
 
     return { journal, items };
   }
 
-  /** Store one extracted item as a reviewable ENGLISH row, and index it. */
-  private async saveEnglishItem(
-    it: ExtractedItem,
-    sourceId: string,
-    projectId: string | null,
-  ): Promise<Knowledge> {
-    const item = await this.repo.save(
-      this.repo.create({
-        title: it.front.length > 80 ? `${it.front.slice(0, 77)}…` : it.front,
-        content: it.front,
-        type: KnowledgeType.ENGLISH,
-        englishKind: it.kind,
-        summary: it.meaning,
-        cefrLevel: it.cefrLevel,
-        hard: it.hard,
-        sourceId,
-        tags: [],
-        projectId,
-      }),
-    );
-    await this.embedToQdrant(item);
-    return item;
-  }
-
   /**
-   * File the English the AI collected from an ordinary entry as review cards
-   * linked back to that entry, so they surface in the English review queue.
-   * They stay unfiled (`projectId: null`) — study cards would otherwise clutter
-   * the project the entry belongs to.
-   *
-   * An item already collected for this same entry is skipped; one already
-   * collected elsewhere is re-flagged as hard instead of duplicated, since
-   * making the same mistake twice means more review, not two cards.
-   *
-   * Best-effort: the entry is already saved by this point, so a failure here is
-   * logged rather than turned into a failed save.
+   * The other half of the English journey: cards collected from ordinary
+   * writing — knowledge entries and planner tasks alike — newest first, grouped
+   * by what they came from. Owned by the coach service, which is what files them.
    */
-  private async collectEnglishItems(
-    items: ExtractedItem[],
-    source: Knowledge,
-  ): Promise<Knowledge[]> {
-    const created: Knowledge[] = [];
-    for (const it of items) {
-      try {
-        const existing = await this.repo.findOne({
-          where: {
-            type: KnowledgeType.ENGLISH,
-            englishKind: In(REVIEWABLE_KINDS),
-            content: it.front,
-          },
-        });
-        if (existing) {
-          if (existing.sourceId !== source.id && !existing.hard) {
-            existing.hard = true;
-            await this.repo.save(existing);
-          }
-          continue;
-        }
-        created.push(await this.saveEnglishItem(it, source.id, null));
-      } catch (e) {
-        this.logger.error(
-          `collectEnglishItems(): could not store "${it.front}" from entry ` +
-            `${source.id}: ${e.message}`,
-        );
-      }
-    }
-    return created;
-  }
-
-  /**
-   * The other half of the English journey: items collected from ordinary
-   * knowledge entries (not from journal entries), newest first, grouped by the
-   * entry they came from.
-   */
-  async englishCollected(limit = 20): Promise<CollectedFromEntry[]> {
-    const items = await this.repo.find({
-      where: {
-        type: KnowledgeType.ENGLISH,
-        englishKind: In(REVIEWABLE_KINDS),
-        sourceId: Not(IsNull()),
-      },
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
-    if (!items.length) return [];
-
-    const sources = await this.repo.find({
-      where: { id: In([...new Set(items.map((it) => it.sourceId!))]) },
-    });
-    // Journal-sourced items belong to the timeline, not here.
-    const bySourceId = new Map(
-      sources
-        .filter((s) => s.type !== KnowledgeType.ENGLISH)
-        .map((s) => [s.id, s]),
-    );
-
-    const groups: CollectedFromEntry[] = [];
-    const byId = new Map<string, CollectedFromEntry>();
-    for (const item of items) {
-      const source = bySourceId.get(item.sourceId!);
-      if (!source) continue;
-      let group = byId.get(source.id);
-      if (!group) {
-        group = { source, items: [] };
-        byId.set(source.id, group);
-        groups.push(group);
-      }
-      group.items.push(item);
-    }
-    return groups;
+  englishCollected(limit?: number) {
+    return this.english.collectedBySource(limit);
   }
 
   /** Diary timeline: JOURNAL entries newest-first, each with its review items. */

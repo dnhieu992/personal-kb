@@ -57,6 +57,11 @@ export class AiService {
     }
   }
 
+  /** False when ANTHROPIC_API_KEY is unset: every call below returns a fallback. */
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
   private firstText(message: Anthropic.Message): string {
     const block = message.content.find((b) => b.type === 'text');
     return block && block.type === 'text' ? block.text : '';

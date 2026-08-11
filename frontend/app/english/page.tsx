@@ -2,7 +2,7 @@ import Link from 'next/link';
 import {
   api,
   CEFR_LEVELS,
-  CollectedFromEntry,
+  CollectedFromSource,
   EnglishStats,
   JournalWithItems,
   Knowledge,
@@ -26,7 +26,7 @@ const LEVEL_COLORS: Record<string, string> = {
 export default async function EnglishPage() {
   let stats: EnglishStats | null = null;
   let timeline: JournalWithItems[] = [];
-  let collected: CollectedFromEntry[] = [];
+  let collected: CollectedFromSource[] = [];
   let error: string | null = null;
   try {
     [stats, timeline, collected] = await Promise.all([
@@ -130,21 +130,36 @@ export default async function EnglishPage() {
       {/* Collected while writing knowledge entries */}
       {collected.length > 0 && (
         <section>
-          <h2 className="mb-1 text-lg font-semibold">Thu thập từ entry</h2>
+          <h2 className="mb-1 text-lg font-semibold">Thu thập từ entry & task</h2>
           <p className="mb-3 text-sm text-slate-500">
-            Ngữ pháp và từ vựng AI nhặt ra khi dịch các entry của bạn sang tiếng
-            Anh — đã nằm sẵn trong hàng đợi ôn tập.
+            Ngữ pháp và từ vựng AI nhặt ra khi dịch các entry và task của bạn
+            sang tiếng Anh — đã nằm sẵn trong hàng đợi ôn tập.
           </p>
           <div className="space-y-4">
             {collected.map(({ source, items }) => (
               <article key={source.id} className="rounded-lg border bg-white p-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <Link
-                    href={`/knowledge/${source.id}/edit`}
-                    className="font-medium text-indigo-700 hover:underline"
-                  >
-                    {source.title}
-                  </Link>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                        source.kind === 'TASK'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {source.kind === 'TASK' ? 'Task' : 'Entry'}
+                    </span>
+                    <Link
+                      href={
+                        source.kind === 'TASK'
+                          ? '/plan'
+                          : `/knowledge/${source.id}/edit`
+                      }
+                      className="truncate font-medium text-indigo-700 hover:underline"
+                    >
+                      {source.title}
+                    </Link>
+                  </div>
                   <time className="shrink-0 text-xs text-slate-400">
                     {new Date(source.createdAt).toLocaleDateString('vi-VN')}
                   </time>

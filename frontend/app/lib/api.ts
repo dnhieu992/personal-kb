@@ -106,9 +106,17 @@ export interface JournalWithItems {
   items: Knowledge[];
 }
 
-/** English items collected while saving an ordinary entry, with that entry. */
-export interface CollectedFromEntry {
-  source: Knowledge;
+/** Where a batch of collected review cards came from. */
+export interface CollectedSource {
+  id: string;
+  title: string;
+  kind: 'ENTRY' | 'TASK';
+  createdAt: string;
+}
+
+/** English cards collected while saving an entry or a task, with their source. */
+export interface CollectedFromSource {
+  source: CollectedSource;
   items: Knowledge[];
 }
 
@@ -136,6 +144,128 @@ export interface Stats {
   today: number;
   popularTags: { tag: string; count: number }[];
   recent: Knowledge[];
+}
+
+// --- Planner ---------------------------------------------------------------
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type TaskCategory = 'COMPANY' | 'PERSONAL';
+
+/** How far the background English pass has got on a task. */
+export type CoachStatus = 'PENDING' | 'DONE' | 'SKIPPED' | 'FAILED';
+
+export const TASK_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
+export const TASK_PRIORITIES: TaskPriority[] = [
+  'URGENT',
+  'HIGH',
+  'MEDIUM',
+  'LOW',
+];
+export const TASK_CATEGORIES: TaskCategory[] = ['COMPANY', 'PERSONAL'];
+
+export const PRIORITY_COLORS: Record<TaskPriority, string> = {
+  URGENT: 'bg-red-100 text-red-700',
+  HIGH: 'bg-orange-100 text-orange-700',
+  MEDIUM: 'bg-slate-100 text-slate-600',
+  LOW: 'bg-slate-50 text-slate-400',
+};
+
+export const CATEGORY_COLORS: Record<TaskCategory, string> = {
+  COMPANY: 'bg-indigo-100 text-indigo-700',
+  PERSONAL: 'bg-emerald-100 text-emerald-700',
+};
+
+export const CATEGORY_LABELS: Record<TaskCategory, string> = {
+  COMPANY: 'Company',
+  PERSONAL: 'Personal',
+};
+
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+  TODO: 'To do',
+  IN_PROGRESS: 'In progress',
+  DONE: 'Done',
+};
+
+export interface Task {
+  id: string;
+  title: string;
+  /** What the author typed, when the AI corrected the title. */
+  originalTitle: string | null;
+  notes: string | null;
+  originalNotes: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  category: TaskCategory;
+  /** YYYY-MM-DD, or null for the unplanned backlog. */
+  planDate: string | null;
+  dueDate: string | null;
+  listId: string | null;
+  completedAt: string | null;
+  coachStatus: CoachStatus;
+  collectedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Body sent when creating or updating a task. */
+export interface TaskInput {
+  title?: string;
+  notes?: string | null;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  category?: TaskCategory;
+  planDate?: string | null;
+  dueDate?: string | null;
+  listId?: string | null;
+  /** false = keep the text exactly as typed, no AI correction and no cards. */
+  autoCoach?: boolean;
+}
+
+export interface TaskList {
+  id: string;
+  name: string;
+  description: string | null;
+  category: TaskCategory;
+  targetDate: string | null;
+  archived: boolean;
+  taskCount?: number;
+  doneCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DayPlan {
+  date: string;
+  tasks: Task[];
+  /** Unfinished tasks planned for an earlier day. */
+  carriedOver: Task[];
+  total: number;
+  done: number;
+}
+
+export interface TaskStats {
+  date: string;
+  todayTotal: number;
+  todayDone: number;
+  byCategory: Record<TaskCategory, { total: number; done: number }>;
+  backlog: number;
+  overdue: number;
+  inProgress: number;
+  weekly: { date: string; planned: number; done: number }[];
+}
+
+/** Local YYYY-MM-DD — never toISOString(), which is UTC and rolls over early. */
+export function isoDate(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** `date` shifted by n days, as YYYY-MM-DD. */
+export function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return isoDate(d);
 }
 
 export interface ChatResponse {
@@ -297,7 +427,7 @@ export const api = {
       request<JournalWithItems[]>('/knowledge/english/journal'),
 
     collected: (limit?: number) =>
-      request<CollectedFromEntry[]>(
+      request<CollectedFromSource[]>(
         `/knowledge/english/collected${limit ? `?limit=${limit}` : ''}`,
       ),
 
@@ -313,6 +443,88 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ remembered }),
       }),
+  },
+
+  tasks: {
+    /** A day's plan plus whatever was left unfinished before it. */
+    day: (date?: string) =>
+      request<DayPlan>(`/tasks/day${date ? `?date=${date}` : ''}`),
+
+    list: (params?: {
+      date?: string;
+      category?: TaskCategory;
+      status?: TaskStatus;
+      listId?: string;
+      unplanned?: boolean;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.date) q.set('date', params.date);
+      if (params?.category) q.set('category', params.category);
+      if (params?.status) q.set('status', params.status);
+      if (params?.listId) q.set('listId', params.listId);
+      if (params?.unplanned) q.set('unplanned', 'true');
+      const qs = q.toString();
+      return request<Task[]>(`/tasks${qs ? `?${qs}` : ''}`);
+    },
+
+    get: (id: string) => request<Task>(`/tasks/${id}`),
+
+    stats: (date?: string) =>
+      request<TaskStats>(`/tasks/stats${date ? `?date=${date}` : ''}`),
+
+    /** Returns immediately; the AI corrects the wording in the background. */
+    create: (body: TaskInput) =>
+      request<Task>('/tasks', { method: 'POST', body: JSON.stringify(body) }),
+
+    update: (id: string, body: TaskInput) =>
+      request<Task>(`/tasks/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+
+    setStatus: (id: string, status: TaskStatus) =>
+      request<Task>(`/tasks/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
+
+    reschedule: (id: string, planDate: string | null) =>
+      request<Task>(`/tasks/${id}/schedule`, {
+        method: 'PATCH',
+        body: JSON.stringify({ planDate }),
+      }),
+
+    /** The English review cards this task produced. */
+    collected: (id: string) => request<Knowledge[]>(`/tasks/${id}/collected`),
+
+    remove: (id: string) =>
+      request<{ deleted: boolean }>(`/tasks/${id}`, { method: 'DELETE' }),
+  },
+
+  taskLists: {
+    list: (includeArchived?: boolean) =>
+      request<TaskList[]>(
+        `/task-lists${includeArchived ? '?includeArchived=true' : ''}`,
+      ),
+
+    get: (id: string) => request<TaskList>(`/task-lists/${id}`),
+
+    tasks: (id: string) => request<Task[]>(`/task-lists/${id}/tasks`),
+
+    create: (body: Partial<TaskList> & { name: string }) =>
+      request<TaskList>('/task-lists', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (id: string, body: Partial<TaskList>) =>
+      request<TaskList>(`/task-lists/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+
+    remove: (id: string) =>
+      request<{ deleted: boolean }>(`/task-lists/${id}`, { method: 'DELETE' }),
   },
 };
 

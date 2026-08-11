@@ -17,9 +17,9 @@ Browser ──/api-proxy/*──▶ Next.js (web :4000) ──proxy──▶ Nes
 - **Frontend** (`frontend/`): Next.js 14 App Router, TypeScript, Tailwind. Talks to the
   API through a same-origin proxy so there are no CORS issues and only the web port
   needs to be public. See `frontend/CLAUDE.md`.
-- **Backend** (`backend/`): NestJS + TypeORM. Three feature modules — `knowledge` (CRUD),
-  `embedding` (local vectors + Qdrant), `ai` (Claude enrichment + RAG chat). See
-  `backend/CLAUDE.md`.
+- **Backend** (`backend/`): NestJS + TypeORM. Feature modules — `knowledge` (CRUD),
+  `task` (daily plan + long-term todo lists), `english` (shared coaching), `embedding`
+  (local vectors + Qdrant), `ai` (Claude enrichment + RAG chat). See `backend/CLAUDE.md`.
 - **Embeddings are local**, not from Claude. The Claude API has no embeddings endpoint, so
   vectors come from `@xenova/transformers` (`all-MiniLM-L6-v2`, 384-dim) running on-device.
   Claude is used only for tag/summary/snippet extraction and RAG answer synthesis
@@ -71,6 +71,10 @@ docker compose up -d
 - **Entries double as English practice.** The same save collects the grammar the author
   got wrong and the words they didn't know into ENGLISH review items (`sourceId` = the
   entry), so they show up in `/english/review`. Deleting the entry deletes them.
+- **Tasks get the same treatment.** `/plan` is a daily planner (status, priority,
+  COMPANY/PERSONAL, backlog, carry-over) with long-term lists at `/plan/lists`. Titles and
+  notes are corrected into English and mined for review cards exactly like entries — but
+  **in the background**, so adding a task is instant. Send `autoCoach: false` to skip it.
 - **TypeScript everywhere.** Match existing style; no new lint config.
 - **Secrets stay out of git.** `backend/.env` and `frontend/.env.local` are gitignored;
   only `*.env.example` is committed. Never print or commit real keys.

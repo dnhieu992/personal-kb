@@ -9,7 +9,9 @@ NestJS + TypeORM API for the knowledge base. Entry point `src/main.ts`, root mod
 |--------|------|----------------|
 | `knowledge` | `src/knowledge/` | CRUD over the `Knowledge` entity (MySQL). Controller → service → TypeORM repo. On create/update it calls `ai` to enrich and `embedding` to (re)index. |
 | `embedding` | `src/embedding/` | Generates 384-dim vectors locally with `@xenova/transformers` and upserts/searches/deletes them in Qdrant (collection `knowledge`). No external API. |
-| `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks). |
+| `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks; ask `isEnabled()`). |
+| `english` | `src/english/` | Shared English coaching (`EnglishCoachService`): asks the AI what to revise, files the answer as review cards linked to a `sourceId`, dedupes them, and deletes them with their source. No controller — `knowledge` and `task` both use it, which is what keeps the review queue identical for entries and tasks. |
+| `task` | `src/task/` | The planner: `Task` (day plan, status, priority, COMPANY/PERSONAL, backlog) and `TaskList` (long-term todo lists). Saves are instant; the English pass runs in the background. |
 
 ## Conventions
 
@@ -34,8 +36,16 @@ npm run build       # → dist/
   translates the body to English; `reviewEnglishUsage` mines the raw text for grammar and
   vocabulary to revise), then a third for `enrich`. Budget ~6–8s per save.
 - Items collected by `reviewEnglishUsage` are stored as ENGLISH rows with `sourceId` set to
-  the entry, `projectId: null`. They are deduped by `content`: a repeat from another entry
-  flips the existing card's `hard` flag instead of creating a second card.
+  the entry **or task** they came from, `projectId: null`. They are deduped by `content`: a
+  repeat from another source flips the existing card's `hard` flag instead of creating a
+  second card. All of this lives in `EnglishCoachService` — don't re-implement it per feature.
+- Tasks are coached **in the background**: `POST /tasks` returns before the AI has run, with
+  `coachStatus: PENDING`. `originalTitle`/`originalNotes` are stamped with the text as typed
+  up front, and the pass bails if they no longer match (the row was edited or deleted meanwhile).
+  Clients poll `coachStatus` until it leaves `PENDING`.
+- Both task entities reference each other, so their enums live in `entities/task-enums.ts`.
+  A `@Column({ enum })` reading an enum across that import cycle resolves to `undefined` at
+  runtime and crashes on boot.
 - `synchronize: true` auto-creates/updates the MySQL schema from entities in dev.
 - Editing the `KnowledgeType` enum here? Mirror it in `frontend/app/lib/api.ts`.
 - Embedding model lazy-loads on first use and caches to `.cache/` (gitignored).

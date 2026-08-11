@@ -3,9 +3,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiModule } from './ai/ai.module';
 import { EmbeddingModule } from './embedding/embedding.module';
+import { EnglishModule } from './english/english.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { ProjectModule } from './project/project.module';
 import { StorageModule } from './storage/storage.module';
+import { TaskModule } from './task/task.module';
 
 @Module({
   imports: [
@@ -23,8 +25,10 @@ import { StorageModule } from './storage/storage.module';
     StorageModule,
     EmbeddingModule,
     AiModule,
+    EnglishModule,
     KnowledgeModule,
     ProjectModule,
+    TaskModule,
   ],
 })
 export class AppModule {}
