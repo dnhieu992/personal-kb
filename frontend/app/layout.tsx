@@ -13,6 +13,7 @@ const navItems = [
   { href: '/projects', label: 'Projects' },
   { href: '/knowledge', label: 'Knowledge' },
   { href: '/english', label: 'English' },
+  { href: '/phrases', label: 'Phrases' },
   { href: '/chat', label: 'AI Chat' },
 ];
 

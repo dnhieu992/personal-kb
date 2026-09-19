@@ -273,6 +273,26 @@ export interface ChatResponse {
   sources: { id: string; title: string; score: number }[];
 }
 
+// --- Phrases (daily Telegram rotation) -------------------------------------
+
+export interface Phrase {
+  id: string;
+  phrase: string;
+  meaning: string;
+  example: string | null;
+  /** How many times it has been sent to Telegram. */
+  sentCount: number;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PhraseInput {
+  phrase: string;
+  meaning: string;
+  example?: string | null;
+}
+
 async function requestOnce<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -525,6 +545,31 @@ export const api = {
 
     remove: (id: string) =>
       request<{ deleted: boolean }>(`/task-lists/${id}`, { method: 'DELETE' }),
+  },
+
+  phrases: {
+    list: () => request<Phrase[]>('/phrases'),
+
+    create: (body: PhraseInput) =>
+      request<Phrase>('/phrases', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (id: string, body: PhraseInput) =>
+      request<Phrase>(`/phrases/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+
+    remove: (id: string) =>
+      request<{ deleted: boolean }>(`/phrases/${id}`, { method: 'DELETE' }),
+
+    /** Send today's batch immediately (same as the daily cron). */
+    sendNow: () =>
+      request<{ sent: number; phrases: Phrase[] }>('/phrases/send-now', {
+        method: 'POST',
+      }),
   },
 };
 
