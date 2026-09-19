@@ -18,6 +18,7 @@ export class PhraseService {
         phrase: dto.phrase.trim().slice(0, 255),
         meaning: dto.meaning.trim(),
         example: dto.example?.trim() || null,
+        active: dto.active ?? true,
       }),
     );
   }
@@ -39,6 +40,7 @@ export class PhraseService {
       phrase: dto.phrase?.trim().slice(0, 255) || phrase.phrase,
       meaning: dto.meaning?.trim() || phrase.meaning,
       example: dto.example === undefined ? phrase.example : dto.example?.trim() || null,
+      active: dto.active === undefined ? phrase.active : dto.active,
     });
     return this.repo.save(phrase);
   }
@@ -57,6 +59,7 @@ export class PhraseService {
    */
   nextBatch(count: number): Promise<Phrase[]> {
     return this.repo.find({
+      where: { active: true },
       order: { sentCount: 'ASC', createdAt: 'ASC' },
       take: count,
     });

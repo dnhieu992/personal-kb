@@ -31,6 +31,13 @@ export class Phrase {
   example: string | null;
 
   @ApiProperty({
+    description: 'Whether this phrase is still sent by the daily cron',
+    example: true,
+  })
+  @Column({ type: 'boolean', default: true })
+  active: boolean;
+
+  @ApiProperty({
     description: 'How many times this phrase has been sent to Telegram',
     example: 0,
   })

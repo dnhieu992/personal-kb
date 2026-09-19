@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
 
 export class CreatePhraseDto {
   @ApiProperty({ example: 'break the ice' })
@@ -16,4 +22,12 @@ export class CreatePhraseDto {
   @ValidateIf((o) => o.example !== null)
   @IsString()
   example?: string | null;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: 'false = stop sending this phrase in the daily Telegram batch',
+  })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
 }

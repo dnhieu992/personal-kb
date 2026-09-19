@@ -81,6 +81,20 @@ export default function PhrasesPage() {
     }
   }
 
+  async function onToggleActive(p: Phrase) {
+    setError(null);
+    // Optimistic flip so the toggle feels instant.
+    setPhrases((list) =>
+      list.map((x) => (x.id === p.id ? { ...x, active: !x.active } : x)),
+    );
+    try {
+      await api.phrases.setActive(p.id, !p.active);
+    } catch (e) {
+      setError((e as Error).message);
+      await load(); // revert to server truth on failure
+    }
+  }
+
   async function onSendNow() {
     setSending(true);
     setNotice(null);
@@ -110,8 +124,15 @@ export default function PhrasesPage() {
           <h1 className="text-2xl font-bold">Phrases</h1>
           <p className="mt-1 text-sm text-slate-500">
             Cụm từ tiếng Anh — mỗi ngày 08:00 (giờ VN) gửi 3 cụm vào Telegram,
-            xoay vòng theo số lần đã gửi.
+            xoay vòng theo số lần đã gửi. Tắt công tắc “Gửi TG” để ngừng gửi một
+            cụm.
           </p>
+          {!loading && phrases.length > 0 && (
+            <p className="mt-1 text-xs text-slate-400">
+              {phrases.filter((p) => p.active).length}/{phrases.length} cụm đang
+              gửi
+            </p>
+          )}
         </div>
         <button
           onClick={onSendNow}
@@ -207,20 +228,47 @@ export default function PhrasesPage() {
                 <th className="px-3 py-2">Cụm từ</th>
                 <th className="px-3 py-2">Nghĩa</th>
                 <th className="px-3 py-2">Ví dụ</th>
+                <th className="w-24 px-3 py-2 text-center">Gửi TG</th>
                 <th className="w-20 px-3 py-2 text-center">Đã gửi</th>
                 <th className="w-28 px-3 py-2 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {phrases.map((p, i) => (
-                <tr key={p.id} className="border-b last:border-0 hover:bg-slate-50">
+                <tr
+                  key={p.id}
+                  className={`border-b last:border-0 hover:bg-slate-50 ${
+                    p.active ? '' : 'bg-slate-50/60 text-slate-400'
+                  }`}
+                >
                   <td className="px-3 py-2 text-slate-400">{i + 1}</td>
-                  <td className="px-3 py-2 font-medium text-slate-800">
+                  <td
+                    className={`px-3 py-2 font-medium ${
+                      p.active ? 'text-slate-800' : 'text-slate-400 line-through'
+                    }`}
+                  >
                     {p.phrase}
                   </td>
-                  <td className="px-3 py-2 text-slate-600">{p.meaning}</td>
-                  <td className="px-3 py-2 italic text-slate-500">
+                  <td className={`px-3 py-2 ${p.active ? 'text-slate-600' : 'text-slate-400'}`}>
+                    {p.meaning}
+                  </td>
+                  <td className={`px-3 py-2 italic ${p.active ? 'text-slate-500' : 'text-slate-400'}`}>
                     {p.example || '—'}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <button
+                      onClick={() => onToggleActive(p)}
+                      title={p.active ? 'Đang gửi — bấm để tắt' : 'Đã tắt — bấm để bật lại'}
+                      className={`inline-flex h-6 w-11 items-center rounded-full px-0.5 transition-colors ${
+                        p.active ? 'bg-emerald-500' : 'bg-slate-300'
+                      }`}
+                    >
+                      <span
+                        className={`h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                          p.active ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </td>
                   <td className="px-3 py-2 text-center">
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">

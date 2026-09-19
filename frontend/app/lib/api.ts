@@ -280,6 +280,8 @@ export interface Phrase {
   phrase: string;
   meaning: string;
   example: string | null;
+  /** false = no longer sent by the daily Telegram cron. */
+  active: boolean;
   /** How many times it has been sent to Telegram. */
   sentCount: number;
   lastSentAt: string | null;
@@ -291,6 +293,7 @@ export interface PhraseInput {
   phrase: string;
   meaning: string;
   example?: string | null;
+  active?: boolean;
 }
 
 async function requestOnce<T>(path: string, init?: RequestInit): Promise<T> {
@@ -560,6 +563,13 @@ export const api = {
       request<Phrase>(`/phrases/${id}`, {
         method: 'PUT',
         body: JSON.stringify(body),
+      }),
+
+    /** Toggle whether the daily cron still sends this phrase. */
+    setActive: (id: string, active: boolean) =>
+      request<Phrase>(`/phrases/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ active }),
       }),
 
     remove: (id: string) =>
