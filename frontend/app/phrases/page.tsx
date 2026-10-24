@@ -123,7 +123,7 @@ export default function PhrasesPage() {
         <div>
           <h1 className="text-2xl font-bold">Phrases</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Cụm từ tiếng Anh — mỗi ngày 08:00 (giờ VN) gửi 3 cụm vào Telegram,
+            Cụm từ tiếng Anh — mỗi 8 giờ (00:00, 08:00, 16:00 giờ VN) gửi 5 cụm vào Telegram,
             xoay vòng theo số lần đã gửi. Tắt công tắc “Gửi TG” để ngừng gửi một
             cụm.
           </p>

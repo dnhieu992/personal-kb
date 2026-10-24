@@ -4,8 +4,8 @@ import { TelegramService } from '../telegram/telegram.service';
 import { Phrase } from './entities/phrase.entity';
 import { PhraseService } from './phrase.service';
 
-/** How many phrases go out each day. */
-const DAILY_COUNT = 3;
+/** How many phrases go out in each send (every 8 hours). */
+const BATCH_COUNT = 5;
 
 function escapeHtml(s: string): string {
   return s
@@ -23,8 +23,8 @@ export class PhraseCronService {
     private readonly telegram: TelegramService,
   ) {}
 
-  // 08:00 every day, Vietnam time (UTC+7).
-  @Cron('0 8 * * *', {
+  // Every 8 hours — 00:00, 08:00 and 16:00 Vietnam time (UTC+7).
+  @Cron('0 0,8,16 * * *', {
     name: 'daily-phrases',
     timeZone: 'Asia/Ho_Chi_Minh',
   })
@@ -43,7 +43,7 @@ export class PhraseCronService {
       return [];
     }
 
-    const batch = await this.phrases.nextBatch(DAILY_COUNT);
+    const batch = await this.phrases.nextBatch(BATCH_COUNT);
     if (batch.length === 0) {
       this.logger.log('No phrases in the database — nothing to send');
       return [];
@@ -56,7 +56,7 @@ export class PhraseCronService {
   }
 
   private format(batch: Phrase[]): string {
-    const header = `📚 <b>Cụm từ tiếng Anh hôm nay</b> (${batch.length})`;
+    const header = `📚 <b>Cụm từ tiếng Anh</b> (${batch.length})`;
     const blocks = batch.map((p, i) => {
       const lines = [
         `${i + 1}. <b>${escapeHtml(p.phrase)}</b>`,
