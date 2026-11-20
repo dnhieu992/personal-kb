@@ -11,6 +11,7 @@ app/
 ├── layout.tsx, globals.css   # shell + Tailwind
 ├── knowledge/                # list, new, [id]/edit pages
 ├── plan/                     # daily planner + plan/lists (long-term todo lists)
+├── planner/                  # web port of the Planner Mac app (full-width client app)
 ├── english/                  # journey dashboard, journal, review queue
 ├── chat/page.tsx             # RAG chat UI
 ├── components/               # shared UI (KnowledgeForm, TaskRow, TaskQuickAdd)
@@ -20,6 +21,12 @@ app/
 The planner pages poll `api.tasks.day()` while any task still has
 `coachStatus === 'PENDING'` — tasks are saved before the AI finishes correcting their
 English — and stop polling once everything has settled.
+
+`/planner` is one client page (`planner/page.tsx`) with its own context (`planner/state.tsx`):
+every mutation goes through `run()`, which bumps `rev` so all views re-fetch; it polls
+`meta.englishPending` while background English fixes are running. Types/date helpers are in
+`lib/planner.ts`, HTTP calls in `api.planner`. `components/MainContainer.tsx` drops the
+`max-w-5xl` column for `/planner`.
 
 ## API access (important)
 

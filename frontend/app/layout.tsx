@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import MainContainer from './components/MainContainer';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 const navItems = [
   { href: '/', label: 'Dashboard' },
   { href: '/plan', label: 'Plan' },
+  { href: '/planner', label: 'Planner' },
   { href: '/projects', label: 'Projects' },
   { href: '/knowledge', label: 'Knowledge' },
   { href: '/english', label: 'English' },
@@ -50,7 +52,7 @@ export default function RootLayout({
               </nav>
             </div>
           </header>
-          <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+          <MainContainer>{children}</MainContainer>
         </div>
       </body>
     </html>

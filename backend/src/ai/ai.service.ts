@@ -269,6 +269,52 @@ export class AiService {
     }
   }
 
+  /**
+   * Planner auto-correct: fix the English of a short planner text (task title,
+   * checklist item, goal, note) and translate any Vietnamese into English,
+   * keeping it casual and short. `why` is a short Vietnamese explanation (empty
+   * when nothing changed). Returns the text unchanged when AI is off or fails.
+   */
+  async correctEnglish(text: string): Promise<{ text: string; why: string }> {
+    if (!this.enabled || !text.trim()) return { text, why: '' };
+    try {
+      const response = await this.client.messages.create({
+        model: MODEL,
+        max_tokens: Math.min(8000, 600 + text.length * 2),
+        system:
+          'You are an English corrector inside a personal planner app. The user is ' +
+          'Vietnamese and writes English that may have grammar, spelling or ' +
+          'word-choice mistakes.\n\nFix the text the user sends:\n' +
+          '- Correct grammar, spelling, verb forms, articles, prepositions and wrong ' +
+          'word choices.\n' +
+          '- Keep it casual, everyday English — like a native speaker jotting a ' +
+          'to-do or a note. Do not make it formal or longer. Keep the meaning, tone ' +
+          'and level of detail.\n' +
+          '- Keep short to-do style ("Fix login bug", "Call mom") — do not turn it ' +
+          'into a full sentence.\n' +
+          '- Never change: #tags, @times, !!! marks, URLs, code, file names, ' +
+          'product/proper names, numbers, line breaks, Markdown markers ("- ", ' +
+          '"* ", "#", "**").\n' +
+          '- The user wants everything in English. Whenever Vietnamese appears — a ' +
+          'few words or the whole text — translate it into natural English. Keep ' +
+          'technical terms, names and code as they are.\n' +
+          '- If the text is already fine English, return it unchanged.\n\n' +
+          'Reply with ONLY a JSON object, no markdown:\n' +
+          '{"text": "<corrected text>", "why": "<very short explanation in ' +
+          'Vietnamese of the main fixes, empty string if unchanged>"}',
+        messages: [{ role: 'user', content: text }],
+      });
+      const parsed = this.parseJson<{ text?: string; why?: string }>(
+        this.firstText(response),
+      );
+      const fixed = typeof parsed.text === 'string' ? parsed.text : text;
+      return { text: fixed.trim() ? fixed : text, why: parsed.why ?? '' };
+    } catch (e) {
+      this.logger.error(`correctEnglish() failed: ${e.message}`);
+      return { text, why: '' };
+    }
+  }
+
   /** Suggest tags only (used by the frontend when content is pasted). */
   async suggestTags(content: string): Promise<string[]> {
     if (!this.enabled || !content.trim()) return [];

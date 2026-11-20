@@ -1,3 +1,23 @@
+import type {
+  Area,
+  BoardResponse,
+  GoalPeriod,
+  PAttachment,
+  PCategory,
+  PChecklistItem,
+  PCorrection,
+  PGoal,
+  PGoalDetail,
+  PlannerMeta,
+  PNote,
+  PTask,
+  PTaskDetail,
+  RecurrenceKind,
+  StatsResponse,
+  TaskListResponse,
+  TaskView,
+} from './planner';
+
 // In the browser we hit the same-origin proxy (/api-proxy → backend), so it
 // works from any host/IP without CORS. On the server (RSC data fetching) we go
 // straight to the backend on localhost.
@@ -579,6 +599,98 @@ export const api = {
     sendNow: () =>
       request<{ sent: number; phrases: Phrase[] }>('/phrases/send-now', {
         method: 'POST',
+      }),
+  },
+
+  /** Planner — web port of the Mac app (backend module `planner`). */
+  planner: {
+    meta: () => request<PlannerMeta>('/planner/meta'),
+
+    addCategory: (body: { name: string; color: string; area: Area }) =>
+      request<PCategory>('/planner/categories', { method: 'POST', body: JSON.stringify(body) }),
+    updateCategory: (id: number, body: Partial<Pick<PCategory, 'name' | 'color' | 'area'>>) =>
+      request<PCategory>(`/planner/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteCategory: (id: number) =>
+      request<{ ok: boolean }>(`/planner/categories/${id}`, { method: 'DELETE' }),
+
+    tasks: (p: { view: TaskView; area?: Area; categoryId?: number; goalId?: number; q?: string; anchor?: string }) => {
+      const q = new URLSearchParams({ view: p.view });
+      if (p.area) q.set('area', p.area);
+      if (p.categoryId) q.set('categoryId', String(p.categoryId));
+      if (p.goalId) q.set('goalId', String(p.goalId));
+      if (p.q) q.set('q', p.q);
+      if (p.anchor) q.set('anchor', p.anchor);
+      return request<TaskListResponse>(`/planner/tasks?${q}`);
+    },
+    board: (area: Area) => request<BoardResponse>(`/planner/board?area=${area}`),
+    task: (id: number) => request<PTaskDetail>(`/planner/tasks/${id}`),
+    addTask: (body: {
+      title: string;
+      date: string | null;
+      area: Area;
+      categoryId?: number | null;
+      goalId?: number | null;
+      inProgress?: boolean;
+    }) => request<PTask>('/planner/tasks', { method: 'POST', body: JSON.stringify(body) }),
+    updateTask: (id: number, body: Record<string, unknown>) =>
+      request<PTaskDetail>(`/planner/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    moveTask: (id: number, column: 'backlog' | 'doing' | 'done') =>
+      request<{ ok: boolean }>(`/planner/tasks/${id}/move`, { method: 'POST', body: JSON.stringify({ column }) }),
+    setRecurrence: (id: number, body: { kind: RecurrenceKind | null; weekdays?: number; monthDay?: number }) =>
+      request<PTaskDetail>(`/planner/tasks/${id}/recurrence`, { method: 'PUT', body: JSON.stringify(body) }),
+    moveOverdue: (area?: Area) =>
+      request<{ moved: number }>(`/planner/tasks/move-overdue${area ? `?area=${area}` : ''}`, { method: 'POST' }),
+    deleteTask: (id: number) => request<{ ok: boolean }>(`/planner/tasks/${id}`, { method: 'DELETE' }),
+
+    addChecklist: (taskId: number, title: string) =>
+      request<PChecklistItem>(`/planner/tasks/${taskId}/checklist`, { method: 'POST', body: JSON.stringify({ title }) }),
+    updateChecklist: (id: number, body: { title?: string; done?: boolean }) =>
+      request<PChecklistItem>(`/planner/checklist/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteChecklist: (id: number) => request<{ ok: boolean }>(`/planner/checklist/${id}`, { method: 'DELETE' }),
+
+    addAttachment: (taskId: number, body: { kind: 'link' | 'file'; value: string; title?: string }) =>
+      request<PAttachment>(`/planner/tasks/${taskId}/attachments`, { method: 'POST', body: JSON.stringify(body) }),
+    deleteAttachment: (id: number) => request<{ ok: boolean }>(`/planner/attachments/${id}`, { method: 'DELETE' }),
+
+    goals: (area?: Area, open = false) =>
+      request<PGoal[]>(`/planner/goals?${new URLSearchParams({ ...(area ? { area } : {}), ...(open ? { open: 'true' } : {}) })}`),
+    goal: (id: number) => request<PGoalDetail>(`/planner/goals/${id}`),
+    addGoal: (body: { title: string; area: Area; categoryId?: number | null; period: GoalPeriod; periodStart: string }) =>
+      request<PGoal>('/planner/goals', { method: 'POST', body: JSON.stringify(body) }),
+    updateGoal: (id: number, body: Record<string, unknown>) =>
+      request<PGoalDetail>(`/planner/goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteGoal: (id: number) => request<{ ok: boolean }>(`/planner/goals/${id}`, { method: 'DELETE' }),
+
+    notes: (area: Area | undefined, filter: 'all' | 'ideas' | 'daily', q?: string) => {
+      const p = new URLSearchParams({ filter });
+      if (area) p.set('area', area);
+      if (q) p.set('q', q);
+      return request<PNote[]>(`/planner/notes?${p}`);
+    },
+    note: (id: number) => request<PNote>(`/planner/notes/${id}`),
+    addNote: (body: { area: Area; title?: string; body?: string; categoryId?: number | null }) =>
+      request<PNote>('/planner/notes', { method: 'POST', body: JSON.stringify(body) }),
+    updateNote: (id: number, body: Record<string, unknown>) =>
+      request<PNote>(`/planner/notes/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteNote: (id: number) => request<{ ok: boolean }>(`/planner/notes/${id}`, { method: 'DELETE' }),
+    noteToTask: (id: number) => request<PTask>(`/planner/notes/${id}/to-task`, { method: 'POST' }),
+    dayNote: (day: string, area: Area) =>
+      request<Partial<PNote>>(`/planner/day-note?day=${day}&area=${area}`),
+    saveDayNote: (day: string, area: Area, body: string) =>
+      request<Partial<PNote>>('/planner/day-note', { method: 'PUT', body: JSON.stringify({ day, area, body }) }),
+
+    stats: (period: GoalPeriod, anchor: string, area?: Area) =>
+      request<StatsResponse>(`/planner/stats?period=${period}&anchor=${anchor}${area ? `&area=${area}` : ''}`),
+
+    corrections: () => request<PCorrection[]>('/planner/corrections'),
+    revertCorrection: (id: number) =>
+      request<{ ok: boolean; reason?: string }>(`/planner/corrections/${id}/revert`, { method: 'POST' }),
+    deleteCorrection: (id: number) => request<{ ok: boolean }>(`/planner/corrections/${id}`, { method: 'DELETE' }),
+    clearCorrections: () => request<{ ok: boolean }>('/planner/corrections', { method: 'DELETE' }),
+    checkEnglish: (text: string, noteId?: number) =>
+      request<{ text: string; why: string; changed: boolean; enabled: boolean }>('/planner/english/check', {
+        method: 'POST',
+        body: JSON.stringify({ text, noteId }),
       }),
   },
 };

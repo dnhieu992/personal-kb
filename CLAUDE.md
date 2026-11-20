@@ -18,7 +18,8 @@ Browser ──/api-proxy/*──▶ Next.js (web :4000) ──proxy──▶ Nes
   API through a same-origin proxy so there are no CORS issues and only the web port
   needs to be public. See `frontend/CLAUDE.md`.
 - **Backend** (`backend/`): NestJS + TypeORM. Feature modules — `knowledge` (CRUD),
-  `task` (daily plan + long-term todo lists), `english` (shared coaching), `embedding`
+  `task` (daily plan + long-term todo lists), `planner` (web port of the Planner Mac app,
+  `/planner`), `english` (shared coaching), `embedding`
   (local vectors + Qdrant), `ai` (Claude enrichment + RAG chat). See `backend/CLAUDE.md`.
 - **Embeddings are local**, not from Claude. The Claude API has no embeddings endpoint, so
   vectors come from `@xenova/transformers` (`all-MiniLM-L6-v2`, 384-dim) running on-device.

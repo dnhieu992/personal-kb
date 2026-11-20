@@ -12,6 +12,7 @@ NestJS + TypeORM API for the knowledge base. Entry point `src/main.ts`, root mod
 | `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks; ask `isEnabled()`). |
 | `english` | `src/english/` | Shared English coaching (`EnglishCoachService`): asks the AI what to revise, files the answer as review cards linked to a `sourceId`, dedupes them, and deletes them with their source. No controller — `knowledge` and `task` both use it, which is what keeps the review queue identical for entries and tasks. |
 | `task` | `src/task/` | The planner: `Task` (day plan, status, priority, COMPANY/PERSONAL, backlog) and `TaskList` (long-term todo lists). Saves are instant; the English pass runs in the background. |
+| `planner` | `src/planner/` | Web port of the "Planner" Mac app (`/planner/*`, tables `planner_*`, independent of `task`): Work/Personal areas, categories, todo tasks (backlog/today/week/month, Kanban), checklist, links, recurrence, goals, notes + day notes, stats, English auto-correct log. Reminders go to Telegram (cron every minute). |
 
 ## Conventions
 
@@ -48,4 +49,10 @@ npm run build       # → dist/
   runtime and crashes on boot.
 - `synchronize: true` auto-creates/updates the MySQL schema from entities in dev.
 - Editing the `KnowledgeType` enum here? Mirror it in `frontend/app/lib/api.ts`.
+- **Planner** (`src/planner/`): ids are ints, day keys are `YYYY-MM-DD` varchar, "today" is
+  computed in `PLANNER_TZ` (default `Asia/Ho_Chi_Minh`). No TypeORM relations — the service
+  does cascades itself. Recurring tasks are materialized lazily per day (`ensureRecurring`,
+  unique `(recurrenceId, date)` + INSERT IGNORE); a deleted occurrence stays as a `hidden`
+  row so it isn't regenerated. Title/checklist/goal/note-title fixes run in the background
+  via `AiService.correctEnglish` and are logged in `planner_correction` (revertable).
 - Embedding model lazy-loads on first use and caches to `.cache/` (gitignored).

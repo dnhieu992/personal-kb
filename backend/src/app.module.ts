@@ -7,6 +7,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
 import { EnglishModule } from './english/english.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { PhraseModule } from './phrase/phrase.module';
+import { PlannerModule } from './planner/planner.module';
 import { ProjectModule } from './project/project.module';
 import { StorageModule } from './storage/storage.module';
 import { TaskModule } from './task/task.module';
@@ -35,6 +36,7 @@ import { TelegramModule } from './telegram/telegram.module';
     TaskModule,
     TelegramModule,
     PhraseModule,
+    PlannerModule,
   ],
 })
 export class AppModule {}
