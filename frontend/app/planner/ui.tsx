@@ -57,7 +57,7 @@ export function CheckBox({
 
 export function ProgressBar({ value, color, height = 6 }: { value: number; color: string; height?: number }) {
   return (
-    <div className="w-full overflow-hidden rounded-full bg-slate-200" style={{ height }}>
+    <div className="w-full overflow-hidden rounded-full bg-emphasis" style={{ height }}>
       <div
         className="h-full rounded-full transition-all"
         style={{ width: `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`, background: color }}
@@ -86,7 +86,7 @@ export function AreaBadge({ area, className }: { area: Area; className?: string 
 
 export function EmptyState({ icon, text, children }: { icon: string; text: string; children?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-14 text-slate-400">
+    <div className="flex flex-col items-center justify-center gap-2 py-14 text-fg-subtle">
       <div className="text-3xl">{icon}</div>
       <div className="text-sm">{text}</div>
       {children}
@@ -106,7 +106,7 @@ export function Segmented<T extends string | number | boolean>({
   className?: string;
 }) {
   return (
-    <div className={cx('inline-flex rounded-lg bg-slate-200/70 p-0.5 text-sm', className)}>
+    <div className={cx('inline-flex rounded-lg bg-emphasis/70 p-0.5 text-sm', className)}>
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -114,7 +114,7 @@ export function Segmented<T extends string | number | boolean>({
           onClick={() => onChange(o.value)}
           className={cx(
             'whitespace-nowrap rounded-md px-2.5 py-1 font-medium transition',
-            o.value === value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900',
+            o.value === value ? 'bg-surface text-fg shadow-sm' : 'text-fg-secondary hover:text-fg',
           )}
         >
           {o.label}
@@ -151,7 +151,7 @@ export function CategoryPicker({
   const { categoriesIn, editCategory } = usePlanner();
   return (
     <select
-      className={cx('rounded-md border border-slate-300 bg-white px-2 py-1 text-sm', className)}
+      className={cx('input input-sm', className)}
       value={value ?? 0}
       onChange={(e) => {
         const v = Number(e.target.value);
@@ -177,9 +177,9 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/30 p-4 pt-24" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-24" onMouseDown={onClose}>
       <div
-        className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-surface p-5 shadow-xl"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={title}
@@ -224,14 +224,14 @@ export function CategoryEditor() {
       <div className="space-y-4">
         <input
           autoFocus
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full input"
           placeholder={area === 'WORK' ? 'Name (e.g. Backend, Meetings, Client A)' : 'Name (e.g. Trading, Health, Reading)'}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()}
         />
         <div className="flex items-center gap-3 text-sm">
-          <span className="text-slate-500">Area</span>
+          <span className="text-fg-muted">Area</span>
           <AreaPicker value={area} onChange={setArea} />
         </div>
         <div className="flex flex-wrap gap-2">
@@ -247,11 +247,11 @@ export function CategoryEditor() {
           ))}
         </div>
         <div className="flex justify-end gap-2">
-          <button className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100" onClick={closeCategoryEditor}>
+          <button className="rounded-md px-3 py-1.5 text-sm text-fg-secondary hover:bg-muted" onClick={closeCategoryEditor}>
             Cancel
           </button>
           <button
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
+            className="btn btn-primary btn-sm disabled:opacity-40"
             disabled={!name.trim()}
             onClick={save}
           >
@@ -288,7 +288,7 @@ export function EditableTitle({
   if (!editing) {
     return (
       <span
-        className={cx('cursor-text', !value && 'text-slate-400', className)}
+        className={cx('cursor-text', !value && 'text-fg-subtle', className)}
         onClick={(e) => {
           if (doubleClick) return;
           e.stopPropagation();
@@ -311,7 +311,7 @@ export function EditableTitle({
   return (
     <input
       autoFocus
-      className={cx('w-full rounded border border-indigo-300 px-1.5 py-0.5 outline-none', inputClassName)}
+      className={cx('w-full rounded border border-accent/40 px-1.5 py-0.5 outline-none', inputClassName)}
       value={draft}
       placeholder={placeholder}
       onClick={(e) => e.stopPropagation()}
@@ -371,18 +371,18 @@ export function MarkdownField({
   useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white">
-      <div className="flex items-center gap-1 border-b border-slate-100 px-2 py-1 text-xs">
+    <div className="card">
+      <div className="flex items-center gap-1 border-b border-line px-2 py-1 text-xs">
         <button
           type="button"
-          className={cx('rounded px-2 py-0.5', !preview ? 'bg-slate-100 font-medium' : 'text-slate-500')}
+          className={cx('rounded px-2 py-0.5', !preview ? 'bg-muted font-medium' : 'text-fg-muted')}
           onClick={() => setPreview(false)}
         >
           Write
         </button>
         <button
           type="button"
-          className={cx('rounded px-2 py-0.5', preview ? 'bg-slate-100 font-medium' : 'text-slate-500')}
+          className={cx('rounded px-2 py-0.5', preview ? 'bg-muted font-medium' : 'text-fg-muted')}
           onClick={() => {
             flush(draft);
             setPreview(true);
@@ -394,7 +394,7 @@ export function MarkdownField({
       </div>
       {preview ? (
         <div className="prose-kb min-h-[6rem] px-3 py-2 text-sm" onDoubleClick={() => setPreview(false)}>
-          {draft.trim() ? <ReactMarkdown>{draft}</ReactMarkdown> : <span className="text-slate-400">Nothing yet</span>}
+          {draft.trim() ? <ReactMarkdown>{draft}</ReactMarkdown> : <span className="text-fg-subtle">Nothing yet</span>}
         </div>
       ) : (
         <textarea
@@ -424,7 +424,7 @@ export function TagList({ tags }: { tags: string[] }) {
   return (
     <>
       {tags.map((t) => (
-        <span key={t} className="text-indigo-500">
+        <span key={t} className="text-accent-text">
           #{t}
         </span>
       ))}
@@ -436,7 +436,7 @@ export function Spinner({ title }: { title?: string }) {
   return (
     <span
       title={title}
-      className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-indigo-300 border-t-transparent align-middle"
+      className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent/40 border-t-transparent align-middle"
     />
   );
 }

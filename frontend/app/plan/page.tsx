@@ -15,6 +15,8 @@ import {
   TaskList,
   TaskStats,
 } from '../lib/api';
+import { Icon } from '../components/icons';
+import { Alert, Loading, PageHeader, ProgressBar } from '../components/ui';
 
 export default function PlanPage() {
   const today = isoDate();
@@ -71,108 +73,72 @@ export default function PlanPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Daily plan</h1>
-          <p className="text-sm text-slate-500">
-            Plan the day, tick things off — and let the AI fix the English you
-            wrote it in.
-          </p>
-        </div>
-        <Link
-          href="/plan/lists"
-          className="rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
-        >
-          Long-term lists
-        </Link>
-      </div>
+      <PageHeader
+        title="Daily plan"
+        description="Plan the day, tick things off — and let the AI fix the English you wrote it in."
+        actions={
+          <Link href="/plan/lists" className="btn btn-secondary">
+            <Icon name="list" /> Long-term lists
+          </Link>
+        }
+      />
 
       {/* Date navigation */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={() => setDate(shiftDate(date, -1))}
-          className="rounded-md border px-2.5 py-1.5 text-sm hover:bg-slate-50"
-        >
-          ←
-        </button>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value || today)}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-        />
-        <button
-          onClick={() => setDate(shiftDate(date, 1))}
-          className="rounded-md border px-2.5 py-1.5 text-sm hover:bg-slate-50"
-        >
-          →
-        </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center rounded-lg border border-line-strong bg-surface shadow-xs">
+          <button onClick={() => setDate(shiftDate(date, -1))} className="btn btn-ghost btn-icon btn-sm rounded-r-none" aria-label="Previous day">
+            <Icon name="chevron-left" />
+          </button>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value || today)}
+            className="h-8 border-x border-line bg-transparent px-2 text-[13px] text-fg outline-none"
+          />
+          <button onClick={() => setDate(shiftDate(date, 1))} className="btn btn-ghost btn-icon btn-sm rounded-l-none" aria-label="Next day">
+            <Icon name="chevron-right" />
+          </button>
+        </div>
         {date !== today && (
-          <button
-            onClick={() => setDate(today)}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50"
-          >
+          <button onClick={() => setDate(today)} className="btn btn-secondary btn-sm">
             Today
           </button>
         )}
-        <span className="text-sm text-slate-500">
-          {new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-          })}
+        <span className="text-[15px] font-medium text-fg">
+          {new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
         </span>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <Alert>{error}</Alert>}
 
       {/* Progress + pressure gauges */}
       {stats && (
-        <div className="space-y-3 rounded-lg border bg-white p-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">
-              {plan?.done ?? 0} / {plan?.total ?? 0} done
+        <div className="card p-4">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[15px] font-semibold text-fg">
+              {plan?.done ?? 0} <span className="font-normal text-fg-muted">of {plan?.total ?? 0} done</span>
             </span>
-            <span className="text-slate-500">{progress}%</span>
+            <span className="text-[13px] tabular-nums text-fg-muted">{progress}%</span>
           </div>
-          <div className="h-2 overflow-hidden rounded bg-slate-100">
-            <div
-              className="h-full bg-emerald-500 transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-            <span>
-              In progress <b className="text-indigo-700">{stats.inProgress}</b>
-            </span>
-            <span>
-              Overdue <b className="text-red-600">{stats.overdue}</b>
-            </span>
-            <span>
-              Backlog <b className="text-slate-800">{stats.backlog}</b>
-            </span>
+          <ProgressBar value={progress / 100} tone="success" className="mt-2.5" />
+          <div className="mt-4 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-5">
+            <Gauge label="In progress" value={stats.inProgress} tone="text-accent-text" />
+            <Gauge label="Overdue" value={stats.overdue} tone={stats.overdue ? 'text-danger-text' : undefined} />
+            <Gauge label="Backlog" value={stats.backlog} />
             {TASK_CATEGORIES.map((c) => (
-              <span key={c}>
-                {CATEGORY_LABELS[c]}{' '}
-                <b className="text-slate-800">
-                  {stats.byCategory[c]?.done ?? 0}/{stats.byCategory[c]?.total ?? 0}
-                </b>
-              </span>
+              <Gauge key={c} label={CATEGORY_LABELS[c]} value={`${stats.byCategory[c]?.done ?? 0}/${stats.byCategory[c]?.total ?? 0}`} />
             ))}
           </div>
         </div>
       )}
 
-      {loading && <p className="text-sm text-slate-500">Loading…</p>}
+      {loading && <Loading />}
 
       {/* Unfinished from earlier days */}
       {plan && plan.carriedOver.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-amber-700">
+          <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-warning-text">
+            <Icon name="clock" className="h-3.5 w-3.5" />
             Carried over ({plan.carriedOver.length}) — unfinished from earlier days
           </h2>
           <div className="space-y-2">
@@ -197,9 +163,9 @@ export default function PlanPage() {
           );
           return (
             <section key={category} className="space-y-2">
-              <h2 className="text-lg font-semibold">
-                {CATEGORY_LABELS[category]}{' '}
-                <span className="text-sm font-normal text-slate-400">
+              <h2 className="section-title flex items-baseline gap-2">
+                {CATEGORY_LABELS[category]}
+                <span className="text-[13px] font-normal tabular-nums text-fg-subtle">
                   {tasks.filter((t) => t.status === 'DONE').length}/{tasks.length}
                 </span>
               </h2>
@@ -214,7 +180,7 @@ export default function PlanPage() {
                 onCreated={load}
               />
               {tasks.length === 0 ? (
-                <p className="px-1 text-sm text-slate-400">Nothing planned yet.</p>
+                <p className="rounded-lg border border-dashed border-line px-3 py-4 text-center text-[13px] text-fg-subtle">Nothing planned yet.</p>
               ) : (
                 tasks.map((t) => (
                   <TaskRow key={t.id} task={t} lists={lists} onChanged={load} />
@@ -229,9 +195,10 @@ export default function PlanPage() {
       <section>
         <button
           onClick={() => setShowBacklog((s) => !s)}
-          className="text-sm font-semibold text-slate-700 hover:text-slate-900"
+          className="flex items-center gap-1.5 text-[13px] font-semibold text-fg-secondary hover:text-fg"
         >
-          {showBacklog ? '▾' : '▸'} Backlog ({backlog.length})
+          <Icon name={showBacklog ? 'chevron-down' : 'chevron-right'} className="h-3.5 w-3.5" /> Backlog
+          <span className="chip tone-gray">{backlog.length}</span>
         </button>
         {showBacklog && (
           <div className="mt-2 space-y-2">
@@ -248,6 +215,15 @@ export default function PlanPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function Gauge({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
+  return (
+    <div className="rounded-lg bg-subtle px-3 py-2">
+      <p className="text-xs text-fg-muted">{label}</p>
+      <p className={`mt-0.5 text-[15px] font-semibold tabular-nums ${tone ?? 'text-fg'}`}>{value}</p>
     </div>
   );
 }

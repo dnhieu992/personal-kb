@@ -26,7 +26,7 @@ const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240];
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex min-h-[32px] items-center gap-3">
-      <div className="w-20 shrink-0 text-xs text-slate-500">{label}</div>
+      <div className="w-20 shrink-0 text-xs text-fg-muted">{label}</div>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm">{children}</div>
     </div>
   );
@@ -34,8 +34,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="border-t border-slate-100 pt-3">
-      <div className="mb-2 flex items-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <section className="border-t border-line pt-3">
+      <div className="mb-2 flex items-center text-xs font-semibold uppercase tracking-wide text-fg-muted">
         {title}
         <div className="ml-auto normal-case">{right}</div>
       </div>
@@ -44,7 +44,7 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   );
 }
 
-const input = 'min-w-0 max-w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-sm';
+const input = 'min-w-0 max-w-full input input-sm';
 
 export function Inspector() {
   const { selectedTaskId: id, openTask, rev, run, today, category } = usePlanner();
@@ -72,7 +72,7 @@ export function Inspector() {
   }, [t?.area, rev]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!id || !t || t.id !== id) {
-    return id ? <div className="p-6 text-sm text-slate-400">Loading…</div> : null;
+    return id ? <div className="p-6 text-sm text-fg-subtle">Loading…</div> : null;
   }
 
   const patch = (body: Record<string, unknown>) => run(api.planner.updateTask(t.id, body));
@@ -106,25 +106,25 @@ export function Inspector() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-start gap-3 border-b border-slate-100 p-4">
+      <div className="flex items-start gap-3 border-b border-line p-4">
         <div className="pt-1">
           <CheckBox done={t.done} color={color} size={22} onToggle={() => patch({ done: !t.done })} />
         </div>
         <div className="min-w-0 flex-1">
           <EditableTitle
             value={t.title}
-            className={cx('block text-base font-semibold', t.done && 'text-slate-400 line-through')}
+            className={cx('block text-base font-semibold', t.done && 'text-fg-subtle line-through')}
             onSave={(v) => v && patch({ title: v })}
           />
           {t.englishPending && (
-            <div className="mt-1 text-xs text-slate-400">
+            <div className="mt-1 text-xs text-fg-subtle">
               <Spinner /> Checking English…
             </div>
           )}
           {t.correction && (
-            <div className="mt-1 rounded-md bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+            <div className="mt-1 rounded-md bg-success-soft px-2 py-1 text-xs text-success-text">
               ✨ Corrected from “{t.correction.original}”
-              {t.correction.why && <span className="text-emerald-600/80"> — {t.correction.why}</span>}
+              {t.correction.why && <span className="text-success-text/80"> — {t.correction.why}</span>}
               <button
                 className="ml-1 underline"
                 onClick={() => run(api.planner.revertCorrection(t.correction!.id))}
@@ -134,7 +134,7 @@ export function Inspector() {
             </div>
           )}
         </div>
-        <button className="rounded px-2 text-lg text-slate-400 hover:bg-slate-100" title="Close" onClick={() => openTask(null)}>
+        <button className="rounded px-2 text-lg text-fg-subtle hover:bg-muted" title="Close" onClick={() => openTask(null)}>
           ×
         </button>
       </div>
@@ -157,7 +157,7 @@ export function Inspector() {
           <Field label="Date">
             <label className="flex items-center gap-1.5">
               <input type="checkbox" checked={!!t.date} disabled={!!t.recurrenceId} onChange={(e) => patch({ date: e.target.checked ? today : null })} />
-              {!t.date && <span className="text-slate-400">Backlog</span>}
+              {!t.date && <span className="text-fg-subtle">Backlog</span>}
             </label>
             {t.date && (
               <input
@@ -212,7 +212,7 @@ export function Inspector() {
                 onChange={(e) => e.target.value && patch({ reminderAt: new Date(e.target.value).toISOString() })}
               />
             )}
-            {t.reminderAt && <span className="text-xs text-slate-400">via Telegram</span>}
+            {t.reminderAt && <span className="text-xs text-fg-subtle">via Telegram</span>}
           </Field>
           <Field label="Goal">
             <select className={input} value={t.goalId ?? 0} onChange={(e) => patch({ goalId: Number(e.target.value) || null })}>
@@ -245,7 +245,7 @@ export function Inspector() {
                 return (
                   <button
                     key={d}
-                    className={cx('rounded-md px-1.5 py-0.5 text-xs', on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600')}
+                    className={cx('rounded-md px-1.5 py-0.5 text-xs', on ? 'bg-accent text-white' : 'tone-gray')}
                     onClick={() => {
                       const w = rec.weekdays ^ (1 << d);
                       if (w) setRec('weekly', w);
@@ -274,7 +274,7 @@ export function Inspector() {
               of every month
             </Field>
           )}
-          {rec && <div className="pl-[92px] text-xs text-slate-400">🔁 {recurrenceSummary(rec)} · edits apply to future occurrences</div>}
+          {rec && <div className="pl-[92px] text-xs text-fg-subtle">🔁 {recurrenceSummary(rec)} · edits apply to future occurrences</div>}
           <Field label="Tags">
             <input
               key={t.tags.join(',')}
@@ -296,12 +296,12 @@ export function Inspector() {
                 <CheckBox done={c.done} color={color} size={16} onToggle={() => run(api.planner.updateChecklist(c.id, { done: !c.done }))} />
                 <EditableTitle
                   value={c.title}
-                  className={cx('flex-1 text-sm', c.done && 'text-slate-400 line-through')}
+                  className={cx('flex-1 text-sm', c.done && 'text-fg-subtle line-through')}
                   onSave={(v) => (v ? run(api.planner.updateChecklist(c.id, { title: v })) : run(api.planner.deleteChecklist(c.id)))}
                 />
                 {t.checklistPending.includes(c.id) && <Spinner title="Checking English…" />}
                 <button
-                  className="invisible text-slate-400 hover:text-red-500 group-hover:visible"
+                  className="invisible text-fg-subtle hover:text-danger-text group-hover:visible"
                   onClick={() => run(api.planner.deleteChecklist(c.id))}
                 >
                   ×
@@ -309,7 +309,7 @@ export function Inspector() {
               </div>
             ))}
             <input
-              className="w-full rounded-md border border-dashed border-slate-300 px-2 py-1 text-sm outline-none focus:border-indigo-300"
+              className="w-full rounded-md border border-dashed border-line-strong px-2 py-1 text-sm outline-none focus:border-accent/40"
               placeholder="+ Add a step"
               value={newItem}
               onChange={(e) => setNewItem(e.target.value)}
@@ -335,7 +335,7 @@ export function Inspector() {
         <Section
           title="Links & files"
           right={
-            <button className="text-xs text-indigo-600 hover:underline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            <button className="text-xs link" onClick={() => fileRef.current?.click()} disabled={uploading}>
               {uploading ? 'Uploading…' : '+ Image'}
             </button>
           }
@@ -345,16 +345,16 @@ export function Inspector() {
             {t.attachments.map((a) => (
               <div key={a.id} className="group flex items-center gap-2 text-sm">
                 <span>{a.kind === 'link' ? '🔗' : '🖼️'}</span>
-                <a href={a.value} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-indigo-600 hover:underline" title={a.value}>
+                <a href={a.value} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate link" title={a.value}>
                   {a.title}
                 </a>
-                <button className="invisible text-slate-400 hover:text-red-500 group-hover:visible" onClick={() => run(api.planner.deleteAttachment(a.id))}>
+                <button className="invisible text-fg-subtle hover:text-danger-text group-hover:visible" onClick={() => run(api.planner.deleteAttachment(a.id))}>
                   ×
                 </button>
               </div>
             ))}
             <input
-              className="w-full rounded-md border border-dashed border-slate-300 px-2 py-1 text-sm outline-none focus:border-indigo-300"
+              className="w-full rounded-md border border-dashed border-line-strong px-2 py-1 text-sm outline-none focus:border-accent/40"
               placeholder="+ Paste a link and press Enter"
               value={link}
               onChange={(e) => setLink(e.target.value)}
@@ -368,10 +368,10 @@ export function Inspector() {
           </div>
         </Section>
 
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-400">
+        <div className="flex items-center justify-between border-t border-line pt-3 text-xs text-fg-subtle">
           <span>Created {shortDateTime(t.createdAt)}</span>
           <button
-            className="text-red-600 hover:underline"
+            className="text-danger-text hover:underline"
             onClick={() => {
               if (!confirm(t.recurrenceId ? 'Delete this occurrence?' : 'Delete this task?')) return;
               openTask(null);

@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api, Phrase, PhraseInput } from '../lib/api';
+import { Icon } from '../components/icons';
+import { Alert, EmptyState, Loading, PageHeader } from '../components/ui';
 
 const EMPTY: PhraseInput = { phrase: '', meaning: '', example: '' };
 
@@ -115,42 +117,37 @@ export default function PhrasesPage() {
   }
 
   const inputClass =
-    'w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500';
+    'w-full input';
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Phrases</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Cụm từ tiếng Anh — mỗi 8 giờ (00:00, 08:00, 16:00 giờ VN) gửi 5 cụm vào Telegram,
-            xoay vòng theo số lần đã gửi. Tắt công tắc “Gửi TG” để ngừng gửi một
-            cụm.
-          </p>
-          {!loading && phrases.length > 0 && (
-            <p className="mt-1 text-xs text-slate-400">
-              {phrases.filter((p) => p.active).length}/{phrases.length} cụm đang
-              gửi
-            </p>
-          )}
-        </div>
-        <button
-          onClick={onSendNow}
-          disabled={sending}
-          className="shrink-0 rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
-        >
-          {sending ? 'Đang gửi…' : 'Gửi ngay'}
-        </button>
-      </div>
+      <PageHeader
+        title="Phrases"
+        description={
+          <>
+            Cụm từ tiếng Anh — mỗi 8 giờ (00:00, 08:00, 16:00 giờ VN) gửi 5 cụm vào Telegram, xoay vòng theo số lần đã gửi.
+            {!loading && phrases.length > 0 && (
+              <span className="mt-1 block text-xs text-fg-subtle">
+                {phrases.filter((p) => p.active).length}/{phrases.length} cụm đang gửi
+              </span>
+            )}
+          </>
+        }
+        actions={
+          <button onClick={onSendNow} disabled={sending} className="btn btn-secondary">
+            <Icon name="send" /> {sending ? 'Đang gửi…' : 'Gửi ngay'}
+          </button>
+        }
+      />
 
       {/* Add / edit form */}
       <form
         onSubmit={onSubmit}
-        className="space-y-3 rounded-lg border bg-white p-4"
+        className="card space-y-4 p-5"
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="label">
               Cụm từ *
             </label>
             <input
@@ -162,7 +159,7 @@ export default function PhrasesPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="label">
               Nghĩa *
             </label>
             <input
@@ -175,7 +172,7 @@ export default function PhrasesPage() {
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label className="label">
             Ví dụ
           </label>
           <input
@@ -189,15 +186,15 @@ export default function PhrasesPage() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="btn btn-primary"
           >
-            {saving ? 'Đang lưu…' : editingId ? 'Cập nhật' : '+ Thêm cụm từ'}
+            {saving ? 'Đang lưu…' : editingId ? 'Cập nhật' : 'Thêm cụm từ'}
           </button>
           {editingId && (
             <button
               type="button"
               onClick={resetForm}
-              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              className="btn btn-secondary"
             >
               Huỷ
             </button>
@@ -206,23 +203,19 @@ export default function PhrasesPage() {
       </form>
 
       {notice && (
-        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          {notice}
-        </p>
+        <Alert tone="success">{notice}</Alert>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       {/* Table */}
       {loading ? (
-        <p className="text-sm text-slate-500">Đang tải…</p>
+        <Loading label="Đang tải…" />
       ) : phrases.length === 0 ? (
-        <p className="text-sm text-slate-500">
-          Chưa có cụm từ nào. Thêm cụm đầu tiên ở trên.
-        </p>
+        <EmptyState icon="quote" title="Chưa có cụm từ nào" description="Thêm cụm đầu tiên ở trên." />
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-white">
+        <div className="overflow-x-auto card">
           <table className="w-full text-left text-sm">
-            <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="border-b border-line bg-subtle text-2xs font-semibold uppercase tracking-wider text-fg-subtle">
               <tr>
                 <th className="w-10 px-3 py-2">#</th>
                 <th className="px-3 py-2">Cụm từ</th>
@@ -237,57 +230,53 @@ export default function PhrasesPage() {
               {phrases.map((p, i) => (
                 <tr
                   key={p.id}
-                  className={`border-b last:border-0 hover:bg-slate-50 ${
-                    p.active ? '' : 'bg-slate-50/60 text-slate-400'
+                  className={`border-b border-line last:border-0 hover:bg-subtle ${
+                    p.active ? '' : 'text-fg-subtle'
                   }`}
                 >
-                  <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                  <td className="px-3 py-2 text-fg-subtle">{i + 1}</td>
                   <td
                     className={`px-3 py-2 font-medium ${
-                      p.active ? 'text-slate-800' : 'text-slate-400 line-through'
+                      p.active ? 'text-fg' : 'text-fg-subtle line-through'
                     }`}
                   >
                     {p.phrase}
                   </td>
-                  <td className={`px-3 py-2 ${p.active ? 'text-slate-600' : 'text-slate-400'}`}>
+                  <td className={`px-3 py-2 ${p.active ? 'text-fg-secondary' : 'text-fg-subtle'}`}>
                     {p.meaning}
                   </td>
-                  <td className={`px-3 py-2 italic ${p.active ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <td className={`px-3 py-2 italic ${p.active ? 'text-fg-muted' : 'text-fg-subtle'}`}>
                     {p.example || '—'}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <button
                       onClick={() => onToggleActive(p)}
                       title={p.active ? 'Đang gửi — bấm để tắt' : 'Đã tắt — bấm để bật lại'}
-                      className={`inline-flex h-6 w-11 items-center rounded-full px-0.5 transition-colors ${
-                        p.active ? 'bg-emerald-500' : 'bg-slate-300'
+                      className={`inline-flex h-5 w-9 items-center rounded-full px-0.5 transition-colors ${
+                        p.active ? 'bg-success' : 'bg-emphasis'
                       }`}
                     >
                       <span
-                        className={`h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                          p.active ? 'translate-x-5' : 'translate-x-0'
+                        className={`h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                          p.active ? 'translate-x-4' : 'translate-x-0'
                         }`}
                       />
                     </button>
                   </td>
                   <td className="px-3 py-2 text-center">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                    <span className="chip tone-gray tabular-nums">
                       {p.sentCount}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <button
-                      onClick={() => startEdit(p)}
-                      className="text-indigo-600 hover:underline"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      onClick={() => onDelete(p.id)}
-                      className="ml-3 text-red-600 hover:underline"
-                    >
-                      Xoá
-                    </button>
+                    <div className="flex justify-end gap-0.5">
+                      <button onClick={() => startEdit(p)} className="btn btn-ghost btn-icon btn-xs" title="Sửa">
+                        <Icon name="pen" className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => onDelete(p.id)} className="btn btn-danger-ghost btn-icon btn-xs" title="Xoá">
+                        <Icon name="trash" className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -70,7 +70,7 @@ export function GoalsView({ area }: { area: Area }) {
           title="Goals"
           subtitle="Weekly & monthly goals, broken into tasks"
           right={
-            <button className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700" onClick={() => setCreating(true)}>
+            <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
               + Goal
             </button>
           }
@@ -78,7 +78,7 @@ export function GoalsView({ area }: { area: Area }) {
         {goals && !goals.length && <EmptyState icon="🎯" text="No goals yet — set one for this week or month" />}
         {groups.map((gr) => (
           <section key={gr.id}>
-            <div className="mb-1 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{gr.title}</div>
+            <div className="mb-1 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">{gr.title}</div>
             <div className="space-y-1">
               {gr.goals.map((g) => (
                 <button
@@ -86,17 +86,17 @@ export function GoalsView({ area }: { area: Area }) {
                   onClick={() => setSelected(g.id)}
                   className={cx(
                     'w-full rounded-lg border px-3 py-2 text-left text-sm transition',
-                    selected === g.id ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300',
+                    selected === g.id ? 'border-accent/40 bg-accent-soft' : 'border-line bg-surface hover:border-line-strong',
                   )}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>{g.done ? '🏅' : '🎯'}</span>
-                    <span className={cx('flex-1 truncate font-medium', g.done && 'text-slate-400 line-through')}>{g.title}</span>
-                    <span className="text-xs text-slate-400">
+                    <span className={cx('flex-1 truncate font-medium', g.done && 'text-fg-subtle line-through')}>{g.title}</span>
+                    <span className="text-xs text-fg-subtle">
                       {g.progressDone}/{g.progressTotal}
                     </span>
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">{goalPeriodLabel(g)}</div>
+                  <div className="mt-1 text-xs text-fg-muted">{goalPeriodLabel(g)}</div>
                   <div className="mt-1.5">
                     <ProgressBar value={g.progressTotal ? g.progressDone / g.progressTotal : 0} color={AREA_COLOR[area]} height={4} />
                   </div>
@@ -146,7 +146,7 @@ function NewGoalModal({ area, onClose, onCreated }: { area: Area; onClose: () =>
       <div className="space-y-4 text-sm">
         <input
           autoFocus
-          className="w-full rounded-md border border-slate-300 px-3 py-2"
+          className="w-full input"
           placeholder="What do you want to achieve?"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -163,16 +163,16 @@ function NewGoalModal({ area, onClose, onCreated }: { area: Area; onClose: () =>
             ]}
           />
         </div>
-        <div className="text-xs text-slate-500">{goalPeriodLabel({ period, periodStart: start })}</div>
+        <div className="text-xs text-fg-muted">{goalPeriodLabel({ period, periodStart: start })}</div>
         <div className="flex items-center gap-2">
-          <span className="text-slate-500">Category</span>
+          <span className="text-fg-muted">Category</span>
           <CategoryPicker area={area} value={cat} onChange={setCat} noneLabel="None" />
         </div>
         <div className="flex justify-end gap-2">
-          <button className="rounded-md px-3 py-1.5 text-slate-600 hover:bg-slate-100" onClick={onClose}>
+          <button className="rounded-md px-3 py-1.5 text-fg-secondary hover:bg-muted" onClick={onClose}>
             Cancel
           </button>
-          <button className="rounded-md bg-indigo-600 px-3 py-1.5 font-medium text-white disabled:opacity-40" disabled={!title.trim()} onClick={create}>
+          <button className="rounded-md bg-accent px-3 py-1.5 font-medium text-white disabled:opacity-40" disabled={!title.trim()} onClick={create}>
             Create
           </button>
         </div>
@@ -191,19 +191,19 @@ function GoalDetail({ id, onDeleted }: { id: number; onDeleted: () => void }) {
     api.planner.goal(id).then(setG).catch(() => onDeleted());
   }, [id, rev]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!g || g.id !== id) return <div className="p-6 text-sm text-slate-400">Loading…</div>;
+  if (!g || g.id !== id) return <div className="p-6 text-sm text-fg-subtle">Loading…</div>;
   const patch = (b: Record<string, unknown>) => run(api.planner.updateGoal(g.id, b));
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <div className="flex items-start gap-3">
         <div className="pt-1">
           <CheckBox done={g.done} color={AREA_COLOR[g.area]} size={22} onToggle={() => patch({ done: !g.done })} />
         </div>
         <div className="min-w-0 flex-1">
           <EditableTitle value={g.title} className="block text-lg font-semibold" onSave={(v) => v && patch({ title: v })} />
-          <div className="text-sm text-slate-500">{goalPeriodLabel(g)}</div>
+          <div className="text-sm text-fg-muted">{goalPeriodLabel(g)}</div>
           {g.correction && (
-            <div className="mt-1 text-xs text-emerald-700">
+            <div className="mt-1 text-xs text-success-text">
               ✨ Corrected from “{g.correction.original}”{' '}
               <button className="underline" onClick={() => run(api.planner.revertCorrection(g.correction!.id))}>
                 Revert
@@ -212,7 +212,7 @@ function GoalDetail({ id, onDeleted }: { id: number; onDeleted: () => void }) {
           )}
         </div>
         <button
-          className="text-sm text-red-600 hover:underline"
+          className="text-sm text-danger-text hover:underline"
           onClick={async () => {
             if (!confirm(`Delete goal “${g.title}”? The goal's tasks will be kept.`)) return;
             await run(api.planner.deleteGoal(g.id));
@@ -226,7 +226,7 @@ function GoalDetail({ id, onDeleted }: { id: number; onDeleted: () => void }) {
         <CategoryPicker area={g.area} value={g.categoryId} onChange={(c) => patch({ categoryId: c })} noneLabel="No category" />
         <div className="flex flex-1 items-center gap-2">
           <ProgressBar value={g.progressTotal ? g.progressDone / g.progressTotal : 0} color={AREA_COLOR[g.area]} />
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-fg-muted">
             {g.progressDone}/{g.progressTotal}
           </span>
         </div>
@@ -238,15 +238,15 @@ function GoalDetail({ id, onDeleted }: { id: number; onDeleted: () => void }) {
           <input type="checkbox" checked={schedule} onChange={(e) => setSchedule(e.target.checked)} />
           Schedule on
         </label>
-        {schedule && <input type="date" className="rounded-md border border-slate-300 px-2 py-0.5" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />}
-        {!schedule && <span className="text-slate-400">backlog</span>}
+        {schedule && <input type="date" className="input input-sm" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />}
+        {!schedule && <span className="text-fg-subtle">backlog</span>}
       </div>
       <AddTaskBar date={schedule ? day : null} area={g.area} goalId={g.id} fixedCategoryId={g.categoryId} placeholder="Add a step…   #tag   !!!" />
       <div className="mt-3">
         {g.tasks.length ? (
           <TaskListView groups={[{ id: 'steps', title: 'Tasks', tasks: g.tasks }]} showDate pullToday />
         ) : (
-          <div className="py-4 text-center text-sm text-slate-400">No steps yet</div>
+          <div className="py-4 text-center text-sm text-fg-subtle">No steps yet</div>
         )}
       </div>
 
@@ -283,7 +283,7 @@ export function NotesView({ area }: { area: Area }) {
           eyebrow={<AreaBadge area={area} />}
           title="Notes"
           right={
-            <button className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700" onClick={create}>
+            <button className="btn btn-primary btn-sm" onClick={create}>
               + Note
             </button>
           }
@@ -298,7 +298,7 @@ export function NotesView({ area }: { area: Area }) {
           ]}
         />
         <input
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+          className="input input-sm"
           placeholder="Search notes…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -311,7 +311,7 @@ export function NotesView({ area }: { area: Area }) {
               onClick={() => setSelected(n.id)}
               className={cx(
                 'w-full rounded-lg border px-3 py-2 text-left text-sm transition',
-                selected === n.id ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300',
+                selected === n.id ? 'border-accent/40 bg-accent-soft' : 'border-line bg-surface hover:border-line-strong',
               )}
             >
               <div className="flex items-center gap-1.5">
@@ -319,8 +319,8 @@ export function NotesView({ area }: { area: Area }) {
                 {n.day && <span title="Day note">📅</span>}
                 <span className="flex-1 truncate font-medium">{noteTitle(n)}</span>
               </div>
-              <div className="mt-0.5 line-clamp-2 text-xs text-slate-500">{(n.body ?? '').replace(/\n/g, ' ').slice(0, 160) || '—'}</div>
-              <div className="mt-0.5 text-[11px] text-slate-400">{shortDateTime(n.updatedAt)}</div>
+              <div className="mt-0.5 line-clamp-2 text-xs text-fg-muted">{(n.body ?? '').replace(/\n/g, ' ').slice(0, 160) || '—'}</div>
+              <div className="mt-0.5 text-[11px] text-fg-subtle">{shortDateTime(n.updatedAt)}</div>
             </button>
           ))}
         </div>
@@ -364,7 +364,7 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
     if (n) latest.current = n.body ?? '';
   }, [n]);
 
-  if (!n || n.id !== id) return <div className="p-6 text-sm text-slate-400">Loading…</div>;
+  if (!n || n.id !== id) return <div className="p-6 text-sm text-fg-subtle">Loading…</div>;
   const patch = (b: Record<string, unknown>) => run(api.planner.updateNote(n.id, b));
 
   const check = async (text: string) => {
@@ -384,7 +384,7 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <div className="flex flex-wrap items-center gap-2">
         <button className="text-lg" title={n.pinned ? 'Unpin' : 'Pin'} onClick={() => patch({ pinned: !n.pinned })}>
           {n.pinned ? '📌' : '📍'}
@@ -396,9 +396,9 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
             className="block text-lg font-semibold"
             onSave={(v) => patch({ title: v })}
           />
-          {n.englishPending && <span className="text-xs text-slate-400"><Spinner /> Checking English…</span>}
+          {n.englishPending && <span className="text-xs text-fg-subtle"><Spinner /> Checking English…</span>}
           {n.correction && (
-            <div className="text-xs text-emerald-700">
+            <div className="text-xs text-success-text">
               ✨ Title corrected from “{n.correction.original}”{' '}
               <button className="underline" onClick={() => run(api.planner.revertCorrection(n.correction!.id))}>
                 Revert
@@ -408,9 +408,9 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-        {n.day ? <span className="text-xs text-slate-500">📅 Day note · {n.day}</span> : <AreaPicker value={n.area} onChange={(a) => patch({ area: a })} />}
+        {n.day ? <span className="text-xs text-fg-muted">📅 Day note · {n.day}</span> : <AreaPicker value={n.area} onChange={(a) => patch({ area: a })} />}
         <CategoryPicker area={n.area} value={n.categoryId} onChange={(c) => patch({ categoryId: c })} />
-        <span className="ml-auto text-xs text-slate-400">Edited {shortDateTime(n.updatedAt)}</span>
+        <span className="ml-auto text-xs text-fg-subtle">Edited {shortDateTime(n.updatedAt)}</span>
       </div>
       <div className="mt-3">
         <MarkdownField
@@ -424,17 +424,17 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
           onBlurSaved={(v) => check(v)}
           extra={
             meta?.englishEnabled && (
-              <button className="rounded px-2 py-0.5 text-indigo-600 hover:bg-indigo-50" disabled={checking} onClick={() => check(latest.current)}>
+              <button className="rounded px-2 py-0.5 text-accent-text hover:bg-accent-soft" disabled={checking} onClick={() => check(latest.current)}>
                 {checking ? <Spinner /> : 'Aa'} Check English
               </button>
             )
           }
         />
-        {why && <div className="mt-1 text-xs text-slate-500">✨ {why}</div>}
+        {why && <div className="mt-1 text-xs text-fg-muted">✨ {why}</div>}
       </div>
       <div className="mt-3 flex flex-wrap gap-3 text-sm">
         <button
-          className="text-indigo-600 hover:underline"
+          className="link"
           onClick={async () => {
             const t = await run(api.planner.noteToTask(n.id));
             if (t) {
@@ -446,12 +446,12 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
           ☀️ Create task for today from this note
         </button>
         {!n.day && (
-          <button className="text-slate-600 hover:underline" onClick={() => patch({ area: otherArea(n.area) })}>
+          <button className="text-fg-secondary hover:underline" onClick={() => patch({ area: otherArea(n.area) })}>
             Move to {AREA_LABEL[otherArea(n.area)]}
           </button>
         )}
         <button
-          className="ml-auto text-red-600 hover:underline"
+          className="ml-auto text-danger-text hover:underline"
           onClick={async () => {
             if (!confirm('Delete this note?')) return;
             await run(api.planner.deleteNote(n.id));

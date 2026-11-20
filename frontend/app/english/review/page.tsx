@@ -9,6 +9,8 @@ import {
   KIND_LABELS,
   EnglishKind,
 } from '../../lib/api';
+import { Icon } from '../../components/icons';
+import { Alert, EmptyState, Loading, PageHeader, ProgressBar } from '../../components/ui';
 
 export default function EnglishReviewPage() {
   const [queue, setQueue] = useState<Knowledge[] | null>(null);
@@ -37,39 +39,50 @@ export default function EnglishReviewPage() {
     setIndex((i) => i + 1);
   }
 
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-        {error}
-      </div>
-    );
-  }
+  // Space reveals, 1 = forgot, 2 = remembered.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!queue || index >= queue.length || (e.target as HTMLElement).tagName === 'INPUT') return;
+      if (!revealed && (e.key === ' ' || e.key === 'Enter')) {
+        e.preventDefault();
+        setRevealed(true);
+      } else if (revealed && (e.key === '1' || e.key === '2')) grade(e.key === '2');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
-  if (!queue) {
-    return <p className="text-sm text-slate-500">Loading cards…</p>;
-  }
+  if (error) return <Alert>{error}</Alert>;
+  if (!queue) return <Loading label="Loading cards…" />;
 
   if (queue.length === 0) {
     return (
-      <div className="space-y-4 text-center">
-        <p className="text-slate-600">Chưa có mục nào để ôn.</p>
-        <Link href="/english/new" className="text-indigo-600 underline">
-          Ghi buổi học đầu tiên
-        </Link>
-      </div>
+      <>
+        <PageHeader title="Review" />
+        <EmptyState
+          icon="cards"
+          title="Chưa có mục nào để ôn"
+          description="Viết nhật ký hoặc lưu entry — AI sẽ nhặt ra từ vựng và ngữ pháp để ôn."
+          action={
+            <Link href="/english/new" className="btn btn-primary btn-sm">
+              <Icon name="pen" /> Ghi buổi học đầu tiên
+            </Link>
+          }
+        />
+      </>
     );
   }
 
   if (index >= queue.length) {
     return (
-      <div className="space-y-4 text-center">
-        <h1 className="text-2xl font-bold">Xong! 🎉</h1>
-        <p className="text-slate-600">Bạn đã ôn {reviewed} mục.</p>
-        <div className="flex justify-center gap-3">
-          <Link
-            href="/english"
-            className="rounded-md border px-4 py-2 text-sm font-medium"
-          >
+      <div className="mx-auto max-w-md py-16 text-center">
+        <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-success-soft text-success-text">
+          <Icon name="check" className="h-7 w-7" strokeWidth={2.25} />
+        </span>
+        <h1 className="text-[22px] font-semibold text-fg">Xong rồi!</h1>
+        <p className="mt-1 text-fg-muted">Bạn đã ôn {reviewed} mục.</p>
+        <div className="mt-6 flex justify-center gap-2">
+          <Link href="/english" className="btn btn-secondary">
             Về nhật ký
           </Link>
           <button
@@ -78,7 +91,7 @@ export default function EnglishReviewPage() {
               setReviewed(0);
               setRevealed(false);
             }}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="btn btn-primary"
           >
             Ôn lại
           </button>
@@ -90,87 +103,62 @@ export default function EnglishReviewPage() {
   const card = queue[index];
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div className="flex items-center justify-between text-sm text-slate-500">
-        <span>
-          Thẻ {index + 1} / {queue.length}
-        </span>
-        <Link href="/english" className="text-indigo-600 hover:underline">
-          Thoát
+    <div className="mx-auto max-w-xl">
+      <div className="mb-6 flex items-center gap-4">
+        <Link href="/english" className="btn btn-ghost btn-icon btn-sm" title="Thoát">
+          <Icon name="x" />
         </Link>
+        <ProgressBar value={index / queue.length} className="h-2" />
+        <span className="shrink-0 text-[13px] tabular-nums text-fg-muted">
+          {index + 1} / {queue.length}
+        </span>
       </div>
 
-      <div className="min-h-[14rem] rounded-xl border bg-white p-8 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          {card.englishKind && (
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                KIND_COLORS[card.englishKind as EnglishKind]
-              }`}
-            >
-              {KIND_LABELS[card.englishKind as EnglishKind]}
-            </span>
-          )}
-          {card.hard && (
-            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
-              khó nhớ
-            </span>
-          )}
+      <div className="card flex min-h-[18rem] flex-col p-8 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          {card.englishKind && <span className={`chip ${KIND_COLORS[card.englishKind as EnglishKind]}`}>{KIND_LABELS[card.englishKind as EnglishKind]}</span>}
+          {card.hard && <span className="chip tone-amber">khó nhớ</span>}
         </div>
-        <p className="text-xl font-medium leading-relaxed">{card.content}</p>
+        <p className="text-xl font-medium leading-relaxed text-fg">{card.content}</p>
 
-        {revealed && (
-          <div className="mt-6 space-y-3 border-t pt-4">
+        {revealed ? (
+          <div className="mt-6 space-y-3 border-t border-line pt-5 animate-fade-in">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium uppercase text-slate-400">
-                Nghĩa
-              </span>
-              {card.cefrLevel && (
-                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
-                  {card.cefrLevel}
-                </span>
-              )}
+              <span className="eyebrow">Nghĩa</span>
+              {card.cefrLevel && <span className="chip tone-sky">{card.cefrLevel}</span>}
             </div>
-            <p className="text-slate-700">{card.summary}</p>
+            <p className="text-fg-secondary">{card.summary}</p>
             {card.tags?.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-x-2">
                 {card.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
-                  >
+                  <span key={t} className="text-xs text-fg-subtle">
                     #{t}
                   </span>
                 ))}
               </div>
             )}
           </div>
+        ) : (
+          <p className="mt-auto pt-8 text-center text-xs text-fg-subtle">Nhớ nghĩa chưa? Lật thẻ để kiểm tra.</p>
         )}
       </div>
 
-      {revealed ? (
-        <div className="flex gap-3">
-          <button
-            onClick={() => grade(false)}
-            className="flex-1 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100"
-          >
-            Quên
+      <div className="mt-4">
+        {revealed ? (
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => grade(false)} className="btn btn-lg border border-danger/30 bg-danger-soft text-danger-text hover:border-danger/60">
+              Quên <span className="kbd ml-1">1</span>
+            </button>
+            <button onClick={() => grade(true)} className="btn btn-lg border border-success/30 bg-success-soft text-success-text hover:border-success/60">
+              Nhớ rồi <span className="kbd ml-1">2</span>
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setRevealed(true)} className="btn btn-primary btn-lg w-full">
+            Hiện nghĩa <span className="kbd ml-1 border-white/30 bg-white/15 text-white">Space</span>
           </button>
-          <button
-            onClick={() => grade(true)}
-            className="flex-1 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
-          >
-            Nhớ rồi
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setRevealed(true)}
-          className="w-full rounded-md bg-indigo-600 px-4 py-3 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Hiện nghĩa
-        </button>
-      )}
+        )}
+      </div>
     </div>
   );
 }

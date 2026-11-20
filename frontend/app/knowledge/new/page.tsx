@@ -1,14 +1,11 @@
 import KnowledgeForm from '../../components/KnowledgeForm';
+import { PageHeader } from '../../components/ui';
 
-export default function NewKnowledgePage({
-  searchParams,
-}: {
-  searchParams: { projectId?: string };
-}) {
+export default function NewKnowledgePage({ searchParams }: { searchParams: { projectId?: string } }) {
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">New entry</h1>
+    <>
+      <PageHeader title="New entry" back={{ href: '/knowledge', label: 'Entries' }} />
       <KnowledgeForm defaultProjectId={searchParams.projectId} />
-    </div>
+    </>
   );
 }

@@ -55,8 +55,8 @@ export function Header({
     <div className="flex flex-wrap items-end justify-between gap-3 pb-3">
       <div className="min-w-0">
         {eyebrow && <div className="text-xs font-semibold uppercase">{eyebrow}</div>}
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle && <div className="text-sm text-slate-500">{subtitle}</div>}
+        <h1 className="text-[22px] font-semibold leading-8">{title}</h1>
+        {subtitle && <div className="text-sm text-fg-muted">{subtitle}</div>}
       </div>
       {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </div>
@@ -70,7 +70,7 @@ export function TasksView({ area }: { area: Area }) {
 
   const catMenu = (
     <select
-      className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
+      className="input input-sm"
       style={{ color: activeCat?.color }}
       value={activeCat?.id ?? 0}
       title="Filter tasks by category"
@@ -213,10 +213,10 @@ function TaskList({
       {progress != null && <ProgressBar value={progress} color={AREA_COLOR[area]} height={4} />}
       {goals.length > 0 && <GoalStrip goals={goals} />}
       {f === 'today' && overdueN > 0 && (
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+        <div className="flex items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-text">
           <span>⚠️ {plural(overdueN, 'unfinished task')} from earlier days</span>
           <button
-            className="ml-auto rounded-md bg-white px-2 py-0.5 text-xs font-medium shadow-sm hover:bg-red-100"
+            className="ml-auto rounded-md bg-surface px-2 py-0.5 text-xs font-medium shadow-sm hover:bg-danger-soft"
             onClick={() => run(api.planner.moveOverdue(area))}
           >
             Move all to today
@@ -230,11 +230,11 @@ function TaskList({
         placeholder={addDate ? 'Add for today…   #tag   !!! priority   @9:30 time' : 'Add to backlog…   #tag   !!! priority'}
       />
       {!data ? (
-        <div className="py-10 text-center text-sm text-slate-400">Loading…</div>
+        <div className="py-10 text-center text-sm text-fg-subtle">Loading…</div>
       ) : groups.length === 0 ? (
         f === 'today' ? (
           <EmptyState icon="☀️" text="Nothing planned for today">
-            <button className="mt-1 text-sm text-indigo-600 hover:underline" onClick={() => setFilter('backlog')}>
+            <button className="mt-1 text-sm link" onClick={() => setFilter('backlog')}>
               Pick tasks from the backlog
             </button>
           </EmptyState>
@@ -261,7 +261,7 @@ function GoalStrip({ goals }: { goals: PGoal[] }) {
         <button
           key={g.id}
           onClick={() => go({ kind: 'goals', area: g.area })}
-          className="min-w-[180px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm hover:border-slate-300"
+          className="min-w-[180px] card px-3 py-2 text-left text-sm hover:border-line-strong"
         >
           <div className="flex items-center gap-1.5">
             <span>{g.done ? '🏅' : '🎯'}</span>
@@ -269,7 +269,7 @@ function GoalStrip({ goals }: { goals: PGoal[] }) {
           </div>
           <div className="mt-1.5 flex items-center gap-2">
             <ProgressBar value={g.progressTotal ? g.progressDone / g.progressTotal : 0} color={AREA_COLOR[g.area]} height={4} />
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-fg-muted">
               {g.progressDone}/{g.progressTotal}
             </span>
           </div>
@@ -292,7 +292,7 @@ function DayNoteBox({ day, area }: { day: string; area: Area }) {
     api.planner.dayNote(day, area).then((n) => setBody(n.body ?? '')).catch(() => setBody(''));
   }, [day, area]);
   return (
-    <div className="mt-4 border-t border-slate-200 pt-3">
+    <div className="mt-4 border-t border-line pt-3">
       <button
         className="mb-2 flex items-center gap-1.5 text-sm font-semibold"
         onClick={() => {
@@ -382,8 +382,8 @@ function BoardView({ area, categoryId, right }: { area: Area; categoryId?: numbe
             <div
               key={c.id}
               className={cx(
-                'flex min-h-[300px] flex-col rounded-xl bg-slate-100 p-2 transition',
-                over === c.id && 'ring-2 ring-indigo-300',
+                'flex min-h-[300px] flex-col rounded-xl bg-muted p-2 transition',
+                over === c.id && 'ring-2 ring-accent/30',
               )}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -400,9 +400,9 @@ function BoardView({ area, categoryId, right }: { area: Area; categoryId?: numbe
               <div className="flex items-center gap-1.5 px-1.5 pb-2 text-sm font-semibold">
                 <span>{c.icon}</span>
                 {c.label}
-                <span className="font-normal text-slate-400">{ts.length}</span>
+                <span className="font-normal text-fg-subtle">{ts.length}</span>
                 <button
-                  className="ml-auto rounded px-1.5 text-slate-500 hover:bg-slate-200"
+                  className="ml-auto rounded px-1.5 text-fg-muted hover:bg-emphasis"
                   title="Add a card"
                   onClick={() => setAdding(c.id)}
                 >
@@ -412,7 +412,7 @@ function BoardView({ area, categoryId, right }: { area: Area; categoryId?: numbe
               {adding === c.id && (
                 <input
                   autoFocus
-                  className="mb-2 rounded-lg border border-indigo-300 bg-white px-2.5 py-2 text-sm outline-none"
+                  className="mb-2 rounded-lg border border-accent/40 bg-surface px-2.5 py-2 text-sm outline-none"
                   placeholder="Task title…  #tag  !!!"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -436,22 +436,22 @@ function BoardView({ area, categoryId, right }: { area: Area; categoryId?: numbe
                       onDragStart={(e) => e.dataTransfer.setData('text/plain', String(t.id))}
                       onClick={() => openTask(selectedTaskId === t.id ? null : t.id)}
                       className={cx(
-                        'cursor-grab rounded-lg border-l-4 bg-white px-2.5 py-2 text-sm shadow-sm active:cursor-grabbing',
-                        selectedTaskId === t.id && 'ring-2 ring-indigo-300',
+                        'cursor-grab rounded-lg border-l-4 bg-surface px-2.5 py-2 text-sm shadow-sm active:cursor-grabbing',
+                        selectedTaskId === t.id && 'ring-2 ring-accent/30',
                       )}
                       style={{ borderLeftColor: cat?.color ?? AREA_COLOR[t.area] }}
                     >
-                      <div className={cx(t.done && 'text-slate-400 line-through')}>
+                      <div className={cx(t.done && 'text-fg-subtle line-through')}>
                         {t.priority > 0 && <span className="mr-1 text-xs" style={{ color: ['', '#3B82F6', '#F97316', '#EF4444'][t.priority] }}>⚑</span>}
                         {t.title}
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-slate-500">
+                      <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-fg-muted">
                         {cat && <span style={{ color: cat.color }}>{cat.name}</span>}
-                        {t.date && <span className={t.isOverdue ? 'text-red-500' : ''}>{t.date === today ? 'Today' : dayMonth(t.date)}</span>}
+                        {t.date && <span className={t.isOverdue ? 'text-danger-text' : ''}>{t.date === today ? 'Today' : dayMonth(t.date)}</span>}
                         {t.checklistTotal > 0 && <span>☑ {t.checklistDone}/{t.checklistTotal}</span>}
                         {t.recurrenceId && <span>🔁</span>}
                         {t.tags.map((g) => (
-                          <span key={g} className="text-indigo-500">#{g}</span>
+                          <span key={g} className="text-accent-text">#{g}</span>
                         ))}
                       </div>
                     </div>
@@ -480,7 +480,7 @@ export function OverdueView() {
         right={
           (meta?.overdue.total ?? 0) > 0 && (
             <button
-              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+              className="btn btn-primary btn-sm"
               onClick={() => run(api.planner.moveOverdue())}
             >
               Move all to today
@@ -512,11 +512,11 @@ export function CategoryTasksView({ id }: { id: number }) {
         subtitle={`${open.length} open · done in the last 7 days shown below`}
         right={
           <>
-            <button className="rounded-md px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-200" onClick={() => editCategory({ area: c.area, edit: c })}>
+            <button className="rounded-md px-2.5 py-1 text-sm text-fg-secondary hover:bg-emphasis" onClick={() => editCategory({ area: c.area, edit: c })}>
               Edit
             </button>
             <button
-              className="rounded-md px-2.5 py-1 text-sm text-red-600 hover:bg-red-50"
+              className="rounded-md px-2.5 py-1 text-sm text-danger-text hover:bg-danger-soft"
               onClick={async () => {
                 if (!confirm(`Delete category “${c.name}”? Tasks in it are kept; they just lose the category.`)) return;
                 await run(api.planner.deleteCategory(c.id));

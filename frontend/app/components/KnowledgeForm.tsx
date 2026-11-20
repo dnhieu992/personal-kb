@@ -13,6 +13,7 @@ import {
   Project,
 } from '../lib/api';
 import ImageUploader from './ImageUploader';
+import { Icon } from './icons';
 
 interface Props {
   initial?: Knowledge;
@@ -109,180 +110,155 @@ export default function KnowledgeForm({ initial, defaultProjectId }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
-      <div>
-        <label className="mb-1 block text-sm font-medium">Title</label>
+    <form onSubmit={onSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+      {/* Writing area */}
+      <div className="min-w-0 space-y-4">
         <input
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+          placeholder="Title"
+          className="w-full bg-transparent text-2xl font-semibold tracking-tight text-fg outline-none placeholder:text-fg-faint"
         />
-      </div>
 
-      <div className="flex flex-wrap gap-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Type</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as KnowledgeType)}
-            className="rounded-md border border-slate-300 px-3 py-2"
-          >
-            {KNOWLEDGE_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium">Project</label>
-          <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            className="rounded-md border border-slate-300 px-3 py-2"
-          >
-            <option value="">No project</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-1 flex items-center justify-between">
-          <label className="text-sm font-medium">Content (Markdown)</label>
-          <div className="flex items-center gap-3">
+        <div className="card overflow-hidden">
+          <div className="flex items-center gap-1 border-b border-line bg-subtle px-2 py-1.5">
+            <div className="flex rounded-md bg-muted p-0.5">
+              {(['Write', 'Preview'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setPreview(m === 'Preview')}
+                  className={`rounded px-2.5 py-0.5 text-[13px] font-medium transition ${
+                    (m === 'Preview') === preview ? 'bg-surface text-fg shadow-xs' : 'text-fg-muted hover:text-fg'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <span className="ml-2 text-xs text-fg-subtle">Markdown</span>
             {canFormat && (
               <button
                 type="button"
                 onClick={formatNow}
                 disabled={formatting || !content.trim()}
-                className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
+                className="btn btn-ghost btn-xs ml-auto"
               >
-                {formatting
-                  ? 'Đang dịch…'
-                  : '✨ Format & dịch sang tiếng Anh ngay'}
+                <Icon name="sparkles" className="h-3.5 w-3.5" />
+                {formatting ? 'Đang dịch…' : 'Format & dịch ngay'}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setPreview((p) => !p)}
-              className="text-xs text-indigo-600 hover:underline"
-            >
-              {preview ? 'Edit' : 'Preview'}
-            </button>
           </div>
+          {preview ? (
+            <div className="prose-kb min-h-[22rem] p-4">
+              <ReactMarkdown>{content || '*Nothing to preview*'}</ReactMarkdown>
+            </div>
+          ) : (
+            <textarea
+              required
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={18}
+              placeholder="Write in Markdown — any language, it gets translated to English on save."
+              className="block min-h-[22rem] w-full resize-y bg-surface p-4 font-mono text-[13px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle"
+            />
+          )}
         </div>
-        {preview ? (
-          <div className="prose-kb min-h-[12rem] rounded-md border border-slate-200 bg-white p-3">
-            <ReactMarkdown>{content || '*Nothing to preview*'}</ReactMarkdown>
-          </div>
-        ) : (
-          <textarea
-            required
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={12}
-            placeholder="Write in Markdown…"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-sm focus:border-indigo-500 focus:outline-none"
-          />
+
+        {initial?.originalContent && (
+          <details className="card px-4 py-3">
+            <summary className="cursor-pointer text-[13px] font-medium text-fg-secondary">
+              Bản gốc bạn đã viết (trước khi AI dịch)
+            </summary>
+            <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-fg-muted">{initial.originalContent}</pre>
+          </details>
         )}
       </div>
 
-      {initial?.originalContent && (
-        <details className="rounded-md border border-slate-200 bg-slate-50 p-3">
-          <summary className="cursor-pointer text-sm font-medium text-slate-600">
-            Bản gốc bạn đã viết (trước khi AI dịch)
-          </summary>
-          <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-slate-600">
-            {initial.originalContent}
-          </pre>
-        </details>
-      )}
+      {/* Details */}
+      <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
+        <div className="card space-y-4 p-4">
+          <div>
+            <label className="label">Type</label>
+            <select value={type} onChange={(e) => setType(e.target.value as KnowledgeType)} className="input w-full">
+              {KNOWLEDGE_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Tags</label>
-        <div className="flex flex-wrap gap-2">
-          {tags.map((t) => (
-            <span
-              key={t}
-              className="flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-sm text-indigo-700"
-            >
-              #{t}
-              <button
-                type="button"
-                onClick={() => removeTag(t)}
-                className="text-indigo-400 hover:text-indigo-700"
-              >
-                ×
-              </button>
-            </span>
-          ))}
+          <div>
+            <label className="label">Project</label>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="input w-full">
+              <option value="">No project</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Tags</label>
+            {tags.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1">
+                {tags.map((t) => (
+                  <span key={t} className="chip tone-accent">
+                    #{t}
+                    <button type="button" onClick={() => removeTag(t)} className="opacity-60 hover:opacity-100" aria-label={`Remove ${t}`}>
+                      <Icon name="x" className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  addTag(tagInput);
+                }
+              }}
+              placeholder="Add a tag, press Enter"
+              className="input input-sm w-full"
+            />
+          </div>
+
+          <ImageUploader value={images} onChange={setImages} label="Ảnh (không bắt buộc)" />
         </div>
-        <input
-          value={tagInput}
-          onChange={(e) => setTagInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-              e.preventDefault();
-              addTag(tagInput);
-            }
-          }}
-          placeholder="Type a tag and press Enter"
-          className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-        />
-      </div>
 
-      <ImageUploader
-        value={images}
-        onChange={setImages}
-        label="Ảnh (không bắt buộc)"
-      />
+        {canFormat && (
+          <div className="rounded-xl border border-accent/20 bg-accent-soft p-3.5 text-[13px] text-accent-text">
+            <p className="flex items-center gap-1.5 font-medium">
+              <Icon name="sparkles" className="h-3.5 w-3.5" /> AI khi lưu
+            </p>
+            <p className="mt-1 opacity-90">
+              Format lại thành Markdown có cấu trúc và dịch sang tiếng Anh. Lỗi ngữ pháp và từ mới được đưa vào{' '}
+              <Link href="/english/review" className="underline">
+                ôn tập English
+              </Link>
+              ; bản gốc vẫn được giữ.
+            </p>
+          </div>
+        )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger-text">{error}</p>}
 
-      {canFormat && (
-        <p className="rounded-md bg-indigo-50 p-3 text-sm text-indigo-900">
-          ✨ Khi lưu, AI sẽ format lại thành Markdown có cấu trúc và dịch toàn bộ
-          sang tiếng Anh (giữ nguyên ý).
-          <span className="mt-1 block text-xs text-indigo-700">
-            Lỗi ngữ pháp, từ dùng sai và từ bạn viết bằng tiếng Việt được thu
-            thập vào{' '}
-            <Link href="/english/review" className="underline">
-              phần ôn tập English
-            </Link>
-            . Bản gốc bạn viết vẫn được giữ lại.
-          </span>
-        </p>
-      )}
-
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {saving
-            ? canFormat
-              ? 'Đang dịch & lưu…'
-              : 'Saving…'
-            : editing
-              ? 'Update'
-              : 'Create'}
-        </button>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-md border px-5 py-2 text-sm"
-        >
-          Cancel
-        </button>
-      </div>
+        <div className="flex gap-2">
+          <button type="submit" disabled={saving} className="btn btn-primary flex-1">
+            {saving ? (canFormat ? 'Đang dịch & lưu…' : 'Saving…') : editing ? 'Save changes' : 'Create entry'}
+          </button>
+          <button type="button" onClick={() => router.back()} className="btn btn-secondary">
+            Cancel
+          </button>
+        </div>
+      </aside>
     </form>
   );
 }

@@ -14,7 +14,8 @@ app/
 ├── planner/                  # web port of the Planner Mac app (full-width client app)
 ├── english/                  # journey dashboard, journal, review queue
 ├── chat/page.tsx             # RAG chat UI
-├── components/               # shared UI (KnowledgeForm, TaskRow, TaskQuickAdd)
+├── design/page.tsx           # living style guide (tokens + components)
+├── components/               # AppShell (sidebar, ⌘K), ui.tsx primitives, icons, KnowledgeForm, TaskRow…
 └── lib/api.ts                # typed API client + shared types
 ```
 
@@ -25,8 +26,15 @@ English — and stop polling once everything has settled.
 `/planner` is one client page (`planner/page.tsx`) with its own context (`planner/state.tsx`):
 every mutation goes through `run()`, which bumps `rev` so all views re-fetch; it polls
 `meta.englishPending` while background English fixes are running. Types/date helpers are in
-`lib/planner.ts`, HTTP calls in `api.planner`. `components/MainContainer.tsx` drops the
-`max-w-5xl` column for `/planner`.
+`lib/planner.ts`, HTTP calls in `api.planner`. `components/AppShell.tsx` gives `/planner` the full
+width and folds the global sidebar to a rail there.
+
+## Design system
+
+Read `DESIGN.md` before touching UI. Use semantic tokens (`bg-surface`, `text-fg-muted`,
+`bg-accent`…) and the `.btn` / `.input` / `.card` / `.chip tone-*` classes — never raw palette
+classes like `bg-slate-100`, which break dark mode. Pages start with `<PageHeader>`; navigation
+lives in `components/nav.ts` (sidebar + ⌘K).
 
 ## API access (important)
 
@@ -43,7 +51,7 @@ When adding an endpoint, extend the `api` object in `app/lib/api.ts` rather than
 
 - App Router with Server Components by default; add `'use client'` only when needed
   (forms, chat, interactivity).
-- Tailwind utility classes; type→color map lives in `app/lib/api.ts` (`TYPE_COLORS`).
+- Tailwind with semantic tokens (see `DESIGN.md`); type→tone map lives in `app/lib/api.ts` (`TYPE_COLORS`).
 - The `KnowledgeType` union mirrors the backend enum — keep both in sync.
 
 ## Commands

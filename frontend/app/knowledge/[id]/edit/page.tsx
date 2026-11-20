@@ -1,14 +1,11 @@
 import Link from 'next/link';
 import KnowledgeForm from '../../../components/KnowledgeForm';
+import { Alert, PageHeader } from '../../../components/ui';
 import { api, Knowledge } from '../../../lib/api';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EditKnowledgePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function EditKnowledgePage({ params }: { params: { id: string } }) {
   let entry: Knowledge | null = null;
   let error: string | null = null;
   try {
@@ -19,20 +16,22 @@ export default async function EditKnowledgePage({
 
   if (error || !entry) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-        <p className="font-semibold">Entry not found.</p>
-        <p className="mt-1 text-sm">{error}</p>
-        <Link href="/knowledge" className="mt-2 inline-block text-sm underline">
-          ← Back to list
-        </Link>
-      </div>
+      <>
+        <PageHeader title="Entry not found" back={{ href: '/knowledge', label: 'Entries' }} />
+        <Alert title="This entry could not be loaded.">
+          {error}{' '}
+          <Link href="/knowledge" className="underline">
+            Back to entries
+          </Link>
+        </Alert>
+      </>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Edit entry</h1>
+    <>
+      <PageHeader title="Edit entry" back={{ href: '/knowledge', label: 'Entries' }} />
       <KnowledgeForm initial={entry} />
-    </div>
+    </>
   );
 }

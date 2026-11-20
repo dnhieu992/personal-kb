@@ -10,6 +10,8 @@ import {
   TaskCategory,
   TaskList,
 } from '../../lib/api';
+import { Icon } from '../../components/icons';
+import { Alert, EmptyState, Loading, PageHeader, ProgressBar } from '../../components/ui';
 
 export default function TaskListsPage() {
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -69,33 +71,28 @@ export default function TaskListsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Long-term lists</h1>
-          <p className="text-sm text-slate-500">
-            Goals that outlive a single day. Pull tasks into a day when you plan it.
-          </p>
-        </div>
-        <Link
-          href="/plan"
-          className="rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
-        >
-          Daily plan
-        </Link>
-      </div>
+      <PageHeader
+        title="Long-term lists"
+        description="Goals that outlive a single day. Pull tasks into a day when you plan it."
+        actions={
+          <Link href="/plan" className="btn btn-secondary">
+            <Icon name="calendar" /> Daily plan
+          </Link>
+        }
+      />
 
-      <form onSubmit={onCreate} className="space-y-2 rounded-lg border bg-white p-4">
+      <form onSubmit={onCreate} className="space-y-2 card p-4">
         <div className="flex flex-wrap items-center gap-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="New list — e.g. Ship the billing revamp"
-            className="min-w-[14rem] flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+            className="min-w-[14rem] flex-1 input input-sm"
           />
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as TaskCategory)}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            className="input input-sm"
           >
             {TASK_CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -103,19 +100,19 @@ export default function TaskListsPage() {
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-1 text-sm text-slate-600">
+          <label className="flex items-center gap-1.5 text-[13px] text-fg-muted">
             Target
             <input
               type="date"
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
-              className="rounded-md border border-slate-300 px-2 py-1.5"
+              className="input input-sm"
             />
           </label>
           <button
             type="submit"
             disabled={saving || !name.trim()}
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="btn btn-primary btn-sm"
           >
             {saving ? 'Creating…' : 'Create'}
           </button>
@@ -124,71 +121,50 @@ export default function TaskListsPage() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="What does finishing this look like? (optional)"
-          className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-full input input-sm"
         />
       </form>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       {loading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <Loading />
       ) : lists.length === 0 ? (
-        <p className="text-sm text-slate-500">
-          No lists yet. Create one above to park the work that spans weeks.
-        </p>
+        <EmptyState icon="list" title="No lists yet" description="Create one above to park the work that spans weeks." />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {lists.map((l) => {
             const total = l.taskCount ?? 0;
             const done = l.doneCount ?? 0;
             const pct = total ? Math.round((done / total) * 100) : 0;
             return (
-              <div key={l.id} className="rounded-lg border bg-white p-4 hover:shadow-sm">
+              <article key={l.id} className="card card-interactive group relative p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <Link
-                    href={`/plan/lists/${l.id}`}
-                    className="font-medium text-indigo-700 hover:underline"
-                  >
+                  <Link href={`/plan/lists/${l.id}`} className="font-medium text-fg after:absolute after:inset-0">
                     {l.name}
                   </Link>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      CATEGORY_COLORS[l.category]
-                    }`}
-                  >
-                    {CATEGORY_LABELS[l.category]}
-                  </span>
+                  <span className={`chip shrink-0 ${CATEGORY_COLORS[l.category]}`}>{CATEGORY_LABELS[l.category]}</span>
                 </div>
-                {l.description && (
-                  <p className="mt-1 text-sm text-slate-500">{l.description}</p>
-                )}
-                <div className="mt-3 h-1.5 overflow-hidden rounded bg-slate-100">
-                  <div
-                    className="h-full bg-emerald-500"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                  <span>
+                {l.description && <p className="mt-1 line-clamp-2 text-[13px] text-fg-muted">{l.description}</p>}
+                <ProgressBar value={pct / 100} tone="success" className="mt-4" />
+                <div className="mt-2 flex items-center gap-2 text-xs text-fg-muted">
+                  <span className="tabular-nums">
                     {done}/{total} done
                   </span>
-                  {l.targetDate && <span>target {l.targetDate}</span>}
-                </div>
-                <div className="mt-3 flex gap-3 border-t pt-3 text-sm">
-                  <Link
-                    href={`/plan/lists/${l.id}`}
-                    className="text-indigo-600 hover:underline"
-                  >
-                    Open
-                  </Link>
+                  {l.targetDate && (
+                    <span className="inline-flex items-center gap-1">
+                      <Icon name="target" className="h-3 w-3" /> {l.targetDate}
+                    </span>
+                  )}
                   <button
                     onClick={() => onDelete(l.id)}
-                    className="text-red-600 hover:underline"
+                    className="btn btn-danger-ghost btn-icon btn-xs relative z-10 ml-auto transition focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                    title="Delete list"
                   >
-                    Delete
+                    <Icon name="trash" className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>

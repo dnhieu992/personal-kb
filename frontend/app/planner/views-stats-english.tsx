@@ -27,7 +27,7 @@ const pct = (d: number, t: number) => (t ? `${Math.floor((d / t) * 100)}%` : '�
 
 function Box({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-xl border border-line bg-surface p-4">
       <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       {children}
     </section>
@@ -36,9 +36,9 @@ function Box({ title, children }: { title: string; children: React.ReactNode }) 
 
 function Card({ title, value, color }: { title: string; value: string; color: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="text-xs text-slate-500">{title}</div>
-      <div className="mt-1 text-2xl font-bold tabular-nums" style={{ color }}>
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <div className="text-xs text-fg-muted">{title}</div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums" style={{ color }}>
         {value}
       </div>
     </div>
@@ -97,15 +97,15 @@ export function StatsView() {
             />
             <Segmented value={period} onChange={(p) => setPeriod(p)} options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />
             {!isCurrent && (
-              <button className="rounded-md px-2 py-1 text-sm text-indigo-600 hover:bg-indigo-50" onClick={() => setAnchor(today)}>
+              <button className="rounded-md px-2 py-1 text-sm text-accent-text hover:bg-accent-soft" onClick={() => setAnchor(today)}>
                 {period === 'week' ? 'This week' : 'This month'}
               </button>
             )}
-            <div className="inline-flex overflow-hidden rounded-md border border-slate-300 bg-white text-sm">
-              <button className="px-2 py-1 hover:bg-slate-100" aria-label="Previous" onClick={() => step(-1)}>
+            <div className="inline-flex overflow-hidden rounded-md border border-line-strong bg-surface text-sm">
+              <button className="px-2 py-1 hover:bg-muted" aria-label="Previous" onClick={() => step(-1)}>
                 ‹
               </button>
-              <button className="border-l border-slate-300 px-2 py-1 hover:bg-slate-100" aria-label="Next" onClick={() => step(1)}>
+              <button className="border-l border-line-strong px-2 py-1 hover:bg-muted" aria-label="Next" onClick={() => step(1)}>
                 ›
               </button>
             </div>
@@ -129,7 +129,7 @@ export function StatsView() {
                 <span className="w-14 text-right tabular-nums">
                   {a.done}/{a.total}
                 </span>
-                <span className="w-10 text-right tabular-nums text-slate-500">{pct(a.done, a.total)}</span>
+                <span className="w-10 text-right tabular-nums text-fg-muted">{pct(a.done, a.total)}</span>
               </div>
             ))}
           </div>
@@ -147,15 +147,15 @@ export function StatsView() {
               >
                 {(!area || area === 'WORK') && <div style={{ flexGrow: d.work, background: AREA_COLOR.WORK }} />}
                 {(!area || area === 'PERSONAL') && <div style={{ flexGrow: d.personal, background: AREA_COLOR.PERSONAL }} />}
-                <div style={{ flexGrow: d.open }} className="bg-slate-300" />
+                <div style={{ flexGrow: d.open }} className="bg-emphasis" />
               </div>
-              <div className={`text-[10px] ${d.k === today ? 'font-bold text-indigo-600' : 'text-slate-500'}`}>
+              <div className={`text-[10px] ${d.k === today ? 'font-bold text-accent-text' : 'text-fg-muted'}`}>
                 {period === 'week' ? `${SHORT_DAYS[weekdayOf(d.k)]} ${Number(d.k.slice(8))}` : Number(d.k.slice(8))}
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-fg-muted">
           {(!area || area === 'WORK') && <Legend color={AREA_COLOR.WORK} label={area ? 'Done' : 'Work · done'} />}
           {(!area || area === 'PERSONAL') && <Legend color={AREA_COLOR.PERSONAL} label={area ? 'Done' : 'Personal · done'} />}
           <Legend color="#CBD5E1" label="Not done" />
@@ -164,7 +164,7 @@ export function StatsView() {
 
       <Box title="By category">
         {!s?.categories.length ? (
-          <div className="text-sm text-slate-400">No data yet</div>
+          <div className="text-sm text-fg-subtle">No data yet</div>
         ) : (
           <div className="space-y-2.5">
             {s.categories.map((c) => {
@@ -242,7 +242,7 @@ export function EnglishView() {
         right={
           !!rows?.length && (
             <button
-              className="rounded-md px-2.5 py-1 text-sm text-red-600 hover:bg-red-50"
+              className="rounded-md px-2.5 py-1 text-sm text-danger-text hover:bg-danger-soft"
               onClick={() => confirm('Clear the whole correction log? (Texts stay as they are.)') && run(api.planner.clearCorrections())}
             >
               Clear log
@@ -253,24 +253,24 @@ export function EnglishView() {
       {rows && !rows.length && <EmptyState icon="📖" text="No corrections yet" />}
       <div className="space-y-2">
         {(rows ?? []).map((c) => (
-          <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-            <div className="mb-1 flex items-center gap-2 text-xs text-slate-400">
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">{KIND_LABEL[c.kind]}</span>
+          <div key={c.id} className="rounded-xl border border-line bg-surface p-3 text-sm">
+            <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
+              <span className="rounded bg-muted px-1.5 py-0.5 text-fg-secondary">{KIND_LABEL[c.kind]}</span>
               {shortDateTime(c.createdAt)}
               <div className="ml-auto flex gap-2">
                 {c.canRevert && (
-                  <button className="text-indigo-600 hover:underline" onClick={() => run(api.planner.revertCorrection(c.id))}>
+                  <button className="link" onClick={() => run(api.planner.revertCorrection(c.id))}>
                     Revert
                   </button>
                 )}
-                <button className="hover:text-red-600" onClick={() => run(api.planner.deleteCorrection(c.id))}>
+                <button className="hover:text-danger-text" onClick={() => run(api.planner.deleteCorrection(c.id))}>
                   Remove
                 </button>
               </div>
             </div>
-            <div className="whitespace-pre-wrap text-red-600/80 line-through decoration-red-300">{c.original}</div>
-            <div className="whitespace-pre-wrap text-emerald-700">{c.corrected}</div>
-            {c.why && <div className="mt-1 text-xs text-slate-500">💡 {c.why}</div>}
+            <div className="whitespace-pre-wrap text-danger-text/80 line-through decoration-red-300">{c.original}</div>
+            <div className="whitespace-pre-wrap text-success-text">{c.corrected}</div>
+            {c.why && <div className="mt-1 text-xs text-fg-muted">💡 {c.why}</div>}
           </div>
         ))}
       </div>

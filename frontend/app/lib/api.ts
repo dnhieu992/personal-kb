@@ -69,11 +69,11 @@ export const KIND_LABELS: Record<EnglishKind, string> = {
 };
 
 export const KIND_COLORS: Record<EnglishKind, string> = {
-  JOURNAL: 'bg-slate-100 text-slate-600',
-  SENTENCE: 'bg-sky-100 text-sky-700',
-  GRAMMAR: 'bg-violet-100 text-violet-700',
-  MISTAKE: 'bg-red-100 text-red-700',
-  VOCAB: 'bg-amber-100 text-amber-700',
+  JOURNAL: 'tone-gray',
+  SENTENCE: 'tone-sky',
+  GRAMMAR: 'tone-violet',
+  MISTAKE: 'tone-red',
+  VOCAB: 'tone-amber',
 };
 
 export interface ImageRef {
@@ -185,15 +185,15 @@ export const TASK_PRIORITIES: TaskPriority[] = [
 export const TASK_CATEGORIES: TaskCategory[] = ['COMPANY', 'PERSONAL'];
 
 export const PRIORITY_COLORS: Record<TaskPriority, string> = {
-  URGENT: 'bg-red-100 text-red-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  MEDIUM: 'bg-slate-100 text-slate-600',
-  LOW: 'bg-slate-50 text-slate-400',
+  URGENT: 'tone-red',
+  HIGH: 'tone-orange',
+  MEDIUM: 'tone-gray',
+  LOW: 'bg-subtle text-fg-subtle',
 };
 
 export const CATEGORY_COLORS: Record<TaskCategory, string> = {
-  COMPANY: 'bg-indigo-100 text-indigo-700',
-  PERSONAL: 'bg-emerald-100 text-emerald-700',
+  COMPANY: 'tone-accent',
+  PERSONAL: 'tone-green',
 };
 
 export const CATEGORY_LABELS: Record<TaskCategory, string> = {
@@ -696,10 +696,10 @@ export const api = {
 };
 
 export const TYPE_COLORS: Record<KnowledgeType, string> = {
-  BUG_FIX: 'bg-red-100 text-red-700',
-  HOW_TO: 'bg-blue-100 text-blue-700',
-  ARCHITECTURE: 'bg-purple-100 text-purple-700',
-  INSIGHT: 'bg-amber-100 text-amber-700',
-  DAILY_LOG: 'bg-emerald-100 text-emerald-700',
-  ENGLISH: 'bg-sky-100 text-sky-700',
+  BUG_FIX: 'tone-red',
+  HOW_TO: 'tone-blue',
+  ARCHITECTURE: 'tone-violet',
+  INSIGHT: 'tone-amber',
+  DAILY_LOG: 'tone-green',
+  ENGLISH: 'tone-sky',
 };

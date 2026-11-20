@@ -41,13 +41,13 @@ export default function ImageUploader({ value, onChange, label = 'Ảnh' }: Prop
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
-        <label className="text-sm font-medium">{label}</label>
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="label mb-0">{label}</label>
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
+          className="text-xs link disabled:opacity-50"
         >
           {uploading ? 'Đang tải lên…' : '+ Thêm ảnh'}
         </button>
@@ -67,7 +67,7 @@ export default function ImageUploader({ value, onChange, label = 'Ảnh' }: Prop
           {value.map((img) => (
             <div
               key={img.key}
-              className="group relative aspect-square overflow-hidden rounded-md border bg-slate-50"
+              className="group relative aspect-square overflow-hidden rounded-lg border bg-subtle"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -91,13 +91,13 @@ export default function ImageUploader({ value, onChange, label = 'Ảnh' }: Prop
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex w-full items-center justify-center rounded-md border border-dashed border-slate-300 py-6 text-sm text-slate-400 hover:border-indigo-400 hover:text-indigo-500 disabled:opacity-50"
+          className="flex w-full items-center justify-center rounded-lg border border-dashed border-line-strong py-5 text-[13px] text-fg-subtle hover:border-accent hover:text-accent-text disabled:opacity-50"
         >
           {uploading ? 'Đang tải lên…' : 'Bấm để chọn ảnh (jpg, png, webp, gif)'}
         </button>
       )}
 
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-sm text-danger-text">{error}</p>}
     </div>
   );
 }

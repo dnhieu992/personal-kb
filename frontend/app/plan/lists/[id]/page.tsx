@@ -11,6 +11,7 @@ import {
   Task,
   TaskList,
 } from '../../../lib/api';
+import { Alert, Loading, PageHeader, ProgressBar } from '../../../components/ui';
 
 export default function TaskListDetailPage({
   params,
@@ -57,51 +58,35 @@ export default function TaskListDetailPage({
   const done = tasks.filter((t) => t.status === 'DONE').length;
   const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
 
-  if (loading) return <p className="text-sm text-slate-500">Loading…</p>;
-  if (error || !list)
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-        {error ?? 'List not found.'}
-      </div>
-    );
+  if (loading) return <Loading />;
+  if (error || !list) return <Alert>{error ?? 'List not found.'}</Alert>;
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/plan/lists" className="text-sm text-indigo-600 hover:underline">
-          ← All lists
-        </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold">{list.name}</h1>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              CATEGORY_COLORS[list.category]
-            }`}
-          >
-            {CATEGORY_LABELS[list.category]}
+      <PageHeader
+        back={{ href: '/plan/lists', label: 'All lists' }}
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            {list.name}
+            <span className={`chip ${CATEGORY_COLORS[list.category]}`}>{CATEGORY_LABELS[list.category]}</span>
           </span>
-          {list.targetDate && (
-            <span className="text-sm text-slate-500">target {list.targetDate}</span>
-          )}
-        </div>
-        {list.description && (
-          <p className="mt-1 text-sm text-slate-500">{list.description}</p>
-        )}
-      </div>
+        }
+        description={
+          <>
+            {list.description}
+            {list.targetDate && <span className="mt-0.5 block text-fg-subtle">Target {list.targetDate}</span>}
+          </>
+        }
+      />
 
-      <div className="rounded-lg border bg-white p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">
-            {done} / {tasks.length} done
+      <div className="card p-4">
+        <div className="flex items-baseline justify-between">
+          <span className="text-[15px] font-semibold text-fg">
+            {done} <span className="font-normal text-fg-muted">of {tasks.length} done</span>
           </span>
-          <span className="text-slate-500">{pct}%</span>
+          <span className="text-[13px] tabular-nums text-fg-muted">{pct}%</span>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded bg-slate-100">
-          <div
-            className="h-full bg-emerald-500 transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+        <ProgressBar value={pct / 100} tone="success" className="mt-2.5" />
       </div>
 
       <TaskQuickAdd
@@ -111,10 +96,10 @@ export default function TaskListDetailPage({
       />
 
       {tasks.length === 0 ? (
-        <p className="text-sm text-slate-400">
+        <p className="rounded-lg border border-dashed border-line px-4 py-6 text-center text-[13px] text-fg-muted">
           No tasks yet. Break the goal into steps above, then pull them into a day
           from the{' '}
-          <Link href="/plan" className="text-indigo-600 underline">
+          <Link href="/plan" className="link">
             daily plan
           </Link>
           .

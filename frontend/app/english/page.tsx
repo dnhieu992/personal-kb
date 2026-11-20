@@ -11,17 +11,13 @@ import {
   REVIEWABLE_KINDS,
   EnglishKind,
 } from '../lib/api';
+import { Icon } from '../components/icons';
+import { Alert, PageHeader, StatCard } from '../components/ui';
 
 export const dynamic = 'force-dynamic';
 
-const LEVEL_COLORS: Record<string, string> = {
-  A1: 'bg-emerald-500',
-  A2: 'bg-teal-500',
-  B1: 'bg-sky-500',
-  B2: 'bg-indigo-500',
-  C1: 'bg-violet-500',
-  C2: 'bg-fuchsia-500',
-};
+/** CEFR levels share the accent hue; higher levels are more saturated. */
+const LEVEL_OPACITY: Record<string, number> = { A1: 0.35, A2: 0.5, B1: 0.62, B2: 0.75, C1: 0.88, C2: 1 };
 
 export default async function EnglishPage() {
   let stats: EnglishStats | null = null;
@@ -40,86 +36,66 @@ export default async function EnglishPage() {
 
   if (error || !stats) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-        <p className="font-semibold">Không kết nối được backend.</p>
-        <p className="mt-1 text-sm">{error}</p>
-      </div>
+      <>
+        <PageHeader title="Journal" />
+        <Alert title="Không kết nối được backend.">{error}</Alert>
+      </>
     );
   }
 
   const maxLevel = Math.max(1, ...Object.values(stats.byLevel));
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Nhật ký học tiếng Anh</h1>
-          <p className="text-sm text-slate-500">
-            Viết tự do mỗi ngày — AI rút ra mục cần ôn và theo dõi trình độ.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/english/review"
-            className="rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
-          >
-            Ôn tập{stats.dueForReview ? ` (${stats.dueForReview})` : ''}
-          </Link>
-          <Link
-            href="/english/new"
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            + Ghi nhật ký
-          </Link>
-        </div>
-      </div>
+    <div className="space-y-10">
+      <PageHeader
+        title="English journal"
+        description="Viết tự do mỗi ngày — AI rút ra mục cần ôn và theo dõi trình độ."
+        actions={
+          <>
+            <Link href="/english/review" className="btn btn-secondary">
+              <Icon name="cards" /> Ôn tập
+              {stats.dueForReview > 0 && <span className="chip tone-amber -mr-1 px-1.5">{stats.dueForReview}</span>}
+            </Link>
+            <Link href="/english/new" className="btn btn-primary">
+              <Icon name="pen" /> Ghi nhật ký
+            </Link>
+          </>
+        }
+      />
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Buổi nhật ký" value={stats.journalCount} />
-        <StatCard label="Mục cần nhớ" value={stats.itemCount} />
-        <StatCard label="Chờ ôn" value={stats.dueForReview} />
-        <StatCard label="Độ chính xác" value={`${stats.reviewAccuracy}%`} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Buổi nhật ký" value={stats.journalCount} icon="pen" />
+        <StatCard label="Mục cần nhớ" value={stats.itemCount} icon="book" />
+        <StatCard label="Chờ ôn" value={stats.dueForReview} icon="cards" tone={stats.dueForReview ? 'warning' : 'default'} href="/english/review" />
+        <StatCard label="Độ chính xác" value={`${stats.reviewAccuracy}%`} icon="target" tone="success" />
       </div>
 
       {stats.itemCount > 0 && (
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-          {/* Level distribution */}
-          <section>
-            <h2 className="mb-3 text-lg font-semibold">Phân bố trình độ</h2>
-            <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <section className="card p-5">
+            <h2 className="section-title mb-4">Phân bố trình độ</h2>
+            <div className="space-y-2.5">
               {CEFR_LEVELS.map((lvl) => {
                 const count = stats!.byLevel[lvl] ?? 0;
                 return (
                   <div key={lvl} className="flex items-center gap-3">
-                    <span className="w-8 text-sm font-medium text-slate-600">
-                      {lvl}
-                    </span>
-                    <div className="h-5 flex-1 overflow-hidden rounded bg-slate-100">
-                      <div
-                        className={`h-full ${LEVEL_COLORS[lvl]}`}
-                        style={{ width: `${(count / maxLevel) * 100}%` }}
-                      />
+                    <span className="w-7 text-xs font-semibold text-fg-muted">{lvl}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${(count / maxLevel) * 100}%`, opacity: LEVEL_OPACITY[lvl] }} />
                     </div>
-                    <span className="w-8 text-right text-sm text-slate-500">
-                      {count}
-                    </span>
+                    <span className="w-8 text-right text-xs tabular-nums text-fg-muted">{count}</span>
                   </div>
                 );
               })}
             </div>
           </section>
 
-          {/* Kind distribution */}
-          <section>
-            <h2 className="mb-3 text-lg font-semibold">Theo loại</h2>
+          <section className="card p-5">
+            <h2 className="section-title mb-4">Theo loại</h2>
             <div className="flex flex-wrap gap-2">
               {REVIEWABLE_KINDS.map((k) => (
-                <span
-                  key={k}
-                  className={`rounded-full px-3 py-1 text-sm font-medium ${KIND_COLORS[k]}`}
-                >
-                  {KIND_LABELS[k]} · {stats!.byKind[k] ?? 0}
+                <span key={k} className={`chip px-2.5 py-1 text-[13px] ${KIND_COLORS[k]}`}>
+                  {KIND_LABELS[k]} <span className="tabular-nums opacity-70">{stats!.byKind[k] ?? 0}</span>
                 </span>
               ))}
             </div>
@@ -130,21 +106,21 @@ export default async function EnglishPage() {
       {/* Collected while writing knowledge entries */}
       {collected.length > 0 && (
         <section>
-          <h2 className="mb-1 text-lg font-semibold">Thu thập từ entry & task</h2>
-          <p className="mb-3 text-sm text-slate-500">
+          <h2 className="section-title mb-1">Thu thập từ entry & task</h2>
+          <p className="mb-4 text-[13px] text-fg-muted">
             Ngữ pháp và từ vựng AI nhặt ra khi dịch các entry và task của bạn
             sang tiếng Anh — đã nằm sẵn trong hàng đợi ôn tập.
           </p>
           <div className="space-y-4">
             {collected.map(({ source, items }) => (
-              <article key={source.id} className="rounded-lg border bg-white p-4">
+              <article key={source.id} className="card p-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <span
                       className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                         source.kind === 'TASK'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-600'
+                          ? 'tone-green'
+                          : 'tone-gray'
                       }`}
                     >
                       {source.kind === 'TASK' ? 'Task' : 'Entry'}
@@ -155,12 +131,12 @@ export default async function EnglishPage() {
                           ? '/plan'
                           : `/knowledge/${source.id}/edit`
                       }
-                      className="truncate font-medium text-indigo-700 hover:underline"
+                      className="truncate font-medium link"
                     >
                       {source.title}
                     </Link>
                   </div>
-                  <time className="shrink-0 text-xs text-slate-400">
+                  <time className="shrink-0 text-xs text-fg-subtle">
                     {new Date(source.createdAt).toLocaleDateString('vi-VN')}
                   </time>
                 </div>
@@ -177,11 +153,11 @@ export default async function EnglishPage() {
 
       {/* Diary timeline */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Dòng thời gian</h2>
+        <h2 className="section-title mb-3">Dòng thời gian</h2>
         {timeline.length === 0 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-fg-muted">
             Chưa có gì —{' '}
-            <Link className="text-indigo-600 underline" href="/english/new">
+            <Link className="text-accent-text underline" href="/english/new">
               ghi buổi học đầu tiên
             </Link>
             .
@@ -189,16 +165,16 @@ export default async function EnglishPage() {
         ) : (
           <div className="space-y-4">
             {timeline.map(({ journal, items }) => (
-              <article key={journal.id} className="rounded-lg border bg-white p-4">
+              <article key={journal.id} className="card p-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <time className="text-xs font-medium text-slate-400">
+                  <time className="text-xs font-medium text-fg-subtle">
                     {new Date(journal.createdAt).toLocaleString('vi-VN')}
                   </time>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-fg-subtle">
                     {items.length} mục
                   </span>
                 </div>
-                <p className="text-slate-700">{journal.summary}</p>
+                <p className="text-fg-secondary">{journal.summary}</p>
 
                 {journal.images && journal.images.length > 0 && (
                   <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -251,19 +227,10 @@ function ItemLine({ item }: { item: Knowledge }) {
       <span>
         <span className="font-medium">{item.content}</span>
         {item.summary && (
-          <span className="text-slate-500"> — {item.summary}</span>
+          <span className="text-fg-muted"> — {item.summary}</span>
         )}
-        {item.hard && <span className="ml-1 text-orange-600">★</span>}
+        {item.hard && <span className="ml-1 text-warning-text">★</span>}
       </span>
     </li>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-lg border bg-white p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-3xl font-bold text-indigo-700">{value}</p>
-    </div>
   );
 }

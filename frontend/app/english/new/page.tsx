@@ -11,6 +11,7 @@ import {
   KIND_LABELS,
   EnglishKind,
 } from '../../lib/api';
+import { PageHeader } from '../../components/ui';
 import ImageUploader from '../../components/ImageUploader';
 
 export default function NewJournalPage() {
@@ -41,13 +42,13 @@ export default function NewJournalPage() {
   // After saving, show what the AI pulled out.
   if (result) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Đã ghi vào nhật ký ✓</h1>
-        <div className="rounded-lg border bg-white p-4">
-          <p className="text-xs font-medium uppercase text-slate-400">
+      <div className="max-w-2xl space-y-6">
+        <PageHeader title="Đã ghi vào nhật ký" back={{ href: '/english', label: 'Journal' }} />
+        <div className="card p-4">
+          <p className="eyebrow">
             Tóm tắt
           </p>
-          <p className="mt-1 text-slate-700">{result.journal.summary}</p>
+          <p className="mt-1 text-fg-secondary">{result.journal.summary}</p>
           {result.journal.images && result.journal.images.length > 0 && (
             <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
               {result.journal.images.map((img) => (
@@ -64,38 +65,38 @@ export default function NewJournalPage() {
         </div>
 
         <div>
-          <h2 className="mb-2 text-lg font-semibold">
+          <h2 className="section-title mb-3">
             AI rút ra {result.items.length} mục để ôn
           </h2>
           {result.items.length === 0 ? (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-fg-muted">
               Không có mục nào cần ôn lần này.
             </p>
           ) : (
             <ul className="space-y-2">
               {result.items.map((it) => (
-                <li key={it.id} className="rounded-lg border bg-white p-3">
+                <li key={it.id} className="card p-3">
                   <div className="mb-1 flex items-center gap-2">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      className={`chip ${
                         KIND_COLORS[it.englishKind as EnglishKind]
                       }`}
                     >
                       {KIND_LABELS[it.englishKind as EnglishKind]}
                     </span>
                     {it.cefrLevel && (
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-fg-subtle">
                         {it.cefrLevel}
                       </span>
                     )}
                     {it.hard && (
-                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                      <span className="chip tone-amber">
                         khó nhớ
                       </span>
                     )}
                   </div>
                   <p className="font-medium">{it.content}</p>
-                  <p className="text-sm text-slate-500">{it.summary}</p>
+                  <p className="text-sm text-fg-muted">{it.summary}</p>
                 </li>
               ))}
             </ul>
@@ -109,20 +110,20 @@ export default function NewJournalPage() {
               setText('');
               setImages([]);
             }}
-            className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="btn btn-primary"
           >
             Ghi thêm
           </button>
           <Link
             href="/english"
-            className="rounded-md border px-5 py-2 text-sm"
+            className="btn btn-secondary"
           >
             Về nhật ký
           </Link>
           {result.items.length > 0 && (
             <Link
               href="/english/review"
-              className="rounded-md border border-indigo-600 px-5 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              className="btn btn-secondary"
             >
               Ôn ngay
             </Link>
@@ -133,14 +134,14 @@ export default function NewJournalPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Ghi nhật ký học tiếng Anh</h1>
-      <p className="text-sm text-slate-500">
-        Viết tự do về buổi học hôm nay (tiếng Việt cũng được). AI sẽ tóm tắt và
-        tự rút ra các câu / ngữ pháp / lỗi / từ vựng đáng nhớ để bạn ôn lại.
-      </p>
+    <div className="max-w-2xl">
+      <PageHeader
+        back={{ href: '/english', label: 'Journal' }}
+        title="Ghi nhật ký"
+        description="Viết tự do về buổi học hôm nay (tiếng Việt cũng được). AI sẽ tóm tắt và rút ra câu, ngữ pháp, lỗi và từ vựng đáng nhớ để ôn lại."
+      />
 
-      <form onSubmit={onSubmit} className="space-y-5">
+      <form onSubmit={onSubmit} className="card space-y-5 p-5">
         <textarea
           required
           autoFocus
@@ -151,7 +152,7 @@ export default function NewJournalPage() {
             'Ví dụ: Hôm nay học được mẫu câu "I should have left earlier", thấy khá khó nhớ. ' +
             'Câu "I\'m getting the hang of it" gặp lần thứ 3 rồi mà vẫn phải tra...'
           }
-          className="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+          className="input w-full text-[15px] leading-relaxed"
         />
 
         <ImageUploader
@@ -160,20 +161,20 @@ export default function NewJournalPage() {
           label="Ảnh đính kèm (không bắt buộc)"
         />
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger-text">{error}</p>}
 
-        <div className="flex gap-3">
+        <div className="flex flex-row-reverse justify-start gap-2 border-t border-line pt-4">
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {saving ? 'AI đang xử lý…' : 'Lưu nhật ký'}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded-md border px-5 py-2 text-sm"
+            className="btn btn-secondary"
           >
             Huỷ
           </button>

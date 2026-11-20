@@ -4,6 +4,8 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../lib/api';
+import { Icon } from '../components/icons';
+import { PageHeader } from '../components/ui';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -43,82 +45,88 @@ export default function ChatPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">AI Chat</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Ask a question in natural language. Claude searches your knowledge base
-          and answers with citations.
-        </p>
-      </div>
+  const suggestions = [
+    'How did we fix the slow orders endpoint?',
+    'What do I know about caching strategies?',
+    'Summarize my notes on deployment',
+  ];
 
-      <div className="min-h-[24rem] space-y-4 rounded-lg border bg-white p-4">
+  return (
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col">
+      <PageHeader title="Ask AI" description="Ask in plain language — Claude searches your entries and answers with sources." />
+
+      <div className="flex-1 space-y-5 pb-6">
         {messages.length === 0 && (
-          <p className="text-sm text-slate-400">
-            Try: “How did we fix the slow orders endpoint?”
-          </p>
+          <div className="flex flex-col items-center py-10 text-center">
+            <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-text">
+              <Icon name="sparkles" className="h-6 w-6" />
+            </span>
+            <p className="font-medium text-fg">What would you like to know?</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {suggestions.map((q) => (
+                <button key={q} onClick={() => setInput(q)} className="btn btn-secondary btn-sm font-normal text-fg-secondary">
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={m.role === 'user' ? 'text-right' : 'text-left'}
-          >
-            <div
-              className={`inline-block max-w-[85%] rounded-2xl px-4 py-2 text-left ${
-                m.role === 'user'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 text-slate-800'
-              }`}
-            >
-              {m.role === 'assistant' ? (
+        {messages.map((m, i) =>
+          m.role === 'user' ? (
+            <div key={i} className="flex justify-end">
+              <div className="max-w-[80%] rounded-2xl rounded-br-md bg-accent px-4 py-2.5 text-accent-fg">{m.text}</div>
+            </div>
+          ) : (
+            <div key={i} className="flex gap-3">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-text">
+                <Icon name="sparkles" className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
                 <div className="prose-kb">
                   <ReactMarkdown>{m.text}</ReactMarkdown>
                 </div>
-              ) : (
-                m.text
-              )}
-              {m.sources && m.sources.length > 0 && (
-                <div className="mt-2 border-t border-slate-200 pt-2 text-xs">
-                  <p className="mb-1 font-semibold text-slate-500">Sources</p>
-                  <ol className="list-decimal space-y-0.5 pl-4">
-                    {m.sources.map((s) => (
-                      <li key={s.id}>
-                        <Link
-                          href={`/knowledge/${s.id}/edit`}
-                          className="text-indigo-600 hover:underline"
-                        >
-                          {s.title}
-                        </Link>{' '}
-                        <span className="text-slate-400">({s.score})</span>
-                      </li>
+                {m.sources && m.sources.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {m.sources.map((s, n) => (
+                      <Link
+                        key={s.id}
+                        href={`/knowledge/${s.id}/edit`}
+                        className="inline-flex max-w-[16rem] items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1 text-xs text-fg-secondary transition hover:border-line-strong hover:text-fg"
+                        title={`Similarity ${s.score}`}
+                      >
+                        <span className="font-semibold text-fg-subtle">{n + 1}</span>
+                        <span className="truncate">{s.title}</span>
+                      </Link>
                     ))}
-                  </ol>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+        )}
         {loading && (
-          <p className="text-sm text-slate-400">Claude is thinking…</p>
+          <div className="flex items-center gap-3 text-[13px] text-fg-muted">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent-text">
+              <Icon name="sparkles" className="h-4 w-4 animate-pulse" />
+            </span>
+            Searching your knowledge…
+          </div>
         )}
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={send} className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask your knowledge base…"
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          Send
-        </button>
+      <form onSubmit={send} className="sticky bottom-0 -mx-1 bg-gradient-to-t from-canvas via-canvas to-transparent px-1 pb-4 pt-6">
+        <div className="card flex items-center gap-2 p-1.5 pl-4 shadow-md focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent/20">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask your knowledge base…"
+            className="h-9 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-fg-subtle"
+          />
+          <button type="submit" disabled={loading || !input.trim()} className="btn btn-primary btn-icon" aria-label="Send">
+            <Icon name="send" />
+          </button>
+        </div>
       </form>
     </div>
   );

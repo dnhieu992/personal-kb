@@ -77,8 +77,8 @@ export function AddTaskBar({
   };
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 focus-within:border-indigo-300">
-      <span className="text-lg text-slate-400">+</span>
+    <div className="flex items-center gap-2 card px-3 py-1.5 focus-within:border-accent/40">
+      <span className="text-lg text-fg-subtle">+</span>
       <input
         ref={input}
         className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-none"
@@ -91,7 +91,7 @@ export function AddTaskBar({
         <CategoryPicker
           area={area}
           value={cat}
-          className="max-w-[9rem] border-transparent text-xs text-slate-500"
+          className="max-w-[9rem] border-transparent text-xs text-fg-muted"
           onChange={(id) => {
             setCat(id);
             localStorage.setItem(`planner.lastCategory.${area}`, String(id ?? 0));
@@ -115,11 +115,11 @@ function TaskMenu({ task, onClose }: { task: PTask; onClose: () => void }) {
     run(p);
   };
   const move = (date: string | null) => act(api.planner.updateTask(task.id, { date }));
-  const item = 'block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-100';
+  const item = 'block w-full px-3 py-1.5 text-left text-sm hover:bg-muted';
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-7 z-30 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+      className="absolute right-0 top-7 z-30 w-52 overflow-hidden card py-1 shadow-lg"
       onClick={(e) => e.stopPropagation()}
     >
       {!task.done && task.date !== today && (
@@ -134,8 +134,8 @@ function TaskMenu({ task, onClose }: { task: PTask; onClose: () => void }) {
           <button className={item} onClick={() => move(addDays(startOfWeek(today), 7))}>Next Monday</button>
         </>
       )}
-      <div className="my-1 border-t border-slate-100" />
-      <div className="px-3 py-1 text-xs font-semibold uppercase text-slate-400">Category</div>
+      <div className="my-1 border-t border-line" />
+      <div className="px-3 py-1 text-xs font-semibold uppercase text-fg-subtle">Category</div>
       <button className={item} onClick={() => act(api.planner.updateTask(task.id, { categoryId: null }))}>
         {task.categoryId == null ? '✓ ' : ''}None
       </button>
@@ -148,9 +148,9 @@ function TaskMenu({ task, onClose }: { task: PTask; onClose: () => void }) {
       <button className={item} onClick={() => act(api.planner.updateTask(task.id, { area: otherArea(task.area) }))}>
         Move to {AREA_LABEL[otherArea(task.area)]}
       </button>
-      <div className="my-1 border-t border-slate-100" />
+      <div className="my-1 border-t border-line" />
       <button
-        className={cx(item, 'text-red-600')}
+        className={cx(item, 'text-danger-text')}
         onClick={() => {
           if (selectedTaskId === task.id) openTask(null);
           act(api.planner.deleteTask(task.id));
@@ -183,7 +183,7 @@ export function TaskRow({
   if (cat) meta.push(<span key="c" style={{ color: cat.color }}>{cat.name}</span>);
   if (showDate && task.date)
     meta.push(
-      <span key="d" className={task.isOverdue ? 'text-red-500' : ''}>
+      <span key="d" className={task.isOverdue ? 'text-danger-text' : ''}>
         {relativeDay(task.date, today)}
       </span>,
     );
@@ -196,14 +196,14 @@ export function TaskRow({
   if (task.attachmentCount) meta.push(<span key="at">📎 {task.attachmentCount}</span>);
   if (task.notes?.trim()) meta.push(<span key="n" title="Has notes">📝</span>);
   if (task.result?.trim()) meta.push(<span key="res" title="Has result">🏁</span>);
-  if (task.inProgress) meta.push(<span key="ip" className="font-medium text-amber-600">In progress</span>);
+  if (task.inProgress) meta.push(<span key="ip" className="font-medium text-warning-text">In progress</span>);
   if (task.tags.length) meta.push(<span key="tg" className="space-x-1"><TagList tags={task.tags} /></span>);
 
   return (
     <div
       className={cx(
         'group relative flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 transition',
-        selected ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'hover:bg-white',
+        selected ? 'bg-accent-soft ring-1 ring-accent/30' : 'hover:bg-surface',
       )}
       onClick={() => openTask(selected ? null : task.id)}
     >
@@ -216,20 +216,20 @@ export function TaskRow({
           <EditableTitle
             doubleClick
             value={task.title}
-            className={cx('text-sm', task.done && 'text-slate-400 line-through')}
+            className={cx('text-sm', task.done && 'text-fg-subtle line-through')}
             onSave={(v) => v && run(api.planner.updateTask(task.id, { title: v }))}
           />
           {task.englishPending && <Spinner title="Checking English…" />}
         </div>
         {meta.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-slate-500">{meta}</div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-fg-muted">{meta}</div>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1 opacity-60 group-hover:opacity-100">
         {pullToday && !task.done && task.date !== today && (
           <button
             title="Do today"
-            className="rounded px-1.5 py-0.5 text-sm hover:bg-amber-100"
+            className="rounded px-1.5 py-0.5 text-sm hover:bg-warning-soft"
             onClick={(e) => {
               e.stopPropagation();
               run(api.planner.updateTask(task.id, { date: today }));
@@ -240,7 +240,7 @@ export function TaskRow({
         )}
         <button
           title="More"
-          className="rounded px-1.5 py-0.5 text-slate-500 hover:bg-slate-200"
+          className="rounded px-1.5 py-0.5 text-fg-muted hover:bg-emphasis"
           onClick={(e) => {
             e.stopPropagation();
             setMenu((m) => !m);
@@ -271,7 +271,7 @@ export function TaskListView({
         <section key={g.id}>
           <div className="mb-1 flex items-center gap-2 px-3 text-xs font-semibold uppercase tracking-wide" style={{ color: g.color ?? '#64748B' }}>
             {g.title}
-            <span className="font-normal text-slate-400">{g.tasks.length}</span>
+            <span className="font-normal text-fg-subtle">{g.tasks.length}</span>
           </div>
           <div className="space-y-0.5">
             {g.tasks.map((t) => (

@@ -79,19 +79,19 @@ export default function TaskQuickAdd({
   }
 
   return (
-    <form onSubmit={onSubmit} className="rounded-lg border bg-white p-3">
+    <form onSubmit={onSubmit} className="card p-3">
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={placeholder}
-          className="min-w-[12rem] flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+          className="min-w-[12rem] flex-1 input input-sm"
         />
         {showCategory && (
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as TaskCategory)}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            className="input input-sm"
           >
             {TASK_CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -103,7 +103,7 @@ export default function TaskQuickAdd({
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value as TaskPriority)}
-          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          className="input input-sm"
         >
           {TASK_PRIORITIES.map((p) => (
             <option key={p} value={p}>
@@ -114,14 +114,14 @@ export default function TaskQuickAdd({
         <button
           type="submit"
           disabled={saving || !title.trim()}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
           {saving ? 'Adding…' : 'Add'}
         </button>
         <button
           type="button"
           onClick={() => setMore((m) => !m)}
-          className="text-xs text-slate-500 hover:text-slate-800"
+          className="text-xs text-fg-muted hover:text-fg"
         >
           {more ? 'Less' : 'More…'}
         </button>
@@ -134,25 +134,25 @@ export default function TaskQuickAdd({
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             placeholder="Notes (Markdown) — write in English, the AI will correct it"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            className="w-full input"
           />
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <label className="flex items-center gap-1 text-slate-600">
+            <label className="flex items-center gap-1 text-fg-secondary">
               Due
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="rounded-md border border-slate-300 px-2 py-1"
+                className="input input-sm"
               />
             </label>
             {lists && lists.length > 0 && (
-              <label className="flex items-center gap-1 text-slate-600">
+              <label className="flex items-center gap-1 text-fg-secondary">
                 List
                 <select
                   value={listId}
                   onChange={(e) => setListId(e.target.value)}
-                  className="rounded-md border border-slate-300 px-2 py-1"
+                  className="input input-sm"
                 >
                   <option value="">None</option>
                   {lists.map((l) => (
@@ -163,7 +163,7 @@ export default function TaskQuickAdd({
                 </select>
               </label>
             )}
-            <label className="flex items-center gap-1.5 text-slate-600">
+            <label className="flex items-center gap-1.5 text-fg-secondary">
               <input
                 type="checkbox"
                 checked={autoCoach}
@@ -175,7 +175,7 @@ export default function TaskQuickAdd({
         </div>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-danger-text">{error}</p>}
     </form>
   );
 }
