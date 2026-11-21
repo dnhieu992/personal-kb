@@ -4,11 +4,12 @@ import { Knowledge } from '../knowledge/entities/knowledge.entity';
 import { EmbeddingModule } from '../embedding/embedding.module';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
+import { CourseAiService } from './course-ai.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Knowledge]), EmbeddingModule],
   controllers: [AiController],
-  providers: [AiService],
-  exports: [AiService],
+  providers: [AiService, CourseAiService],
+  exports: [AiService, CourseAiService],
 })
 export class AiModule {}

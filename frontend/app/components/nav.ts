@@ -35,7 +35,8 @@ export const NAV: NavGroup[] = [
   {
     label: 'English',
     items: [
-      { href: '/english', label: 'Journal', icon: 'pen', keywords: 'english diary nhật ký' },
+      { href: '/english', label: 'Course', icon: 'graduation', keywords: 'english for it lesson bài học khóa học tiến độ' },
+      { href: '/english/journal', label: 'Journal', icon: 'pen', keywords: 'english diary nhật ký' },
       { href: '/english/review', label: 'Review', icon: 'cards', keywords: 'flashcards ôn tập srs' },
       { href: '/phrases', label: 'Phrases', icon: 'quote', keywords: 'telegram cụm từ' },
     ],

@@ -12,6 +12,7 @@ NestJS + TypeORM API for the knowledge base. Entry point `src/main.ts`, root mod
 | `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks; ask `isEnabled()`). |
 | `english` | `src/english/` | Shared English coaching (`EnglishCoachService`): asks the AI what to revise, files the answer as review cards linked to a `sourceId`, dedupes them, and deletes them with their source. No controller — `knowledge` and `task` both use it, which is what keeps the review queue identical for entries and tasks. |
 | `task` | `src/task/` | The planner: `Task` (day plan, status, priority, COMPANY/PERSONAL, backlog) and `TaskList` (long-term todo lists). Saves are instant; the English pass runs in the background. |
+| `course` | `src/course/` | "English for IT" course at `/english` (tables `course_unit`, `course_lesson`, `course_attempt`): CEFR levels A2–C1 → 8 units × 4 lessons. Content is AI-written **once and stored** (`CourseGeneratorService`, background, resumable); lessons unlock in order when the previous one's practice scores ≥ 70%; first pass files the lesson's vocab as review cards via `EnglishCoachService.collect`. |
 | `planner` | `src/planner/` | Web port of the "Planner" Mac app (`/planner/*`, tables `planner_*`, independent of `task`): Work/Personal areas, categories, todo tasks (backlog/today/week/month, Kanban), checklist, links, recurrence, goals, notes + day notes, stats, English auto-correct log. Reminders go to Telegram (cron every minute). |
 
 ## Conventions
@@ -55,4 +56,11 @@ npm run build       # → dist/
   unique `(recurrenceId, date)` + INSERT IGNORE); a deleted occurrence stays as a `hidden`
   row so it isn't regenerated. Title/checklist/goal/note-title fixes run in the background
   via `AiService.correctEnglish` and are logged in `planner_correction` (revertable).
+- **Course** (`src/course/`): `POST /course/levels/:level/generate` writes the outline (if the
+  level has none) then every PENDING/FAILED lesson, 3 at a time, with `CourseAiService`
+  (`src/ai/course-ai.service.ts`, `claude-opus-5-5` or `COURSE_MODEL`, structured JSON output,
+  ~1 min and ~$0.13 per lesson). Exercises are normalised/dropped by `normaliseExercise` so every
+  one is gradable; grading happens in the browser (`frontend/app/lib/course.ts`) and the run's
+  score is posted to `/course/lessons/:id/attempts`. Progress lives on `course_lesson`
+  (single learner). Lessons stuck GENERATING after a restart are reset to PENDING on boot.
 - Embedding model lazy-loads on first use and caches to `.cache/` (gitignored).

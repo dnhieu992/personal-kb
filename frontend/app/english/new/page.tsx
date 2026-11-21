@@ -43,7 +43,7 @@ export default function NewJournalPage() {
   if (result) {
     return (
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Đã ghi vào nhật ký" back={{ href: '/english', label: 'Journal' }} />
+        <PageHeader title="Đã ghi vào nhật ký" back={{ href: '/english/journal', label: 'Journal' }} />
         <div className="card p-4">
           <p className="eyebrow">
             Tóm tắt
@@ -115,7 +115,7 @@ export default function NewJournalPage() {
             Ghi thêm
           </button>
           <Link
-            href="/english"
+            href="/english/journal"
             className="btn btn-secondary"
           >
             Về nhật ký
@@ -136,7 +136,7 @@ export default function NewJournalPage() {
   return (
     <div className="max-w-2xl">
       <PageHeader
-        back={{ href: '/english', label: 'Journal' }}
+        back={{ href: '/english/journal', label: 'Journal' }}
         title="Ghi nhật ký"
         description="Viết tự do về buổi học hôm nay (tiếng Việt cũng được). AI sẽ tóm tắt và rút ra câu, ngữ pháp, lỗi và từ vựng đáng nhớ để ôn lại."
       />

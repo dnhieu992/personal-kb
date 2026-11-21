@@ -488,6 +488,21 @@ export const api = {
       }),
   },
 
+  course: {
+    overview: (level?: CourseLevel) =>
+      request<CourseOverview>(`/course/overview${level ? `?level=${level}` : ''}`),
+    lesson: (id: string) => request<LessonDetail>(`/course/lessons/${id}`),
+    submitAttempt: (id: string, body: { correct: number; total: number; answers: unknown[] }) =>
+      request<AttemptResult>(`/course/lessons/${id}/attempts`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    generate: (level: CourseLevel) =>
+      request<{ started: boolean; enabled: boolean }>(`/course/levels/${level}/generate`, { method: 'POST' }),
+    regenerate: (id: string) =>
+      request<CourseLesson>(`/course/lessons/${id}/regenerate`, { method: 'POST' }),
+  },
+
   tasks: {
     /** A day's plan plus whatever was left unfinished before it. */
     day: (date?: string) =>
@@ -703,3 +718,106 @@ export const TYPE_COLORS: Record<KnowledgeType, string> = {
   DAILY_LOG: 'tone-green',
   ENGLISH: 'tone-sky',
 };
+
+
+// --- English for IT course ---
+
+export type CourseLevel = 'A2' | 'B1' | 'B2' | 'C1';
+export const COURSE_LEVELS: CourseLevel[] = ['A2', 'B1', 'B2', 'C1'];
+
+export type LessonStatus = 'PENDING' | 'GENERATING' | 'READY' | 'FAILED';
+export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix';
+
+export interface Exercise {
+  type: ExerciseType;
+  prompt: string;
+  options: string[];
+  answer: string[];
+  pairs: { left: string; right: string }[];
+  explanation: string;
+}
+
+export interface VocabItem {
+  word: string;
+  ipa: string;
+  pos: string;
+  meaning: string;
+  example: string;
+}
+
+export interface LessonSummary {
+  id: string;
+  unitId: string;
+  position: number;
+  title: string;
+  grammar: string;
+  vocabTheme: string;
+  objective: string;
+  status: LessonStatus;
+  minutes: number;
+  completedAt: string | null;
+  bestScore: number | null;
+  attemptCount: number;
+  locked: boolean;
+}
+
+export interface CourseLesson extends Omit<LessonSummary, 'locked'> {
+  level: CourseLevel;
+  error: string | null;
+  intro: string | null;
+  theory: string | null;
+  phrases: { en: string; vi: string }[] | null;
+  vocab: VocabItem[] | null;
+  exercises: Exercise[] | null;
+}
+
+export interface CourseUnit {
+  id: string;
+  level: CourseLevel;
+  position: number;
+  title: string;
+  titleVi: string;
+  summary: string;
+}
+
+export interface LevelStatus {
+  level: CourseLevel;
+  total: number;
+  ready: number;
+  failed: number;
+  done: number;
+  generating: boolean;
+  error: string | null;
+}
+
+export interface CourseOverview {
+  level: CourseLevel;
+  levels: LevelStatus[];
+  units: (CourseUnit & { lessons: LessonSummary[] })[];
+  next: LessonSummary | null;
+  progress: { done: number; total: number };
+  averageScore: number | null;
+  vocabLearned: number;
+  passScore: number;
+}
+
+export interface LessonDetail {
+  lesson: CourseLesson;
+  unit: CourseUnit | null;
+  locked: boolean;
+  index: number;
+  total: number;
+  prevId: string | null;
+  nextId: string | null;
+  passScore: number;
+}
+
+export interface AttemptResult {
+  score: number;
+  passed: boolean;
+  firstPass: boolean;
+  bestScore: number;
+  passScore: number;
+  cardsAdded: number;
+  nextId: string | null;
+}
