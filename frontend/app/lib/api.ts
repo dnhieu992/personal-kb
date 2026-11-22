@@ -599,6 +599,15 @@ export const api = {
       request<{ deleted: boolean }>(`/task-lists/${id}`, { method: 'DELETE' }),
   },
 
+  diary: {
+    list: () => request<DiaryEntry[]>('/diary'),
+    create: (content: string) =>
+      request<DiaryEntry>('/diary', { method: 'POST', body: JSON.stringify({ content }) }),
+    update: (id: string, content: string) =>
+      request<DiaryEntry>(`/diary/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
+    remove: (id: string) => request<{ deleted: boolean }>(`/diary/${id}`, { method: 'DELETE' }),
+  },
+
   phrases: {
     list: () => request<Phrase[]>('/phrases'),
 
@@ -915,4 +924,12 @@ export interface AttemptResult {
   passScore: number;
   cardsAdded: number;
   nextId: string | null;
+}
+
+export interface DiaryEntry {
+  id: string;
+  content: string;
+  /** When it was written (ISO). */
+  createdAt: string;
+  updatedAt: string;
 }
