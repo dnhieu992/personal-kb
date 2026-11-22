@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Anthropic from '@anthropic-ai/sdk';
+import { ClaudeCodeService } from './claude-code.service';
 import { CefrLevel, EnglishKind } from '../knowledge/entities/knowledge.entity';
 
 // claude-haiku-3-5 (requested in the brief) is retired and 404s; use current Haiku.
@@ -35,6 +34,11 @@ export interface LanguageReview {
   items: ExtractedItem[];
 }
 
+interface ReplyMessage {
+  content: { type: 'text'; text: string }[];
+  stop_reason: string | null;
+}
+
 export interface RagSource {
   title: string;
   content: string;
@@ -43,26 +47,40 @@ export interface RagSource {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly client: Anthropic;
   private readonly enabled: boolean;
 
-  constructor(private readonly config: ConfigService) {
-    const apiKey = this.config.get<string>('ANTHROPIC_API_KEY');
-    this.enabled = !!apiKey;
-    this.client = new Anthropic({ apiKey: apiKey ?? 'missing' });
-    if (!this.enabled) {
-      this.logger.warn(
-        'ANTHROPIC_API_KEY not set — AI features will return fallbacks.',
-      );
-    }
+  /**
+   * Messages-API-shaped shim over headless Claude Code (no API key), so the
+   * calls below read as before. Each call is a single user turn.
+   */
+  private readonly client = {
+    messages: {
+      create: async (p: {
+        model: string;
+        max_tokens?: number;
+        system: string;
+        messages: { role: 'user'; content: string }[];
+      }): Promise<ReplyMessage> => {
+        const r = await this.claude.ask({
+          model: p.model,
+          system: p.system,
+          user: p.messages.map((m) => m.content).join('\n\n'),
+        });
+        return { content: [{ type: 'text', text: r.text }], stop_reason: r.stopReason };
+      },
+    },
+  };
+
+  constructor(private readonly claude: ClaudeCodeService) {
+    this.enabled = claude.isEnabled();
   }
 
-  /** False when ANTHROPIC_API_KEY is unset: every call below returns a fallback. */
+  /** False when Claude Code has no login on this server: every call below returns a fallback. */
   isEnabled(): boolean {
     return this.enabled;
   }
 
-  private firstText(message: Anthropic.Message): string {
+  private firstText(message: ReplyMessage): string {
     const block = message.content.find((b) => b.type === 'text');
     return block && block.type === 'text' ? block.text : '';
   }
@@ -403,7 +421,7 @@ export class AiService {
    */
   async answer(question: string, sources: RagSource[]): Promise<string> {
     if (!this.enabled) {
-      return 'AI is not configured. Set ANTHROPIC_API_KEY in backend/.env.';
+      return 'AI is not configured: log in to Claude Code on the server (claude /login).';
     }
     if (sources.length === 0) {
       return "I couldn't find anything relevant in your knowledge base for that question.";

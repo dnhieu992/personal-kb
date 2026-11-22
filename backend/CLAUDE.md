@@ -9,7 +9,7 @@ NestJS + TypeORM API for the knowledge base. Entry point `src/main.ts`, root mod
 |--------|------|----------------|
 | `knowledge` | `src/knowledge/` | CRUD over the `Knowledge` entity (MySQL). Controller → service → TypeORM repo. On create/update it calls `ai` to enrich and `embedding` to (re)index. |
 | `embedding` | `src/embedding/` | Generates 384-dim vectors locally with `@xenova/transformers` and upserts/searches/deletes them in Qdrant (collection `knowledge`). No external API. |
-| `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks; ask `isEnabled()`). |
+| `ai` | `src/ai/` | Calls Claude through **headless Claude Code** (`ClaudeCodeService`, Agent SDK, claude.ai subscription — no API key; `claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when there is no login (`CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, or `~/.claude/.credentials.json`) (returns fallbacks; ask `isEnabled()`). |
 | `english` | `src/english/` | Shared English coaching (`EnglishCoachService`): asks the AI what to revise, files the answer as review cards linked to a `sourceId`, dedupes them, and deletes them with their source. No controller — `knowledge` and `task` both use it, which is what keeps the review queue identical for entries and tasks. |
 | `task` | `src/task/` | The planner: `Task` (day plan, status, priority, COMPANY/PERSONAL, backlog) and `TaskList` (long-term todo lists). Saves are instant; the English pass runs in the background. |
 | `course` | `src/course/` | "English for IT" course at `/english` (tables `course_unit`, `course_lesson`, `course_attempt`): CEFR levels A2–C1 → 8 units × 4 lessons. Content is AI-written **once and stored** (`CourseGeneratorService`, background, resumable); lessons unlock in order when the previous one's practice scores ≥ 70%; first pass files the lesson's vocab as review cards via `EnglishCoachService.collect`. Built on a reference syllabus (`syllabus.ts`: British Council – EAQUALS Core Inventory points per level) and a placement test (`placement-bank.ts`, `course_placement`) that sets the default level and marks lessons mastered/weak. |
@@ -59,7 +59,7 @@ npm run build       # → dist/
 - **Course** (`src/course/`): `POST /course/levels/:level/generate` writes the outline (if the
   level has none) then every PENDING/FAILED lesson, 3 at a time, with `CourseAiService`
   (`src/ai/course-ai.service.ts`, `claude-opus-5-5` or `COURSE_MODEL`, structured JSON output,
-  ~1 min and ~$0.13 per lesson). Exercises are normalised/dropped by `normaliseExercise` so every
+  ~1 min per lesson, billed to the Claude subscription). Exercises are normalised/dropped by `normaliseExercise` so every
   one is gradable; grading happens in the browser (`frontend/app/lib/course.ts`) and the run's
   score is posted to `/course/lessons/:id/attempts`. Progress lives on `course_lesson`
   (single learner). Lessons stuck GENERATING after a restart are reset to PENDING on boot.
@@ -70,4 +70,9 @@ npm run build       # → dist/
   passable by a 6-question quick check ≥ 80%, `quick: true` on the attempt); wrong answers at or below the
   placed level → `weak` keys (lesson unlocked and recommended first). `CourseSyllabusService` maps lessons
   written before this (by grammar label) and adds the B1 "Sprint Retrospectives" unit on boot — idempotent.
+- **Claude Code, not the API**: `ClaudeCodeService.ask()` spawns one headless Claude Code process per call
+  (built-in tools, settings, MCP all off; API-key env vars stripped). Expect ~5 s of overhead per call.
+  Login: `CLAUDE_CODE_OAUTH_TOKEN` in `/opt/personal-kb/backend.env` (made with `claude setup-token`,
+  valid ~1 year). The native binary comes from the SDK's per-platform optional dependency, so keep
+  `@anthropic-ai/claude-agent-sdk-linux-x64` in the lockfile.
 - Embedding model lazy-loads on first use and caches to `.cache/` (gitignored).

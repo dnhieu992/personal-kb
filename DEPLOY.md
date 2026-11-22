@@ -28,7 +28,7 @@ sudo tee /opt/personal-kb/backend.env >/dev/null <<'EOF'
 # The backend container runs with network_mode: host, so 127.0.0.1 = the VPS host
 # where MySQL listens (it only binds localhost, shared with market-analysis).
 DATABASE_URL=mysql://pkb:<real-password>@127.0.0.1:3306/personal_kb
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
+CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-xxxxxxxx   # from `claude setup-token` (claude.ai subscription, no API key)
 FRONTEND_URL=http://<your-domain-or-ip>:4000
 EOF
 sudo chmod 600 /opt/personal-kb/backend.env

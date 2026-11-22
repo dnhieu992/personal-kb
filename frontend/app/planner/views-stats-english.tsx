@@ -237,7 +237,7 @@ export function EnglishView() {
         subtitle={
           meta?.englishEnabled
             ? 'Everything you write is auto-corrected to natural English (Vietnamese gets translated). Each fix is logged here.'
-            : 'English auto-correct is off — set ANTHROPIC_API_KEY on the backend to enable it.'
+            : 'English auto-correct is off — set CLAUDE_CODE_OAUTH_TOKEN on the backend to enable it.'
         }
         right={
           !!rows?.length && (

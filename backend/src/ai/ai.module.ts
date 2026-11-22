@@ -5,11 +5,12 @@ import { EmbeddingModule } from '../embedding/embedding.module';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { CourseAiService } from './course-ai.service';
+import { ClaudeCodeService } from './claude-code.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Knowledge]), EmbeddingModule],
   controllers: [AiController],
-  providers: [AiService, CourseAiService],
+  providers: [ClaudeCodeService, AiService, CourseAiService],
   exports: [AiService, CourseAiService],
 })
 export class AiModule {}

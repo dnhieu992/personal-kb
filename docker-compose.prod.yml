@@ -23,7 +23,7 @@ services:
     # In that mode the backend also listens on the host's 0.0.0.0:4001 directly.
     network_mode: host
     env_file:
-      # DATABASE_URL=mysql://pkb:pkbpass@127.0.0.1:3306/personal_kb , ANTHROPIC_API_KEY, FRONTEND_URL
+      # DATABASE_URL=mysql://pkb:pkbpass@127.0.0.1:3306/personal_kb , CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), FRONTEND_URL
       - /opt/personal-kb/backend.env
     environment:
       - QDRANT_URL=http://localhost:6333

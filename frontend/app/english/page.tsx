@@ -61,7 +61,7 @@ function CoursePage() {
     setStarting(true);
     try {
       const r = await api.course.generate(data.level);
-      if (!r.enabled) setError('Backend chưa có ANTHROPIC_API_KEY nên không sinh được nội dung.');
+      if (!r.enabled) setError('Backend chưa đăng nhập Claude (CLAUDE_CODE_OAUTH_TOKEN) nên không sinh được nội dung.');
       load();
     } catch (e) {
       setError((e as Error).message);

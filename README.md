@@ -31,7 +31,7 @@ personal-kb/
 
 - Docker + Docker Compose
 - Node.js 20+
-- An Anthropic API key
+- A Claude subscription with Claude Code logged in (server: `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN`)
 
 ## 1. Start infrastructure (MySQL + Qdrant)
 
@@ -45,7 +45,7 @@ MySQL → `localhost:3306`, Qdrant → `localhost:6333`.
 
 ```bash
 cd backend
-cp .env.example .env          # then set ANTHROPIC_API_KEY
+cp .env.example .env          # then set CLAUDE_CODE_OAUTH_TOKEN (servers only)
 npm install
 npm run seed                  # inserts 5 sample entries + embeds them
 npm run start:dev             # http://localhost:3001  (Swagger: /api/docs)

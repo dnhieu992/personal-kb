@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Anthropic from '@anthropic-ai/sdk';
+import { ClaudeCodeService } from './claude-code.service';
 import { CefrLevel } from '../knowledge/entities/knowledge.entity';
 import { ALL_POINTS, frameworkFor } from '../course/syllabus';
 import {
@@ -16,8 +16,6 @@ import {
  * (override with COURSE_MODEL); day-to-day calls elsewhere stay on Haiku.
  */
 const DEFAULT_MODEL = 'claude-opus-5-5';
-/** Server-side refusal fallback (on by default for this model family). */
-const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 export const UNITS_PER_LEVEL = 8;
 export const LESSONS_PER_UNIT = 4;
@@ -85,19 +83,17 @@ const LESSON_SCHEMA = obj({
 @Injectable()
 export class CourseAiService {
   private readonly logger = new Logger(CourseAiService.name);
-  private readonly client: Anthropic;
-  private readonly enabled: boolean;
   private readonly model: string;
 
-  constructor(config: ConfigService) {
-    const apiKey = config.get<string>('ANTHROPIC_API_KEY');
-    this.enabled = !!apiKey;
-    this.client = new Anthropic({ apiKey: apiKey ?? 'missing' });
+  constructor(
+    config: ConfigService,
+    private readonly claude: ClaudeCodeService,
+  ) {
     this.model = config.get<string>('COURSE_MODEL') || DEFAULT_MODEL;
   }
 
   isEnabled(): boolean {
-    return this.enabled;
+    return this.claude.isEnabled();
   }
 
   /** The syllabus for one level: 8 units × 4 lessons. */
@@ -125,7 +121,6 @@ export class CourseAiService {
       `Write the ${level} syllabus.`,
       OUTLINE_SCHEMA,
       'high',
-      16_000,
     );
     const units = (outline.units ?? []).filter((u) => u.title && u.lessons?.length);
     if (units.length < 4) throw new Error(`outline has only ${units.length} units`);
@@ -196,7 +191,7 @@ export class CourseAiService {
       'Grammar taught in other lessons of this level (do not teach these here, ' +
       'though you may use them in examples):\n' +
       spec.otherGrammar.map((g) => `- ${g}`).join('\n');
-    const raw = await this.call<LessonContent>(system, user, LESSON_SCHEMA, 'medium', 32_000);
+    const raw = await this.call<LessonContent>(system, user, LESSON_SCHEMA, 'medium');
     const exercises = (raw.exercises ?? [])
       .map((e) => normaliseExercise(e))
       .filter((e): e is Exercise => !!e);
@@ -214,37 +209,16 @@ export class CourseAiService {
     };
   }
 
-  /** One structured-output call, streamed (long outputs), parsed as JSON. */
+  /** One structured-output call through headless Claude Code, parsed as JSON. */
   private async call<T>(
     system: string,
     user: string,
     schema: object,
     effort: 'medium' | 'high',
-    maxTokens: number,
   ): Promise<T> {
-    if (!this.enabled) throw new Error('ANTHROPIC_API_KEY is not set');
-    // The installed SDK predates these request fields in its types; the API
-    // accepts them, and the SDK passes the body through as-is.
-    const body = {
-      model: this.model,
-      max_tokens: maxTokens,
-      system,
-      messages: [{ role: 'user', content: user }],
-      output_config: { effort, format: { type: 'json_schema', schema } },
-      fallbacks: 'default',
-    } as unknown as Anthropic.MessageCreateParamsNonStreaming;
-    const message = await this.client.messages
-      .stream(body, { headers: { 'anthropic-beta': FALLBACK_BETA } })
-      .finalMessage();
-    const stop = message.stop_reason as string;
-    if (stop === 'refusal') throw new Error('the model declined to write this');
-    if (stop === 'max_tokens') throw new Error('reply was cut off (max_tokens)');
-    const text = message.content.find((b) => b.type === 'text');
-    if (!text || text.type !== 'text') throw new Error('no text in reply');
-    this.logger.log(
-      `${this.model}: ${message.usage.input_tokens} in / ${message.usage.output_tokens} out`,
-    );
-    return JSON.parse(text.text) as T;
+    const { data } = await this.claude.ask<T>({ model: this.model, system, user, schema, effort });
+    if (!data || typeof data !== 'object') throw new Error('no structured reply');
+    return data;
   }
 }
 

@@ -87,7 +87,7 @@ docker compose up -d
 
 ## Gotchas
 
-- AI features **degrade gracefully** without `ANTHROPIC_API_KEY` (return fallbacks), so the
+- AI features **degrade gracefully** without a Claude login (return fallbacks), so the
   app boots without a key — but tag suggestions / chat won't be useful.
 - First embedding call **downloads the model** to a local cache (`.cache/`, gitignored).
 - The frontend reaches the API two ways: browser → `/api-proxy` (proxied), server/RSC →
