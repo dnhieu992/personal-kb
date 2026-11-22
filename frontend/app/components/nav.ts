@@ -15,12 +15,7 @@ export interface NavGroup {
 
 /** The app's information architecture: one place, used by the sidebar and ⌘K. */
 export const NAV: NavGroup[] = [
-  {
-    items: [
-      { href: '/', label: 'Home', icon: 'home', keywords: 'dashboard overview today' },
-      { href: '/diary', label: 'Diary', icon: 'note', keywords: 'nhật ký diary ghi chép hàng ngày' },
-    ],
-  },
+  { items: [{ href: '/', label: 'Home', icon: 'home', keywords: 'dashboard overview today' }] },
   {
     label: 'Plan',
     items: [
@@ -46,6 +41,10 @@ export const NAV: NavGroup[] = [
       { href: '/english/review', label: 'Review', icon: 'cards', keywords: 'flashcards ôn tập srs' },
       { href: '/phrases', label: 'Phrases', icon: 'quote', keywords: 'telegram cụm từ' },
     ],
+  },
+  {
+    label: 'Personal',
+    items: [{ href: '/diary', label: 'Diary', icon: 'note', keywords: 'nhật ký diary ghi chép hàng ngày' }],
   },
 ];
 
