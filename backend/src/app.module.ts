@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiModule } from './ai/ai.module';
 import { CourseModule } from './course/course.module';
 import { DiaryModule } from './diary/diary.module';
+import { TechNoteModule } from './tech-note/tech-note.module';
 import { EmbeddingModule } from './embedding/embedding.module';
 import { EnglishModule } from './english/english.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
@@ -40,6 +41,7 @@ import { TelegramModule } from './telegram/telegram.module';
     PhraseModule,
     PlannerModule,
     DiaryModule,
+    TechNoteModule,
     CourseModule,
   ],
 })

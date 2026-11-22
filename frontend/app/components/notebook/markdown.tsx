@@ -3,10 +3,10 @@
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
-import { cx } from '../components/ui';
+import { cx } from '../ui';
 
-/** Diary entries are Markdown (GFM); a single newline is a line break, as people type in a diary. */
-export function DiaryMarkdown({ content, className }: { content: string; className?: string }) {
+/** Notebook entries (diary, tech notes) are Markdown (GFM); a single newline is a line break, as people type in a journal. */
+export function NoteMarkdown({ content, className }: { content: string; className?: string }) {
   return (
     <div className={cx('prose-kb break-words text-[15px] text-fg', className)}>
       <ReactMarkdown

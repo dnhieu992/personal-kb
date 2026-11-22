@@ -362,6 +362,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // nothing, so a lost socket should never reach the user.
 const requestRetrying = withRetry;
 
+/** CRUD for a Markdown notebook backed by its own table (`/diary`, `/tech-notes`). */
+function noteStore(base: string) {
+  return {
+    list: () => request<NoteEntry[]>(base),
+    create: (content: string) =>
+      request<NoteEntry>(base, { method: 'POST', body: JSON.stringify({ content }) }),
+    update: (id: string, content: string) =>
+      request<NoteEntry>(`${base}/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
+    remove: (id: string) => request<{ deleted: boolean }>(`${base}/${id}`, { method: 'DELETE' }),
+  };
+}
+
 export const api = {
   stats: () => request<Stats>('/knowledge/stats'),
 
@@ -599,14 +611,8 @@ export const api = {
       request<{ deleted: boolean }>(`/task-lists/${id}`, { method: 'DELETE' }),
   },
 
-  diary: {
-    list: () => request<DiaryEntry[]>('/diary'),
-    create: (content: string) =>
-      request<DiaryEntry>('/diary', { method: 'POST', body: JSON.stringify({ content }) }),
-    update: (id: string, content: string) =>
-      request<DiaryEntry>(`/diary/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
-    remove: (id: string) => request<{ deleted: boolean }>(`/diary/${id}`, { method: 'DELETE' }),
-  },
+  diary: noteStore('/diary'),
+  techNotes: noteStore('/tech-notes'),
 
   phrases: {
     list: () => request<Phrase[]>('/phrases'),
@@ -926,7 +932,8 @@ export interface AttemptResult {
   nextId: string | null;
 }
 
-export interface DiaryEntry {
+/** A Markdown notebook entry (diary, tech note): content + when written. */
+export interface NoteEntry {
   id: string;
   content: string;
   /** When it was written (ISO). */

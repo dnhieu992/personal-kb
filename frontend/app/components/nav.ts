@@ -44,7 +44,10 @@ export const NAV: NavGroup[] = [
   },
   {
     label: 'Personal',
-    items: [{ href: '/diary', label: 'Diary', icon: 'note', keywords: 'nhật ký diary ghi chép hàng ngày' }],
+    items: [
+      { href: '/diary', label: 'Diary', icon: 'note', keywords: 'nhật ký diary ghi chép hàng ngày' },
+      { href: '/tech-notes', label: 'Technical notes', icon: 'code', keywords: 'tech notes ghi chú kỹ thuật technical' },
+    ],
   },
 ];
 
