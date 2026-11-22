@@ -181,13 +181,8 @@
   .prose-kb th, .prose-kb td { @apply border-b border-line px-2 py-1; }
   .prose-kb img { @apply my-3 max-h-[480px] max-w-full rounded-lg border border-line; }
   .prose-kb s { @apply text-fg-muted; }
-  /* Rich editor (Tiptap): the editable area itself. */
-  .rich-editor .ProseMirror { @apply min-h-[160px] px-4 py-3 text-[15px] text-fg outline-none; }
-  .rich-editor .ProseMirror p.is-editor-empty:first-child::before {
-    content: attr(data-placeholder);
-    @apply pointer-events-none float-left h-0 text-fg-subtle;
-  }
-  .rich-editor .ProseMirror img.ProseMirror-selectednode { @apply ring-2 ring-accent; }
+  .prose-kb ul.contains-task-list { @apply list-none pl-1; }
+  .prose-kb .task-list-item input { @apply mr-1.5 align-middle accent-accent; }
 }
 
 /* Tones live outside @layer so dynamically built names (tone-${x}) are never purged. */

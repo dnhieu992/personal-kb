@@ -9,18 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@tiptap/extension-image": "^2.27.3",
-    "@tiptap/extension-link": "^2.27.3",
-    "@tiptap/extension-placeholder": "^2.27.3",
-    "@tiptap/extension-underline": "^2.27.3",
-    "@tiptap/pm": "^2.27.3",
-    "@tiptap/react": "^2.27.3",
-    "@tiptap/starter-kit": "^2.27.3",
-    "dompurify": "^3.2.6",
     "next": "^14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
+    "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
