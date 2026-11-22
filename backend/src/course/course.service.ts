@@ -1,13 +1,24 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { In, IsNull, MoreThan, Not, Repository } from 'typeorm';
 import { EnglishCoachService } from '../english/english-coach.service';
 import { CefrLevel, EnglishKind } from '../knowledge/entities/knowledge.entity';
 import { CourseGeneratorService } from './course-generator.service';
-import { COURSE_LEVELS, LESSON_PASS_SCORE, QUICK_CHECK_PASS_SCORE } from './course.types';
+import {
+  COURSE_LEVELS,
+  DEFAULT_WEEKLY_LESSONS,
+  LESSON_PASS_SCORE,
+  LESSONS_PER_UNIT,
+  PLANNED_PER_LEVEL,
+  QUICK_CHECK_PASS_SCORE,
+  REVIEW_PASS_SCORE,
+  UNITS_PER_LEVEL,
+} from './course.types';
+import { SetGoalDto } from './dto/goal.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { CourseAttempt } from './entities/course-attempt.entity';
-import { CourseLesson, LessonStatus } from './entities/course-lesson.entity';
+import { CourseGoal } from './entities/course-goal.entity';
+import { CourseLesson, LessonKind, LessonStatus } from './entities/course-lesson.entity';
 import { CourseUnit } from './entities/course-unit.entity';
 import { PlacementService } from './placement.service';
 import { frameworkFor, SOURCES, syllabusPoint } from './syllabus';
@@ -26,8 +37,16 @@ interface PlacementView {
   weak: string[];
 }
 
-function masteryOf(keys: string[] | null, p: PlacementView | null): Mastery {
-  if (!p || !keys?.length) return null;
+const DAY = 86_400_000;
+const levelIndex = (l: CefrLevel) => COURSE_LEVELS.indexOf(l);
+/** Calendar day in Vietnam (the learner's clock; the server runs on UTC). */
+const vnDay = (d: Date) => new Date(d.getTime() + 7 * 3_600_000).toISOString().slice(0, 10);
+
+const passScoreOf = (kind: LessonKind, quick?: boolean) =>
+  quick ? QUICK_CHECK_PASS_SCORE : kind === LessonKind.REVIEW ? REVIEW_PASS_SCORE : LESSON_PASS_SCORE;
+
+function masteryOf(keys: string[] | null, p: PlacementView | null, kind?: LessonKind): Mastery {
+  if (!p || !keys?.length || kind === LessonKind.REVIEW) return null;
   if (keys.some((k) => p.weak.includes(k))) return 'weak';
   if (keys.every((k) => p.mastered.includes(k))) return 'mastered';
   return null;
@@ -38,6 +57,7 @@ export interface LessonSummary {
   id: string;
   unitId: string;
   position: number;
+  kind: LessonKind;
   title: string;
   grammar: string;
   vocabTheme: string;
@@ -52,6 +72,18 @@ export interface LessonSummary {
   locked: boolean;
 }
 
+/** Where to go next: weak points first, then the path, skipping placement-mastered lessons. */
+function pickNext(ordered: LessonSummary[]): LessonSummary | null {
+  const open = (l: LessonSummary) => !l.completedAt && !l.locked && l.status === LessonStatus.READY;
+  return (
+    ordered.find((l) => open(l) && l.mastery === 'weak') ??
+    ordered.find((l) => open(l) && l.mastery !== 'mastered') ??
+    ordered.find((l) => !l.completedAt && l.mastery !== 'mastered') ??
+    ordered.find((l) => !l.completedAt) ??
+    null
+  );
+}
+
 @Injectable()
 export class CourseService {
   private readonly logger = new Logger(CourseService.name);
@@ -60,6 +92,7 @@ export class CourseService {
     @InjectRepository(CourseUnit) private readonly units: Repository<CourseUnit>,
     @InjectRepository(CourseLesson) private readonly lessons: Repository<CourseLesson>,
     @InjectRepository(CourseAttempt) private readonly attempts: Repository<CourseAttempt>,
+    @InjectRepository(CourseGoal) private readonly goals: Repository<CourseGoal>,
     private readonly generator: CourseGeneratorService,
     private readonly coach: EnglishCoachService,
     private readonly placement: PlacementService,
@@ -81,7 +114,7 @@ export class CourseService {
     const rows = await this.lessons.find({
       where: { level },
       select: [
-        'id', 'unitId', 'position', 'title', 'grammar', 'vocabTheme', 'objective',
+        'id', 'unitId', 'position', 'kind', 'title', 'grammar', 'vocabTheme', 'objective',
         'status', 'minutes', 'completedAt', 'bestScore', 'attemptCount', 'syllabusKeys',
       ],
     });
@@ -89,7 +122,7 @@ export class CourseService {
     rows.sort((a, b) => unitPos.get(a.unitId)! - unitPos.get(b.unitId)! || a.position - b.position);
     let blocked = false;
     const ordered: LessonSummary[] = rows.map((l) => {
-      const mastery = masteryOf(l.syllabusKeys, placement);
+      const mastery = masteryOf(l.syllabusKeys, placement, l.kind);
       const locked = blocked && !l.completedAt && mastery !== 'weak';
       if (!l.completedAt && mastery !== 'mastered') blocked = true;
       return { ...l, mastery, locked };
@@ -106,6 +139,7 @@ export class CourseService {
         });
         return {
           level: lvl,
+          units: await this.units.count({ where: { level: lvl } }),
           total: rows.length,
           ready: rows.filter((r) => r.status === LessonStatus.READY).length,
           failed: rows.filter((r) => r.status === LessonStatus.FAILED).length,
@@ -119,13 +153,7 @@ export class CourseService {
     const { units, ordered, placement } = await this.levelPath(level);
     const byUnit = new Map<string, LessonSummary[]>();
     for (const l of ordered) byUnit.set(l.unitId, [...(byUnit.get(l.unitId) ?? []), l]);
-    const open = (l: LessonSummary) => !l.completedAt && !l.locked && l.status === LessonStatus.READY;
-    const next =
-      ordered.find((l) => open(l) && l.mastery === 'weak') ??
-      ordered.find((l) => open(l) && l.mastery !== 'mastered') ??
-      ordered.find((l) => !l.completedAt && l.mastery !== 'mastered') ??
-      ordered.find((l) => !l.completedAt) ??
-      null;
+    const next = pickNext(ordered);
     const scored = ordered.filter((l) => l.bestScore !== null);
     const completed = await this.lessons.find({
       where: { level, completedAt: Not(IsNull()) },
@@ -144,6 +172,9 @@ export class CourseService {
       vocabLearned: completed.reduce((n, l) => n + (l.vocab?.length ?? 0), 0),
       passScore: LESSON_PASS_SCORE,
       quickPassScore: QUICK_CHECK_PASS_SCORE,
+      reviewPassScore: REVIEW_PASS_SCORE,
+      plan: { units: UNITS_PER_LEVEL, lessonsPerUnit: LESSONS_PER_UNIT },
+      journey: await this.journey(),
       placement,
       focus: ordered.filter((l) => l.mastery === 'weak' && !l.completedAt),
       framework: this.framework(level, ordered),
@@ -154,7 +185,7 @@ export class CourseService {
   private framework(level: CefrLevel, ordered: LessonSummary[]) {
     const f = frameworkFor(level);
     if (!f) return null;
-    const keyed = ordered.filter((l) => l.syllabusKeys?.length);
+    const keyed = ordered.filter((l) => l.syllabusKeys?.length && l.kind === LessonKind.LESSON);
     return {
       gse: f.gse,
       efset: f.efset,
@@ -195,7 +226,8 @@ export class CourseService {
       total: ordered.length,
       prevId: ordered[index - 1]?.id ?? null,
       nextId: ordered[index + 1]?.id ?? null,
-      passScore: LESSON_PASS_SCORE,
+      passScore: passScoreOf(lesson.kind),
+      journey: await this.journey(),
     };
   }
 
@@ -212,7 +244,7 @@ export class CourseService {
       this.attempts.create({ lessonId: id, score, correct, total: dto.total, answers: dto.answers ?? null }),
     );
 
-    const passScore = dto.quick ? QUICK_CHECK_PASS_SCORE : LESSON_PASS_SCORE;
+    const passScore = passScoreOf(lesson.kind, dto.quick);
     const passed = score >= passScore;
     const firstPass = passed && !lesson.completedAt;
     lesson.attemptCount += 1;
@@ -246,6 +278,126 @@ export class CourseService {
       passScore,
       cardsAdded: firstPass ? lesson.vocab?.length ?? 0 : 0,
       nextId: ordered[index + 1]?.id ?? null,
+      journey: await this.journey(),
+    };
+  }
+
+  // --- goal & journey ---
+
+  /** Set where the journey goes and how fast. The start stays unless given. */
+  async setGoal(dto: SetGoalDto) {
+    const current = await this.goals.find({ take: 1 });
+    const start = dto.startLevel ?? current[0]?.startLevel ?? (await this.defaultLevel());
+    const target = levelIndex(dto.targetLevel) < levelIndex(start) ? start : dto.targetLevel;
+    await this.goals.save({
+      ...(current[0] ?? {}),
+      startLevel: start,
+      targetLevel: target,
+      weeklyLessons: dto.weeklyLessons,
+    });
+    return this.journey();
+  }
+
+  /**
+   * The whole way from the start level to the end of the target level: how much
+   * is done, the pace, and when the finish line is reached at that pace. Levels
+   * not fully written yet count with their planned size, so the % doesn't jump
+   * backwards as content lands.
+   */
+  async journey() {
+    const [goal] = await this.goals.find({ take: 1 });
+    const start = goal?.startLevel ?? (await this.defaultLevel());
+    const maxIndex = COURSE_LEVELS.length - 1;
+    const target =
+      goal && levelIndex(goal.targetLevel) >= levelIndex(start)
+        ? goal.targetLevel
+        : COURSE_LEVELS[Math.min(levelIndex(start) + 1, maxIndex)];
+    const weeklyLessons = goal?.weeklyLessons ?? DEFAULT_WEEKLY_LESSONS;
+    const path = COURSE_LEVELS.slice(levelIndex(start), levelIndex(target) + 1);
+
+    const rows = await this.lessons.find({
+      where: { level: In(path) },
+      select: ['id', 'level', 'completedAt', 'minutes'],
+    });
+    const levels = await Promise.all(
+      path.map(async (level) => {
+        const mine = rows.filter((r) => r.level === level);
+        const units = await this.units.count({ where: { level } });
+        const estimated = units < UNITS_PER_LEVEL;
+        const total = estimated ? Math.max(mine.length, PLANNED_PER_LEVEL) : mine.length;
+        const done = mine.filter((r) => r.completedAt).length;
+        const minutesLeft =
+          mine.filter((r) => !r.completedAt).reduce((n, r) => n + (r.minutes || 15), 0) +
+          (total - mine.length) * 15;
+        return { level, done, total, estimated, minutesLeft };
+      }),
+    );
+    const done = levels.reduce((n, l) => n + l.done, 0);
+    const total = levels.reduce((n, l) => n + l.total, 0);
+    const left = total - done;
+
+    // Pace: lessons passed in the last 4 weeks (any level), and the last 7 days.
+    const now = Date.now();
+    const recent = await this.lessons.find({
+      where: { completedAt: MoreThan(new Date(now - 28 * DAY)) },
+      select: ['id', 'completedAt'],
+    });
+    const last7 = recent.filter((r) => r.completedAt!.getTime() > now - 7 * DAY).length;
+    const pace = Math.round((recent.length / 4) * 10) / 10;
+
+    // Streak: consecutive Vietnam days with at least one practice run.
+    const attempts = await this.attempts.find({
+      where: { createdAt: MoreThan(new Date(now - 120 * DAY)) },
+      select: ['id', 'createdAt'],
+    });
+    const days = new Set(attempts.map((a) => vnDay(a.createdAt)));
+    const today = vnDay(new Date(now));
+    let streak = 0;
+    let cursor = days.has(today) ? now : now - DAY;
+    while (days.has(vnDay(new Date(cursor)))) {
+      streak++;
+      cursor -= DAY;
+    }
+
+    const eta = (perWeek: number) =>
+      perWeek > 0 && left > 0 ? new Date(now + Math.ceil((left / perWeek) * 7) * DAY) : null;
+
+    // The next lesson on the way: in the first path level that isn't finished.
+    let next: LessonSummary | null = null;
+    for (const l of levels) {
+      if (l.done >= l.total) continue;
+      const { ordered } = await this.levelPath(l.level);
+      next = pickNext(ordered);
+      if (next) break;
+    }
+
+    return {
+      start,
+      target,
+      goalSet: !!goal,
+      weeklyLessons,
+      levels,
+      done,
+      total,
+      // One decimal, rounded down: the first lessons show up (0.7%) and 100 means done.
+      pct: total ? Math.floor((done / total) * 1000) / 10 : 0,
+      minutesLeft: levels.reduce((n, l) => n + l.minutesLeft, 0),
+      last7,
+      pace,
+      streak,
+      studiedToday: days.has(today),
+      etaAtGoal: eta(weeklyLessons),
+      // Too little history makes the pace meaningless (1 lesson → "year 2040").
+      etaAtPace: recent.length >= 3 ? eta(pace) : null,
+      next: next && {
+        id: next.id,
+        title: next.title,
+        level: rows.find((r) => r.id === next!.id)?.level ?? start,
+        status: next.status,
+        locked: next.locked,
+        mastery: next.mastery,
+        kind: next.kind,
+      },
     };
   }
 }

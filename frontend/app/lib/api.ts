@@ -515,6 +515,9 @@ export const api = {
       request<{ started: boolean; enabled: boolean }>(`/course/levels/${level}/generate`, { method: 'POST' }),
     regenerate: (id: string) =>
       request<CourseLesson>(`/course/lessons/${id}/regenerate`, { method: 'POST' }),
+    journey: () => request<Journey>('/course/journey'),
+    setGoal: (goal: { targetLevel: CourseLevel; weeklyLessons: number; startLevel?: CourseLevel }) =>
+      request<Journey>('/course/goal', { method: 'PUT', body: JSON.stringify(goal) }),
     placement: () => request<PlacementResult | null>('/course/placement'),
     placementTest: () => request<PlacementTest>('/course/placement/test'),
     checkBlock: (level: CourseLevel, answers: Record<string, string>) =>
@@ -788,12 +791,46 @@ export interface LessonSummary {
   bestScore: number | null;
   attemptCount: number;
   syllabusKeys: string[] | null;
+  /** REVIEW = the unit's closing mixed test (no theory/vocab). */
+  kind: LessonKind;
   /** From the latest placement test: mastered points can be skipped, weak ones come first. */
   mastery: Mastery;
   locked: boolean;
 }
 
 export type Mastery = 'mastered' | 'weak' | null;
+export type LessonKind = 'LESSON' | 'REVIEW';
+
+/** The way from the start level to the end of the goal level. */
+export interface Journey {
+  start: CourseLevel;
+  target: CourseLevel;
+  goalSet: boolean;
+  weeklyLessons: number;
+  /** `estimated`: not fully written yet, `total` is the planned size. */
+  levels: { level: CourseLevel; done: number; total: number; estimated: boolean; minutesLeft: number }[];
+  done: number;
+  total: number;
+  pct: number;
+  minutesLeft: number;
+  /** Lessons passed in the last 7 days. */
+  last7: number;
+  /** Lessons per week, last 4 weeks. */
+  pace: number;
+  streak: number;
+  studiedToday: boolean;
+  etaAtGoal: string | null;
+  etaAtPace: string | null;
+  next: {
+    id: string;
+    title: string;
+    level: CourseLevel;
+    status: LessonStatus;
+    locked: boolean;
+    mastery: Mastery;
+    kind: LessonKind;
+  } | null;
+}
 
 export interface SyllabusPoint {
   key: string;
@@ -884,6 +921,7 @@ export interface CourseUnit {
 
 export interface LevelStatus {
   level: CourseLevel;
+  units: number;
   total: number;
   ready: number;
   failed: number;
@@ -902,6 +940,10 @@ export interface CourseOverview {
   vocabLearned: number;
   passScore: number;
   quickPassScore: number;
+  reviewPassScore: number;
+  /** Planned size of a level. */
+  plan: { units: number; lessonsPerUnit: number };
+  journey: Journey;
   placement: PlacementResult | null;
   /** Weak-point lessons not yet passed. */
   focus: LessonSummary[];
@@ -920,6 +962,7 @@ export interface LessonDetail {
   quickPassScore: number;
   mastery: Mastery;
   points: SyllabusPoint[];
+  journey: Journey;
 }
 
 export interface AttemptResult {
@@ -930,6 +973,7 @@ export interface AttemptResult {
   passScore: number;
   cardsAdded: number;
   nextId: string | null;
+  journey: Journey;
 }
 
 /** A Markdown notebook entry (diary, tech note): content + when written. */

@@ -67,7 +67,7 @@ export function Practice({
   /** Quick check for a lesson the placement test marked as mastered. */
   quick?: boolean;
   onFinished: () => void;
-  onReview: () => void;
+  onReview?: () => void;
 }) {
   const exercises = useMemo(() => {
     const all = detail.lesson.exercises ?? [];
@@ -482,7 +482,7 @@ function Summary({
   results: { correct: boolean }[];
   lessonLevel: string;
   onRetry: () => void;
-  onReview: () => void;
+  onReview?: () => void;
 }) {
   const wrong = exercises.filter((_, i) => !results[i]?.correct);
   return (
@@ -504,6 +504,23 @@ function Summary({
               : 'Qua bài!'
             : `Cần ≥ ${result.passScore}% để qua bài — thử lại nhé.`}
         </p>
+        {result.firstPass && (
+          <div className="mx-auto mt-5 max-w-sm text-left">
+            <div className="mb-1 flex justify-between text-xs text-fg-muted">
+              <span>
+                Hành trình {result.journey.start === result.journey.target ? result.journey.target : `${result.journey.start} → ${result.journey.target}`}
+              </span>
+              <span className="tabular-nums">
+                {result.journey.pct}% · còn {result.journey.total - result.journey.done} bài
+              </span>
+            </div>
+            <ProgressBar value={result.journey.total ? result.journey.done / result.journey.total : 0} />
+            <p className="mt-1.5 text-center text-xs text-fg-muted">
+              7 ngày qua: {result.journey.last7}/{result.journey.weeklyLessons} bài
+              {result.journey.streak > 0 && ` · chuỗi ${result.journey.streak} ngày`}
+            </p>
+          </div>
+        )}
         {result.cardsAdded > 0 && (
           <p className="mt-1 text-[13px] text-fg-muted">
             {result.cardsAdded} từ vựng đã vào{' '}
@@ -514,7 +531,7 @@ function Summary({
           </p>
         )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {!result.passed && (
+          {!result.passed && onReview && (
             <button onClick={onReview} className="btn btn-secondary">
               Ôn lại lý thuyết
             </button>

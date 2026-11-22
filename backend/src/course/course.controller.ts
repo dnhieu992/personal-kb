@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, ParseEnumPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseEnumPipe, Post, Put, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CefrLevel } from '../knowledge/entities/knowledge.entity';
 import { CourseGeneratorService } from './course-generator.service';
 import { CourseService } from './course.service';
+import { SetGoalDto } from './dto/goal.dto';
 import { EfsetScoreDto, SubmitPlacementDto } from './dto/placement.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { PlacementService } from './placement.service';
@@ -23,6 +24,18 @@ export class CourseController {
     @Query('level', new ParseEnumPipe(CefrLevel, { optional: true })) level?: CefrLevel,
   ) {
     return this.service.overview(level ?? (await this.service.defaultLevel()));
+  }
+
+  @Get('journey')
+  @ApiOperation({ summary: 'Progress from the start level to the goal level, pace and ETA' })
+  journey() {
+    return this.service.journey();
+  }
+
+  @Put('goal')
+  @ApiOperation({ summary: 'Set the target level and weekly pace' })
+  setGoal(@Body() dto: SetGoalDto) {
+    return this.service.setGoal(dto);
   }
 
   @Get('placement')

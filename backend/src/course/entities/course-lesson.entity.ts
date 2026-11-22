@@ -18,6 +18,12 @@ export enum LessonStatus {
   FAILED = 'FAILED',
 }
 
+/** A taught lesson, or a unit review built from the unit's lessons' exercises (no AI). */
+export enum LessonKind {
+  LESSON = 'LESSON',
+  REVIEW = 'REVIEW',
+}
+
 /**
  * One lesson: the plan (title, grammar point, vocab theme) is written when the
  * level's outline is generated; the content (theory, vocab, exercises) is filled
@@ -39,6 +45,10 @@ export class CourseLesson {
   @Index()
   @Column({ type: 'enum', enum: CefrLevel })
   level: CefrLevel;
+
+  @ApiProperty({ enum: LessonKind })
+  @Column({ type: 'enum', enum: LessonKind, default: LessonKind.LESSON })
+  kind: LessonKind;
 
   @ApiProperty({ description: '1-based order within the unit' })
   @Column({ type: 'int' })

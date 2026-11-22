@@ -8,7 +8,9 @@ import {
   ExerciseType,
   LessonContent,
   LessonSpec,
+  LESSONS_PER_UNIT,
   LevelOutline,
+  UNITS_PER_LEVEL,
 } from '../course/course.types';
 
 /**
@@ -17,8 +19,6 @@ import {
  */
 const DEFAULT_MODEL = 'claude-opus-5-5';
 
-export const UNITS_PER_LEVEL = 8;
-export const LESSONS_PER_UNIT = 4;
 const MIN_EXERCISES = 8;
 
 const AUDIENCE =
@@ -96,18 +96,28 @@ export class CourseAiService {
     return this.claude.isEnabled();
   }
 
-  /** The syllabus for one level: 8 units × 4 lessons. */
-  async generateOutline(level: CefrLevel): Promise<LevelOutline> {
+  /**
+   * The syllabus for one level: UNITS_PER_LEVEL units × LESSONS_PER_UNIT lessons.
+   * With `existing`, the level already has some units: write only the missing
+   * ones, continuing the progression and favouring points not taught yet.
+   */
+  async generateOutline(
+    level: CefrLevel,
+    existing?: { units: { title: string; grammar: string[] }[]; uncovered: string[] },
+  ): Promise<LevelOutline> {
+    const count = UNITS_PER_LEVEL - (existing?.units.length ?? 0);
+    const lessons = count * LESSONS_PER_UNIT;
     const system =
       'You design "English for IT", a self-study course. ' +
       AUDIENCE +
       '\n\nWrite the syllabus for CEFR level ' +
       level +
-      `: exactly ${UNITS_PER_LEVEL} units, each with exactly ${LESSONS_PER_UNIT} lessons.\n` +
+      `: exactly ${count} units, each with exactly ${LESSONS_PER_UNIT} lessons.\n` +
       '- Units are workplace situations, ordered from everyday to more demanding.\n' +
-      `- Grammar: together the ${UNITS_PER_LEVEL * LESSONS_PER_UNIT} lessons cover the core ` +
-      `${level} grammar syllabus in a sensible progression. One focused grammar point ` +
-      'per lesson, no point repeated, each one useful in that unit\'s situation.\n' +
+      `- Grammar: together the lessons cover the core ${level} grammar syllabus in a sensible ` +
+      'progression. One focused grammar point per lesson, each one useful in that unit\'s situation. ' +
+      'A big point may get a second lesson from a different angle (form vs use, a harder context), ' +
+      'but never the same lesson twice.\n' +
       '- Each lesson also has a vocabulary theme (≈10 words) tied to the situation.\n' +
       '- title: short, English. titleVi: the unit title in Vietnamese. ' +
       'summary: one Vietnamese sentence on what the unit covers. ' +
@@ -115,16 +125,27 @@ export class CourseAiService {
       'objective: one Vietnamese sentence starting "Sau bài này bạn có thể".\n' +
       '- syllabusKeys: the key(s) of the reference-syllabus point(s) the lesson teaches (usually one). ' +
       'Use [] only for a workplace extra that is not on the list.' +
-      this.syllabusBrief(level);
+      this.syllabusBrief(level) +
+      (existing
+        ? '\n\nThe level ALREADY HAS these units (do not repeat their situations or lessons; ' +
+          `continue after them — your ${count} units come next, slightly more demanding):\n` +
+          existing.units.map((u, i) => `${i + 1}. ${u.title} — ${u.grammar.join('; ')}`).join('\n') +
+          (existing.uncovered.length
+            ? '\nReference points with no lesson yet (teach each of these first): ' +
+              existing.uncovered.join(', ')
+            : '')
+        : '');
     const outline = await this.call<LevelOutline>(
       system,
-      `Write the ${level} syllabus.`,
+      existing
+        ? `Write the next ${count} units (${lessons} lessons) of the ${level} syllabus.`
+        : `Write the ${level} syllabus.`,
       OUTLINE_SCHEMA,
       'high',
     );
     const units = (outline.units ?? []).filter((u) => u.title && u.lessons?.length);
-    if (units.length < 4) throw new Error(`outline has only ${units.length} units`);
-    return { units };
+    if (units.length < Math.min(4, count)) throw new Error(`outline has only ${units.length} units`);
+    return { units: units.slice(0, count) };
   }
 
   /**

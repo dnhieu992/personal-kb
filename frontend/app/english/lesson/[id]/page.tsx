@@ -9,6 +9,7 @@ import { speak } from '../../../lib/course';
 import { Icon } from '../../../components/icons';
 import { Alert, cx, Loading, PageHeader } from '../../../components/ui';
 import { Practice } from './practice';
+import { JourneyStrip } from '../../journey';
 
 type Tab = 'theory' | 'vocab' | 'practice';
 
@@ -31,6 +32,12 @@ export default function LessonPage({ params }: { params: { id: string } }) {
     setQuick(false);
     load();
   }, [load]);
+
+  // A unit review has nothing to read first: open straight on the practice.
+  const isReview = data?.lesson.kind === 'REVIEW';
+  useEffect(() => {
+    if (isReview) setTab('practice');
+  }, [isReview]);
 
   // A lesson being (re)written: check back until it is ready.
   const pending = data?.lesson.status === 'GENERATING';
@@ -58,7 +65,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
       title={lesson.title}
       description={
         <>
-          {lesson.level} · Unit {unit?.position} — {unit?.title} · Bài {data.index}/{data.total}
+          {lesson.level} · Unit {unit?.position} — {unit?.title} · {isReview ? 'Ôn tập cuối unit' : `Bài ${data.index}/${data.total}`}
         </>
       }
       actions={
@@ -81,7 +88,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
       <>
         {header}
         <Alert tone="warning" title="Bài này chưa mở">
-          Hoàn thành bài trước (đạt ≥ {data.passScore}%) để mở khóa.{' '}
+          Qua bài trước để mở khóa.{' '}
           {data.prevId && (
             <Link href={`/english/lesson/${data.prevId}`} className="underline">
               Đến bài trước
@@ -123,15 +130,25 @@ export default function LessonPage({ params }: { params: { id: string } }) {
     );
   }
 
-  const tabs: { id: Tab; label: string; count?: number }[] = [
-    { id: 'theory', label: '1. Kiến thức' },
-    { id: 'vocab', label: '2. Từ vựng', count: lesson.vocab?.length },
-    { id: 'practice', label: '3. Luyện tập', count: lesson.exercises?.length },
-  ];
+  const tabs: { id: Tab; label: string; count?: number }[] = isReview
+    ? [{ id: 'practice', label: 'Bài ôn tập', count: lesson.exercises?.length }]
+    : [
+        { id: 'theory', label: '1. Kiến thức' },
+        { id: 'vocab', label: '2. Từ vựng', count: lesson.vocab?.length },
+        { id: 'practice', label: '3. Luyện tập', count: lesson.exercises?.length },
+      ];
 
   return (
     <div className="max-w-4xl">
       {header}
+      <JourneyStrip journey={data.journey} />
+
+      {isReview && (
+        <Alert tone="info" title="Ôn tập cuối unit" className="mb-5">
+          {lesson.exercises?.length} câu trộn từ mọi bài trong unit, khó hơn bài luyện thường. Đạt ≥ {data.passScore}% là
+          xong unit. Sai câu nào thì xem lại bài của điểm ngữ pháp đó.
+        </Alert>
+      )}
 
       {data.mastery === 'mastered' && !lesson.completedAt && (
         <Alert tone="success" title="Bạn đã làm đúng điểm ngữ pháp này trong test xếp lớp" className="mb-5">
@@ -270,7 +287,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
           detail={data}
           quick={quick}
           onFinished={load}
-          onReview={() => setTab('theory')}
+          onReview={isReview ? undefined : () => setTab('theory')}
         />
       )}
 

@@ -14,6 +14,17 @@ export const LESSON_PASS_SCORE = 70;
 /** Score a quick check (lesson already mastered in the placement test) needs. */
 export const QUICK_CHECK_PASS_SCORE = 80;
 
+/** Score a unit review (mixed exercises from every lesson of the unit) needs. */
+export const REVIEW_PASS_SCORE = 80;
+
+/** A level's planned size: units × lessons, plus one review per unit. */
+export const UNITS_PER_LEVEL = 12;
+export const LESSONS_PER_UNIT = 5;
+export const PLANNED_PER_LEVEL = UNITS_PER_LEVEL * (LESSONS_PER_UNIT + 1);
+
+/** Pace target when no goal has been set. */
+export const DEFAULT_WEEKLY_LESSONS = 5;
+
 export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix';
 
 /**

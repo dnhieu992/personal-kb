@@ -13,13 +13,7 @@ import {
 } from '../lib/api';
 import { Icon } from '../components/icons';
 import { Alert, cx, EmptyState, Loading, PageHeader, ProgressBar, StatCard } from '../components/ui';
-
-const LEVEL_NOTE: Record<CourseLevel, string> = {
-  A2: 'Nền tảng',
-  B1: 'Giao tiếp công việc',
-  B2: 'Làm việc độc lập',
-  C1: 'Thành thạo',
-};
+import { JourneyCard, LEVEL_NOTE } from './journey';
 
 function CoursePage() {
   const params = useSearchParams();
@@ -73,9 +67,10 @@ function CoursePage() {
   if (error && !data) return <Alert title="Không tải được khóa học.">{error}</Alert>;
   if (!data || !current) return <Loading label="Đang tải khóa học…" />;
 
-  const { progress, next } = data;
+  const { progress, next, plan } = data;
   const pending = generating ? 0 : current.total - current.ready - current.failed;
-  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const missingUnits = Math.max(0, plan.units - current.units);
+  const planLabel = `${plan.units} unit × ${plan.lessonsPerUnit} bài + bài ôn tập cuối mỗi unit`;
 
   return (
     <div className="space-y-8">
@@ -99,6 +94,8 @@ function CoursePage() {
       />
 
       {error && <Alert>{error}</Alert>}
+
+      <JourneyCard journey={data.journey} onChange={(journey) => setData({ ...data, journey })} />
 
       {data.placement ? (
         <Link href="/english/placement" className="card card-interactive flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
@@ -154,6 +151,11 @@ function CoursePage() {
                 <span className="flex items-center gap-1.5 text-base font-semibold text-fg">
                   {l.level}
                   {data.placement?.placedLevel === l.level && <span className="chip tone-accent">level của bạn</span>}
+                  {data.journey.target === l.level && (
+                    <span className="chip tone-green" title="Đích của hành trình">
+                      <Icon name="flag" className="h-3 w-3" /> đích
+                    </span>
+                  )}
                 </span>
                 <span className="text-xs tabular-nums text-fg-muted">
                   {l.total ? `${l.done}/${l.total}` : l.generating ? 'đang soạn' : 'chưa có'}
@@ -169,13 +171,13 @@ function CoursePage() {
       {current.total === 0 ? (
         generating ? (
           <div className="card p-6">
-            <Loading label={`Đang soạn khung chương trình ${data.level} (8 unit × 4 bài)… khoảng 1–2 phút.`} />
+            <Loading label={`Đang soạn khung chương trình ${data.level} (${planLabel})… khoảng 2–3 phút.`} />
           </div>
         ) : (
           <EmptyState
             icon="graduation"
             title={`Chưa có nội dung cho level ${data.level}`}
-            description="AI sẽ soạn 8 unit × 4 bài (lý thuyết, từ vựng, bài tập) theo bối cảnh công việc IT. Mất khoảng 10–15 phút, chạy nền — bạn học được ngay khi bài đầu tiên xong."
+            description={`AI sẽ soạn ${planLabel} (lý thuyết, từ vựng, bài tập) theo bối cảnh công việc IT. Chạy nền khoảng 30–40 phút — bạn học được ngay khi bài đầu tiên xong.`}
             action={
               <button onClick={generate} disabled={starting} className="btn btn-primary">
                 <Icon name="sparkles" /> {starting ? 'Đang bắt đầu…' : `Soạn giáo trình ${data.level}`}
@@ -185,56 +187,40 @@ function CoursePage() {
         )
       ) : (
         <>
-          {(generating || current.failed > 0 || pending > 0) && (
+          {(generating || current.failed > 0 || pending > 0 || missingUnits > 0) && (
             <div className="card flex flex-wrap items-center gap-4 p-4">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fg">
                   {generating
                     ? `Đang soạn bài: ${current.ready}/${current.total}`
-                    : [current.failed > 0 && `${current.failed} bài soạn bị lỗi`, pending > 0 && `${pending} bài chưa soạn`]
+                    : [
+                        missingUnits > 0 && `Còn ${missingUnits} unit chưa có (${current.units}/${plan.units})`,
+                        current.failed > 0 && `${current.failed} bài soạn bị lỗi`,
+                        pending > 0 && `${pending} bài chưa soạn`,
+                      ]
                         .filter(Boolean)
                         .join(' · ')}
                 </p>
+                {missingUnits > 0 && !generating && (
+                  <p className="mt-0.5 text-xs text-fg-muted">
+                    Giáo trình mới: {planLabel}. Soạn thêm {missingUnits * plan.lessonsPerUnit} bài nữa cho {data.level}.
+                  </p>
+                )}
                 <ProgressBar value={current.total ? current.ready / current.total : 0} className="mt-2" />
               </div>
               {!generating && (
                 <button onClick={generate} disabled={starting} className="btn btn-secondary btn-sm">
-                  <Icon name="refresh" /> {pending > 0 ? 'Soạn bài còn thiếu' : 'Soạn lại bài lỗi'}
+                  <Icon name={missingUnits > 0 ? 'sparkles' : 'refresh'} />{' '}
+                  {missingUnits > 0 ? `Soạn thêm ${missingUnits} unit` : pending > 0 ? 'Soạn bài còn thiếu' : 'Soạn lại bài lỗi'}
                 </button>
               )}
             </div>
           )}
           {current.error && <Alert title="Soạn giáo trình bị dừng">{current.error}</Alert>}
 
-          {/* Progress hero */}
-          <section className="card p-5">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="eyebrow">Tiến độ {data.level}</p>
-                <p className="mt-1 text-[28px] font-semibold leading-none tabular-nums text-fg">
-                  {pct}%
-                  <span className="ml-2 text-sm font-normal text-fg-muted">
-                    {progress.done}/{progress.total} bài
-                  </span>
-                </p>
-              </div>
-              {next && next.status === 'READY' && !next.locked && (
-                <Link href={`/english/lesson/${next.id}`} className="btn btn-primary">
-                  <Icon name="play" /> {next.mastery === 'weak' ? 'Củng cố' : progress.done ? 'Học tiếp' : 'Bắt đầu'}: {next.title}
-                </Link>
-              )}
-              {!next && progress.total > 0 && (
-                <span className="chip tone-green px-2.5 py-1 text-[13px]">
-                  <Icon name="check" className="h-3.5 w-3.5" /> Hoàn thành {data.level}
-                </span>
-              )}
-            </div>
-            <ProgressBar value={pct / 100} className="mt-4 h-2.5" tone={pct === 100 ? 'success' : 'accent'} />
-          </section>
-
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard label="Bài đã xong" value={progress.done} icon="check" tone="success" />
-            <StatCard label="Điểm trung bình" value={data.averageScore === null ? '—' : `${data.averageScore}%`} icon="target" hint={`Cần ≥ ${data.passScore}% để qua bài`} />
+            <StatCard label={`Bài xong ở ${data.level}`} value={`${progress.done}/${progress.total}`} icon="check" tone="success" />
+            <StatCard label="Điểm trung bình" value={data.averageScore === null ? '—' : `${data.averageScore}%`} icon="target" hint={`Qua bài ≥ ${data.passScore}%, ôn tập unit ≥ ${data.reviewPassScore}%`} />
             <StatCard label="Từ vựng đã học" value={data.vocabLearned} icon="book" hint="Đã vào hàng đợi ôn thẻ" />
             <StatCard label="Thẻ chờ ôn" value={due ?? '—'} icon="cards" tone={due ? 'warning' : 'default'} href="/english/review" />
           </div>
@@ -297,6 +283,7 @@ function CoursePage() {
 }
 
 function LessonRow({ lesson: l, isNext, generating }: { lesson: LessonSummary; isNext: boolean; generating: boolean }) {
+  const review = l.kind === 'REVIEW';
   const open = l.status === 'READY' && !l.locked;
   const icon = l.completedAt ? (
     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success-soft text-success-text">
@@ -320,7 +307,7 @@ function LessonRow({ lesson: l, isNext, generating }: { lesson: LessonSummary; i
     </span>
   ) : (
     <span className={cx('flex h-7 w-7 items-center justify-center rounded-full', isNext ? 'bg-accent text-accent-fg' : 'bg-accent-soft text-accent-text')}>
-      <Icon name="play" className="h-3 w-3" />
+      <Icon name={review ? 'flag' : 'play'} className="h-3 w-3" />
     </span>
   );
 
@@ -329,10 +316,10 @@ function LessonRow({ lesson: l, isNext, generating }: { lesson: LessonSummary; i
       {icon}
       <div className="min-w-0 flex-1">
         <p className={cx('truncate text-sm font-medium', l.locked && !l.completedAt ? 'text-fg-muted' : 'text-fg')}>
-          {l.position}. {l.title}
+          {review ? 'Ôn tập unit' : `${l.position}. ${l.title}`}
         </p>
         <p className="truncate text-xs text-fg-muted">
-          {l.grammar} · {l.vocabTheme}
+          {review ? 'Bài trộn câu hỏi từ mọi bài trong unit · cần ≥ 80%' : `${l.grammar} · ${l.vocabTheme}`}
         </p>
       </div>
       {l.mastery && !l.completedAt && (
@@ -354,7 +341,7 @@ function LessonRow({ lesson: l, isNext, generating }: { lesson: LessonSummary; i
   );
 
   return (
-    <li className={cx(isNext && 'bg-accent-soft/40')}>
+    <li className={cx(isNext ? 'bg-accent-soft/40' : review && 'bg-subtle/60')}>
       {open || l.completedAt ? (
         <Link href={`/english/lesson/${l.id}`} className="block hover:bg-subtle">
           {body}
