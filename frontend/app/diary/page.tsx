@@ -1,9 +1,11 @@
 'use client';
 
-import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, DiaryEntry } from '../lib/api';
 import { Icon } from '../components/icons';
 import { Alert, EmptyState, Loading, PageHeader } from '../components/ui';
+import RichEditor, { plainText } from '../components/RichEditor';
+import RichContent from '../components/RichContent';
 
 const dayKey = (iso: string) => {
   const d = new Date(iso);
@@ -23,8 +25,6 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('vi-VN', { hour: 
 const stamp = (iso: string) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
-/** ⌘/Ctrl + Enter saves. */
-const isSave = (e: KeyboardEvent) => e.key === 'Enter' && (e.metaKey || e.ctrlKey);
 
 export default function DiaryPage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
@@ -89,7 +89,7 @@ export default function DiaryPage() {
 
   const days = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const shown = q ? entries.filter((e) => e.content.toLowerCase().includes(q)) : entries;
+    const shown = q ? entries.filter((e) => plainText(e.content).toLowerCase().includes(q)) : entries;
     const groups: { key: string; label: string; items: DiaryEntry[] }[] = [];
     for (const e of shown) {
       const key = dayKey(e.createdAt);
@@ -112,23 +112,18 @@ export default function DiaryPage() {
         }
       />
 
-      <div className="card space-y-3 p-4">
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => isSave(e) && add()}
-          rows={5}
-          placeholder="Hôm nay thế nào?"
-          className="input w-full min-h-[120px] resize-y leading-relaxed"
-          autoFocus
-        />
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-fg-subtle">⌘/Ctrl + Enter để lưu</span>
-          <button onClick={add} disabled={saving || !draft.trim()} className="btn btn-primary">
-            <Icon name="plus" /> {saving ? 'Đang lưu…' : 'Lưu'}
+      <RichEditor
+        value={draft}
+        onChange={setDraft}
+        onSubmit={add}
+        placeholder="Hôm nay thế nào?"
+        autoFocus
+        actions={
+          <button onClick={add} disabled={saving || !draft.trim()} className="btn btn-primary btn-sm">
+            <Icon name="send" /> {saving ? 'Đang lưu…' : 'Đăng'}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {error && <Alert>{error}</Alert>}
 
@@ -179,29 +174,25 @@ export default function DiaryPage() {
                       )}
                     </div>
                     {isEditing ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={editing.text}
-                          onChange={(ev) => setEditing({ id: e.id, text: ev.target.value })}
-                          onKeyDown={(ev) => {
-                            if (isSave(ev)) saveEdit();
-                            if (ev.key === 'Escape') setEditing(null);
-                          }}
-                          rows={Math.min(16, Math.max(4, editing.text.split('\n').length + 1))}
-                          className="input w-full resize-y leading-relaxed"
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <button onClick={saveEdit} disabled={!editing.text.trim()} className="btn btn-primary btn-sm">
-                            Lưu
-                          </button>
-                          <button onClick={() => setEditing(null)} className="btn btn-secondary btn-sm">
-                            Huỷ
-                          </button>
-                        </div>
-                      </div>
+                      <RichEditor
+                        value={editing.text}
+                        onChange={(text) => setEditing({ id: e.id, text })}
+                        onSubmit={saveEdit}
+                        autoFocus
+                        className="shadow-none"
+                        actions={
+                          <>
+                            <button onClick={() => setEditing(null)} className="btn btn-ghost btn-sm">
+                              Huỷ
+                            </button>
+                            <button onClick={saveEdit} disabled={!editing.text.trim()} className="btn btn-primary btn-sm">
+                              Lưu
+                            </button>
+                          </>
+                        }
+                      />
                     ) : (
-                      <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-fg">{e.content}</p>
+                      <RichContent content={e.content} />
                     )}
                   </article>
                 );

@@ -16,7 +16,7 @@ app/
 ├── diary/page.tsx            # plain personal diary: timestamped notes grouped by day, edit/delete/search
 ├── chat/page.tsx             # RAG chat UI
 ├── design/page.tsx           # living style guide (tokens + components)
-├── components/               # AppShell (sidebar, ⌘K), ui.tsx primitives, icons, KnowledgeForm, TaskRow…
+├── components/               # AppShell (sidebar, ⌘K), ui.tsx primitives, icons, KnowledgeForm, TaskRow, RichEditor (Tiptap post composer, emits HTML) + RichContent (DOMPurify render)…
 └── lib/api.ts                # typed API client + shared types
 ```
 

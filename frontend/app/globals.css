@@ -179,6 +179,15 @@
   .prose-kb hr { @apply my-4 border-line; }
   .prose-kb table { @apply my-3 w-full text-left text-sm; }
   .prose-kb th, .prose-kb td { @apply border-b border-line px-2 py-1; }
+  .prose-kb img { @apply my-3 max-h-[480px] max-w-full rounded-lg border border-line; }
+  .prose-kb s { @apply text-fg-muted; }
+  /* Rich editor (Tiptap): the editable area itself. */
+  .rich-editor .ProseMirror { @apply min-h-[160px] px-4 py-3 text-[15px] text-fg outline-none; }
+  .rich-editor .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply pointer-events-none float-left h-0 text-fg-subtle;
+  }
+  .rich-editor .ProseMirror img.ProseMirror-selectednode { @apply ring-2 ring-accent; }
 }
 
 /* Tones live outside @layer so dynamically built names (tone-${x}) are never purged. */

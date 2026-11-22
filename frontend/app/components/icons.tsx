@@ -44,6 +44,19 @@ const PATHS = {
   volume: <><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /></>,
   refresh: <><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5M3 21v-5h5" /></>,
   command: <><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" /></>,
+  bold: <><path d="M6 4h8a4 4 0 0 1 0 8H6zM6 12h9a4 4 0 0 1 0 8H6z" /></>,
+  italic: <><path d="M19 4h-9M14 20H5M15 4 9 20" /></>,
+  underline: <><path d="M6 4v6a6 6 0 0 0 12 0V4M4 21h16" /></>,
+  strike: <><path d="M16 4H9a3 3 0 0 0-2.83 4M14 12a4 4 0 0 1 0 8H6M4 12h16" /></>,
+  heading: <><path d="M6 4v16M18 4v16M6 12h12" /></>,
+  'list-ordered': <><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" /></>,
+  'quote-block': <><path d="M3 21c3 0 7-1 7-8V5H3v7h4c0 4-4 5-4 5zM14 21c3 0 7-1 7-8V5h-7v7h4c0 4-4 5-4 5z" /></>,
+  code: <><path d="m16 18 6-6-6-6M8 6l-6 6 6 6" /></>,
+  link: <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></>,
+  image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" /></>,
+  undo: <><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-15-6.7L3 13" /></>,
+  redo: <><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 15-6.7L21 13" /></>,
+  divider: <><path d="M3 12h18" /></>,
 } as const;
 
 export type IconName = keyof typeof PATHS;
