@@ -30,6 +30,9 @@ services:
       - PORT=4001
     volumes:
       - model_cache:/app/.cache
+      # The host's Claude Code login (`claude auth login` as root on the VPS), shared with
+      # market-analysis. Read-write so the SDK can refresh the OAuth token.
+      - /root/.claude:/root/.claude
     depends_on:
       - qdrant
 
