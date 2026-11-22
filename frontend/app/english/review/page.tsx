@@ -103,7 +103,7 @@ export default function EnglishReviewPage() {
   const card = queue[index];
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="max-w-2xl">
       <div className="mb-6 flex items-center gap-4">
         <Link href="/english" className="btn btn-ghost btn-icon btn-sm" title="Thoát">
           <Icon name="x" />

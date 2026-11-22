@@ -130,7 +130,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
   ];
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-4xl">
       {header}
 
       {data.mastery === 'mastered' && !lesson.completedAt && (

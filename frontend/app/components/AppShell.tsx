@@ -89,7 +89,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {app ? (
           <main className="min-w-0 flex-1">{children}</main>
         ) : (
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 md:px-10 md:py-10">{children}</main>
+          <main className="w-full max-w-screen-2xl flex-1 px-4 py-5 sm:px-5 md:px-6 md:py-6">{children}</main>
         )}
       </div>
 
