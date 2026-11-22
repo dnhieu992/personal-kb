@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { CefrLevel } from '../knowledge/entities/knowledge.entity';
+import { ALL_POINTS, frameworkFor } from '../course/syllabus';
 import {
   Exercise,
   ExerciseType,
@@ -46,7 +47,13 @@ const OUTLINE_SCHEMA = obj({
       summary: str,
       lessons: {
         type: 'array',
-        items: obj({ title: str, grammar: str, vocabTheme: str, objective: str }),
+        items: obj({
+          title: str,
+          grammar: str,
+          vocabTheme: str,
+          objective: str,
+          syllabusKeys: { type: 'array', items: { type: 'string', enum: ALL_POINTS.map((p) => p.key) } },
+        }),
       },
     }),
   },
@@ -109,7 +116,10 @@ export class CourseAiService {
       '- title: short, English. titleVi: the unit title in Vietnamese. ' +
       'summary: one Vietnamese sentence on what the unit covers. ' +
       'grammar: the grammar point in English (e.g. "Present perfect vs past simple"). ' +
-      'objective: one Vietnamese sentence starting "Sau bài này bạn có thể".';
+      'objective: one Vietnamese sentence starting "Sau bài này bạn có thể".\n' +
+      '- syllabusKeys: the key(s) of the reference-syllabus point(s) the lesson teaches (usually one). ' +
+      'Use [] only for a workplace extra that is not on the list.' +
+      this.syllabusBrief(level);
     const outline = await this.call<LevelOutline>(
       system,
       `Write the ${level} syllabus.`,
@@ -120,6 +130,26 @@ export class CourseAiService {
     const units = (outline.units ?? []).filter((u) => u.title && u.lessons?.length);
     if (units.length < 4) throw new Error(`outline has only ${units.length} units`);
     return { units };
+  }
+
+  /**
+   * The level's reference syllabus (British Council – EAQUALS Core Inventory),
+   * which the outline must cover, plus the workplace goals to aim the units at.
+   */
+  private syllabusBrief(level: CefrLevel): string {
+    const f = frameworkFor(level);
+    if (!f) return '';
+    return (
+      '\n\nReference syllabus — British Council – EAQUALS Core Inventory, ' + level + '. ' +
+      'Every point below MUST be taught by at least one lesson (put its key in syllabusKeys). ' +
+      'Use the remaining lessons for the most useful workplace points (they may review a lower ' +
+      'level\'s key or be extras), never for content above ' + level + '.\n' +
+      f.points.map((p) => `- ${p.key}: ${p.name}`).join('\n') +
+      '\n\nFunctions to practise across the units: ' + f.functions.join('; ') + '.' +
+      '\nWorkplace goals for the level (Vietnamese): ' + f.canDo.join('; ') + '.' +
+      '\nKeys from lower levels you may reuse for review: ' +
+      ALL_POINTS.filter((p) => p.level < level).map((p) => p.key).join(', ')
+    );
   }
 
   /** Theory, vocabulary and practice for one lesson. */
@@ -158,6 +188,9 @@ export class CourseAiService {
       `Unit: ${spec.unitTitle} — ${spec.unitSummary}\n` +
       `Lesson: ${spec.title}\n` +
       `Grammar point: ${spec.grammar}\n` +
+      (spec.syllabus.length
+        ? `Reference syllabus point(s) (British Council – EAQUALS Core Inventory): ${spec.syllabus.join('; ')}\n`
+        : '') +
       `Vocabulary theme: ${spec.vocabTheme}\n` +
       `Objective: ${spec.objective}\n\n` +
       'Grammar taught in other lessons of this level (do not teach these here, ' +
@@ -241,8 +274,11 @@ export function normaliseExercise(e: Partial<Exercise>): Exercise | null {
       if (ex.options.length < 2 || !ex.answer.length) return null;
       // The key must be one of the options, or nothing could ever be marked right.
       return ex.options.includes(ex.answer[0]) ? ex : null;
-    case 'gap':
-      return ex.prompt.includes('___') && ex.answer.length ? ex : null;
+    case 'gap': {
+      // The model sometimes draws the blank longer (_____); the UI splits on ___.
+      const prompt = ex.prompt.replace(/_{4,}/g, '___');
+      return prompt.includes('___') && ex.answer.length ? { ...ex, prompt } : null;
+    }
     case 'order':
       // The words, in order, are the key; keep `answer` in step with them.
       if (ex.options.length < 3) return null;

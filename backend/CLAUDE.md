@@ -12,7 +12,7 @@ NestJS + TypeORM API for the knowledge base. Entry point `src/main.ts`, root mod
 | `ai` | `src/ai/` | Wraps `@anthropic-ai/sdk` (`claude-haiku-4-5`) for tag/summary/snippet extraction, entry reformat-and-translate-to-English (`formatContent`), English coaching (`reviewEnglishUsage`) and RAG chat. Disabled-but-safe when `ANTHROPIC_API_KEY` is unset (returns fallbacks; ask `isEnabled()`). |
 | `english` | `src/english/` | Shared English coaching (`EnglishCoachService`): asks the AI what to revise, files the answer as review cards linked to a `sourceId`, dedupes them, and deletes them with their source. No controller — `knowledge` and `task` both use it, which is what keeps the review queue identical for entries and tasks. |
 | `task` | `src/task/` | The planner: `Task` (day plan, status, priority, COMPANY/PERSONAL, backlog) and `TaskList` (long-term todo lists). Saves are instant; the English pass runs in the background. |
-| `course` | `src/course/` | "English for IT" course at `/english` (tables `course_unit`, `course_lesson`, `course_attempt`): CEFR levels A2–C1 → 8 units × 4 lessons. Content is AI-written **once and stored** (`CourseGeneratorService`, background, resumable); lessons unlock in order when the previous one's practice scores ≥ 70%; first pass files the lesson's vocab as review cards via `EnglishCoachService.collect`. |
+| `course` | `src/course/` | "English for IT" course at `/english` (tables `course_unit`, `course_lesson`, `course_attempt`): CEFR levels A2–C1 → 8 units × 4 lessons. Content is AI-written **once and stored** (`CourseGeneratorService`, background, resumable); lessons unlock in order when the previous one's practice scores ≥ 70%; first pass files the lesson's vocab as review cards via `EnglishCoachService.collect`. Built on a reference syllabus (`syllabus.ts`: British Council – EAQUALS Core Inventory points per level) and a placement test (`placement-bank.ts`, `course_placement`) that sets the default level and marks lessons mastered/weak. |
 | `planner` | `src/planner/` | Web port of the "Planner" Mac app (`/planner/*`, tables `planner_*`, independent of `task`): Work/Personal areas, categories, todo tasks (backlog/today/week/month, Kanban), checklist, links, recurrence, goals, notes + day notes, stats, English auto-correct log. Reminders go to Telegram (cron every minute). |
 
 ## Conventions
@@ -63,4 +63,11 @@ npm run build       # → dist/
   one is gradable; grading happens in the browser (`frontend/app/lib/course.ts`) and the run's
   score is posted to `/course/lessons/:id/attempts`. Progress lives on `course_lesson`
   (single learner). Lessons stuck GENERATING after a restart are reset to PENDING on boot.
+- **Syllabus & placement**: lessons carry `syllabusKeys` (Core Inventory keys from `course/syllabus.ts`;
+  the outline prompt must cover every key of the level). The placement test is static (`placement-bank.ts`,
+  our own items — never paste exam content), graded server-side, 12 items per level, stops after a block
+  < 50%, places at the first level < 75%. Right answers → `mastered` keys (lesson doesn't block the path,
+  passable by a 6-question quick check ≥ 80%, `quick: true` on the attempt); wrong answers at or below the
+  placed level → `weak` keys (lesson unlocked and recommended first). `CourseSyllabusService` maps lessons
+  written before this (by grammar label) and adds the B1 "Sprint Retrospectives" unit on boot — idempotent.
 - Embedding model lazy-loads on first use and caches to `.cache/` (gitignored).

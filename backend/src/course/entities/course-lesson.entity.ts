@@ -60,6 +60,14 @@ export class CourseLesson {
   @Column({ type: 'text' })
   objective: string;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    type: [String],
+    description: 'Core Inventory points it teaches (syllabus.ts keys); null = not mapped yet',
+  })
+  @Column({ type: 'json', nullable: true })
+  syllabusKeys: string[] | null;
+
   // --- content ---
 
   @ApiProperty({ enum: LessonStatus })

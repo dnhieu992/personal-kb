@@ -5,6 +5,7 @@ import { CourseAiService } from '../ai/course-ai.service';
 import { CefrLevel } from '../knowledge/entities/knowledge.entity';
 import { CourseLesson, LessonStatus } from './entities/course-lesson.entity';
 import { CourseUnit } from './entities/course-unit.entity';
+import { frameworkFor, syllabusPoint } from './syllabus';
 
 /** Lessons written at the same time while a level is generated. */
 const CONCURRENCY = 3;
@@ -90,6 +91,11 @@ export class CourseGeneratorService implements OnModuleInit {
   private async writeOutline(level: CefrLevel) {
     this.logger.log(`${level}: writing the outline`);
     const outline = await this.ai.generateOutline(level);
+    const covered = new Set(outline.units.flatMap((u) => u.lessons.flatMap((l) => l.syllabusKeys ?? [])));
+    const missing = (frameworkFor(level)?.points ?? []).filter((p) => !covered.has(p.key));
+    if (missing.length) {
+      this.logger.warn(`${level}: outline leaves out ${missing.map((p) => p.key).join(', ')}`);
+    }
     for (const [u, unitPlan] of outline.units.entries()) {
       const unit = await this.units.save(
         this.units.create({
@@ -110,6 +116,7 @@ export class CourseGeneratorService implements OnModuleInit {
             grammar: l.grammar,
             vocabTheme: l.vocabTheme,
             objective: l.objective,
+            syllabusKeys: l.syllabusKeys ?? [],
             status: LessonStatus.PENDING,
           }),
         ),
@@ -145,6 +152,9 @@ export class CourseGeneratorService implements OnModuleInit {
           grammar: lesson.grammar,
           vocabTheme: lesson.vocabTheme,
           objective: lesson.objective,
+          syllabus: (lesson.syllabusKeys ?? [])
+            .map((k) => syllabusPoint(k)?.name)
+            .filter((n): n is string => !!n),
           otherGrammar: siblings.filter((s) => s.id !== id).map((s) => s.grammar),
         });
         await this.lessons.update(id, {

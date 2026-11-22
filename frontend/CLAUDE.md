@@ -12,7 +12,7 @@ app/
 ├── knowledge/                # list, new, [id]/edit pages
 ├── plan/                     # daily planner + plan/lists (long-term todo lists)
 ├── planner/                  # web port of the Planner Mac app (full-width client app)
-├── english/                  # English for IT course (page.tsx), lesson/[id] (theory · vocab · practice), journal, review queue
+├── english/                  # English for IT course (page.tsx), placement test, lesson/[id] (theory · vocab · practice / quick check), journal, review queue
 ├── chat/page.tsx             # RAG chat UI
 ├── design/page.tsx           # living style guide (tokens + components)
 ├── components/               # AppShell (sidebar, ⌘K), ui.tsx primitives, icons, KnowledgeForm, TaskRow…

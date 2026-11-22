@@ -326,7 +326,9 @@ async function requestOnce<T>(path: string, init?: RequestInit): Promise<T> {
     const text = await res.text().catch(() => '');
     throw new Error(`${res.status} ${res.statusText} — ${text}`);
   }
-  return res.json() as Promise<T>;
+  // Nest sends an empty body for a null result.
+  const body = await res.text();
+  return (body ? JSON.parse(body) : null) as T;
 }
 
 // A pooled keep-alive socket that dies as the Next proxy reuses it surfaces as
@@ -492,7 +494,7 @@ export const api = {
     overview: (level?: CourseLevel) =>
       request<CourseOverview>(`/course/overview${level ? `?level=${level}` : ''}`),
     lesson: (id: string) => request<LessonDetail>(`/course/lessons/${id}`),
-    submitAttempt: (id: string, body: { correct: number; total: number; answers: unknown[] }) =>
+    submitAttempt: (id: string, body: { correct: number; total: number; answers: unknown[]; quick?: boolean }) =>
       request<AttemptResult>(`/course/lessons/${id}/attempts`, {
         method: 'POST',
         body: JSON.stringify(body),
@@ -501,6 +503,18 @@ export const api = {
       request<{ started: boolean; enabled: boolean }>(`/course/levels/${level}/generate`, { method: 'POST' }),
     regenerate: (id: string) =>
       request<CourseLesson>(`/course/lessons/${id}/regenerate`, { method: 'POST' }),
+    placement: () => request<PlacementResult | null>('/course/placement'),
+    placementTest: () => request<PlacementTest>('/course/placement/test'),
+    checkBlock: (level: CourseLevel, answers: Record<string, string>) =>
+      request<BlockResult>(`/course/placement/blocks/${level}`, {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      }),
+    submitPlacement: (answers: Record<string, string>) =>
+      request<PlacementResult>('/course/placement', { method: 'POST', body: JSON.stringify({ answers }) }),
+    placementReview: (id: string) => request<PlacementReviewItem[] | null>(`/course/placement/${id}/review`),
+    setEfset: (score: number) =>
+      request<PlacementResult>('/course/placement/efset', { method: 'POST', body: JSON.stringify({ score }) }),
   },
 
   tasks: {
@@ -758,10 +772,83 @@ export interface LessonSummary {
   completedAt: string | null;
   bestScore: number | null;
   attemptCount: number;
+  syllabusKeys: string[] | null;
+  /** From the latest placement test: mastered points can be skipped, weak ones come first. */
+  mastery: Mastery;
   locked: boolean;
 }
 
-export interface CourseLesson extends Omit<LessonSummary, 'locked'> {
+export type Mastery = 'mastered' | 'weak' | null;
+
+export interface SyllabusPoint {
+  key: string;
+  level: CourseLevel;
+  kind: 'grammar' | 'discourse';
+  name: string;
+  vi: string;
+}
+
+export interface CourseFramework {
+  gse: string;
+  efset: string;
+  canDo: string[];
+  functions: string[];
+  points: (SyllabusPoint & { lessonIds: string[]; done: boolean })[];
+  extra: SyllabusPoint[];
+  sources: { name: string; use: string; url: string }[];
+}
+
+export type PlacementSkill = 'grammar' | 'vocab' | 'reading' | 'listening';
+
+export interface PlacementItem {
+  id: string;
+  level: CourseLevel;
+  skill: PlacementSkill;
+  key: string | null;
+  prompt: string;
+  options: string[];
+  passage?: string;
+  audio?: string;
+}
+
+export interface PlacementTest {
+  levels: CourseLevel[];
+  passShare: number;
+  stopShare: number;
+  items: PlacementItem[];
+}
+
+export interface BlockResult {
+  level: CourseLevel;
+  correct: number;
+  total: number;
+  passed: boolean;
+  next: boolean;
+}
+
+export interface PlacementResult {
+  id: string;
+  placedLevel: CourseLevel;
+  score: number;
+  levels: { level: CourseLevel; correct: number; total: number; taken: boolean }[];
+  skills: { skill: PlacementSkill; correct: number; total: number }[];
+  mastered: string[];
+  weak: string[];
+  efsetScore: number | null;
+  efsetLevel: string | null;
+  inAppTaken: boolean;
+  masteredPoints: SyllabusPoint[];
+  weakPoints: SyllabusPoint[];
+  createdAt: string;
+}
+
+export interface PlacementReviewItem extends PlacementItem {
+  answer: string;
+  chosen: string;
+  correct: boolean;
+}
+
+export interface CourseLesson extends Omit<LessonSummary, 'locked' | 'mastery'> {
   level: CourseLevel;
   error: string | null;
   intro: string | null;
@@ -799,6 +886,11 @@ export interface CourseOverview {
   averageScore: number | null;
   vocabLearned: number;
   passScore: number;
+  quickPassScore: number;
+  placement: PlacementResult | null;
+  /** Weak-point lessons not yet passed. */
+  focus: LessonSummary[];
+  framework: CourseFramework | null;
 }
 
 export interface LessonDetail {
@@ -810,6 +902,9 @@ export interface LessonDetail {
   prevId: string | null;
   nextId: string | null;
   passScore: number;
+  quickPassScore: number;
+  mastery: Mastery;
+  points: SyllabusPoint[];
 }
 
 export interface AttemptResult {

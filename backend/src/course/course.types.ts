@@ -11,6 +11,9 @@ export const COURSE_LEVELS: CefrLevel[] = [
 /** Score (0–100) a lesson's practice needs to count as done and unlock the next one. */
 export const LESSON_PASS_SCORE = 70;
 
+/** Score a quick check (lesson already mastered in the placement test) needs. */
+export const QUICK_CHECK_PASS_SCORE = 80;
+
 export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix';
 
 /**
@@ -65,6 +68,7 @@ export interface LevelOutline {
       grammar: string;
       vocabTheme: string;
       objective: string;
+      syllabusKeys: string[];
     }[];
   }[];
 }
@@ -78,6 +82,8 @@ export interface LessonSpec {
   grammar: string;
   vocabTheme: string;
   objective: string;
+  /** Names of the Core Inventory points it covers. */
+  syllabus: string[];
   /** Grammar points of the other lessons in the level, so this one stays in its lane. */
   otherGrammar: string[];
 }

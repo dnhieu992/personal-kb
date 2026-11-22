@@ -4,11 +4,34 @@ import { IsNull, Not, Repository } from 'typeorm';
 import { EnglishCoachService } from '../english/english-coach.service';
 import { CefrLevel, EnglishKind } from '../knowledge/entities/knowledge.entity';
 import { CourseGeneratorService } from './course-generator.service';
-import { COURSE_LEVELS, LESSON_PASS_SCORE } from './course.types';
+import { COURSE_LEVELS, LESSON_PASS_SCORE, QUICK_CHECK_PASS_SCORE } from './course.types';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { CourseAttempt } from './entities/course-attempt.entity';
 import { CourseLesson, LessonStatus } from './entities/course-lesson.entity';
 import { CourseUnit } from './entities/course-unit.entity';
+import { PlacementService } from './placement.service';
+import { frameworkFor, SOURCES, syllabusPoint } from './syllabus';
+
+/**
+ * What the latest placement test says about a lesson's grammar:
+ * - mastered: every point it teaches was answered right → it doesn't block the
+ *   path, and a short quick check (≥ 80%) completes it;
+ * - weak: a point it teaches was answered wrong → it is unlocked straight away
+ *   and recommended first.
+ */
+export type Mastery = 'mastered' | 'weak' | null;
+
+interface PlacementView {
+  mastered: string[];
+  weak: string[];
+}
+
+function masteryOf(keys: string[] | null, p: PlacementView | null): Mastery {
+  if (!p || !keys?.length) return null;
+  if (keys.some((k) => p.weak.includes(k))) return 'weak';
+  if (keys.every((k) => p.mastered.includes(k))) return 'mastered';
+  return null;
+}
 
 /** A lesson as listed on the dashboard (no content). */
 export interface LessonSummary {
@@ -24,6 +47,8 @@ export interface LessonSummary {
   completedAt: Date | null;
   bestScore: number | null;
   attemptCount: number;
+  syllabusKeys: string[] | null;
+  mastery: Mastery;
   locked: boolean;
 }
 
@@ -37,28 +62,39 @@ export class CourseService {
     @InjectRepository(CourseAttempt) private readonly attempts: Repository<CourseAttempt>,
     private readonly generator: CourseGeneratorService,
     private readonly coach: EnglishCoachService,
+    private readonly placement: PlacementService,
   ) {}
 
+  /** No level asked for: the placement test's level, else B1. */
+  async defaultLevel(): Promise<CefrLevel> {
+    return (await this.placement.latest())?.placedLevel ?? CefrLevel.B1;
+  }
+
   /**
-   * A level's units and lessons in study order. A lesson is locked until the
-   * one before it (across units) has been passed.
+   * A level's units and lessons in study order. A lesson is locked while an
+   * earlier one (across units) is neither passed nor mastered in the placement
+   * test; lessons on weak points are never locked.
    */
   private async levelPath(level: CefrLevel) {
+    const placement = await this.placement.latest();
     const units = await this.units.find({ where: { level }, order: { position: 'ASC' } });
     const rows = await this.lessons.find({
       where: { level },
       select: [
         'id', 'unitId', 'position', 'title', 'grammar', 'vocabTheme', 'objective',
-        'status', 'minutes', 'completedAt', 'bestScore', 'attemptCount',
+        'status', 'minutes', 'completedAt', 'bestScore', 'attemptCount', 'syllabusKeys',
       ],
     });
     const unitPos = new Map(units.map((u) => [u.id, u.position]));
     rows.sort((a, b) => unitPos.get(a.unitId)! - unitPos.get(b.unitId)! || a.position - b.position);
-    const ordered: LessonSummary[] = rows.map((l, i) => ({
-      ...l,
-      locked: i > 0 && !rows[i - 1].completedAt,
-    }));
-    return { units, ordered };
+    let blocked = false;
+    const ordered: LessonSummary[] = rows.map((l) => {
+      const mastery = masteryOf(l.syllabusKeys, placement);
+      const locked = blocked && !l.completedAt && mastery !== 'weak';
+      if (!l.completedAt && mastery !== 'mastered') blocked = true;
+      return { ...l, mastery, locked };
+    });
+    return { units, ordered, placement };
   }
 
   async overview(level: CefrLevel) {
@@ -80,10 +116,16 @@ export class CourseService {
       }),
     );
 
-    const { units, ordered } = await this.levelPath(level);
+    const { units, ordered, placement } = await this.levelPath(level);
     const byUnit = new Map<string, LessonSummary[]>();
     for (const l of ordered) byUnit.set(l.unitId, [...(byUnit.get(l.unitId) ?? []), l]);
-    const next = ordered.find((l) => !l.completedAt) ?? null;
+    const open = (l: LessonSummary) => !l.completedAt && !l.locked && l.status === LessonStatus.READY;
+    const next =
+      ordered.find((l) => open(l) && l.mastery === 'weak') ??
+      ordered.find((l) => open(l) && l.mastery !== 'mastered') ??
+      ordered.find((l) => !l.completedAt && l.mastery !== 'mastered') ??
+      ordered.find((l) => !l.completedAt) ??
+      null;
     const scored = ordered.filter((l) => l.bestScore !== null);
     const completed = await this.lessons.find({
       where: { level, completedAt: Not(IsNull()) },
@@ -101,6 +143,38 @@ export class CourseService {
         : null,
       vocabLearned: completed.reduce((n, l) => n + (l.vocab?.length ?? 0), 0),
       passScore: LESSON_PASS_SCORE,
+      quickPassScore: QUICK_CHECK_PASS_SCORE,
+      placement,
+      focus: ordered.filter((l) => l.mastery === 'weak' && !l.completedAt),
+      framework: this.framework(level, ordered),
+    };
+  }
+
+  /** The level's reference syllabus and which of its points the lessons cover. */
+  private framework(level: CefrLevel, ordered: LessonSummary[]) {
+    const f = frameworkFor(level);
+    if (!f) return null;
+    const keyed = ordered.filter((l) => l.syllabusKeys?.length);
+    return {
+      gse: f.gse,
+      efset: f.efset,
+      canDo: f.canDo,
+      functions: f.functions,
+      points: f.points.map((p) => {
+        const lessons = keyed.filter((l) => l.syllabusKeys!.includes(p.key));
+        return {
+          ...p,
+          lessonIds: lessons.map((l) => l.id),
+          done: lessons.length > 0 && lessons.every((l) => l.completedAt),
+        };
+      }),
+      /** Lessons teaching points from other levels' lists (review / preview). */
+      extra: keyed
+        .flatMap((l) => l.syllabusKeys!)
+        .filter((k, i, all) => all.indexOf(k) === i && !f.points.some((p) => p.key === k))
+        .map((k) => syllabusPoint(k))
+        .filter(Boolean),
+      sources: SOURCES,
     };
   }
 
@@ -114,6 +188,9 @@ export class CourseService {
       lesson,
       unit,
       locked: ordered[index]?.locked ?? false,
+      mastery: ordered[index]?.mastery ?? null,
+      points: (lesson.syllabusKeys ?? []).map((k) => syllabusPoint(k)).filter(Boolean),
+      quickPassScore: QUICK_CHECK_PASS_SCORE,
       index: index + 1,
       total: ordered.length,
       prevId: ordered[index - 1]?.id ?? null,
@@ -135,7 +212,8 @@ export class CourseService {
       this.attempts.create({ lessonId: id, score, correct, total: dto.total, answers: dto.answers ?? null }),
     );
 
-    const passed = score >= LESSON_PASS_SCORE;
+    const passScore = dto.quick ? QUICK_CHECK_PASS_SCORE : LESSON_PASS_SCORE;
+    const passed = score >= passScore;
     const firstPass = passed && !lesson.completedAt;
     lesson.attemptCount += 1;
     lesson.bestScore = Math.max(lesson.bestScore ?? 0, score);
@@ -165,7 +243,7 @@ export class CourseService {
       passed,
       firstPass,
       bestScore: lesson.bestScore,
-      passScore: LESSON_PASS_SCORE,
+      passScore,
       cardsAdded: firstPass ? lesson.vocab?.length ?? 0 : 0,
       nextId: ordered[index + 1]?.id ?? null,
     };

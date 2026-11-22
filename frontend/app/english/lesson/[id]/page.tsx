@@ -16,6 +16,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
   const [data, setData] = useState<LessonDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('theory');
+  const [quick, setQuick] = useState(false);
 
   const load = useCallback(() => {
     api.course
@@ -27,11 +28,12 @@ export default function LessonPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     setData(null);
     setTab('theory');
+    setQuick(false);
     load();
   }, [load]);
 
   // A lesson being (re)written: check back until it is ready.
-  const pending = data && (data.lesson.status === 'PENDING' || data.lesson.status === 'GENERATING');
+  const pending = data?.lesson.status === 'GENERATING';
   useEffect(() => {
     if (!pending) return;
     const t = setInterval(load, 5000);
@@ -44,8 +46,8 @@ export default function LessonPage({ params }: { params: { id: string } }) {
   const { lesson, unit } = data;
   const back = { href: `/english?level=${lesson.level}`, label: 'English for IT' };
 
-  async function regenerate() {
-    if (!window.confirm('Soạn lại bài này bằng AI? Nội dung hiện tại sẽ được thay (điểm của bạn vẫn giữ).')) return;
+  async function regenerate(confirm = true) {
+    if (confirm && !window.confirm('Soạn lại bài này bằng AI? Nội dung hiện tại sẽ được thay (điểm của bạn vẫn giữ).')) return;
     await api.course.regenerate(lesson.id).catch((e) => setError((e as Error).message));
     load();
   }
@@ -98,8 +100,17 @@ export default function LessonPage({ params }: { params: { id: string } }) {
           <Alert title="Soạn bài bị lỗi">
             {lesson.error}
             <div className="mt-3">
-              <button onClick={regenerate} className="btn btn-secondary btn-sm">
+              <button onClick={() => regenerate(false)} className="btn btn-secondary btn-sm">
                 <Icon name="refresh" /> Soạn lại
+              </button>
+            </div>
+          </Alert>
+        ) : lesson.status === 'PENDING' ? (
+          <Alert tone="info" title="Bài này chưa được soạn">
+            Nội dung được AI soạn một lần rồi lưu lại. Bấm để soạn ngay (khoảng 1 phút).
+            <div className="mt-3">
+              <button onClick={() => regenerate(false)} className="btn btn-secondary btn-sm">
+                <Icon name="sparkles" /> Soạn bài này
               </button>
             </div>
           </Alert>
@@ -122,11 +133,44 @@ export default function LessonPage({ params }: { params: { id: string } }) {
     <div className="mx-auto max-w-3xl">
       {header}
 
+      {data.mastery === 'mastered' && !lesson.completedAt && (
+        <Alert tone="success" title="Bạn đã làm đúng điểm ngữ pháp này trong test xếp lớp" className="mb-5">
+          Làm kiểm tra nhanh {Math.min(6, (lesson.exercises ?? []).filter((e) => e.type !== 'match').length)} câu khó
+          nhất, đạt ≥ {data.quickPassScore}% là qua bài (từ vựng của bài vẫn vào hàng ôn thẻ). Muốn học kỹ thì cứ học như
+          bình thường.
+          <div className="mt-3">
+            <button
+              onClick={() => {
+                setQuick(true);
+                setTab('practice');
+              }}
+              className="btn btn-secondary btn-sm"
+            >
+              <Icon name="target" /> Kiểm tra nhanh
+            </button>
+          </div>
+        </Alert>
+      )}
+      {data.mastery === 'weak' && !lesson.completedAt && (
+        <Alert tone="warning" title="Điểm cần củng cố" className="mb-5">
+          Bạn làm sai điểm này trong test xếp lớp — đọc kỹ phần Kiến thức, nhất là “Lỗi hay gặp”, trước khi luyện tập.
+        </Alert>
+      )}
+      {data.points.length > 0 && (
+        <p className="mb-4 text-xs text-fg-subtle">
+          Khung chuẩn: {data.points.map((p) => `${p.level} · ${p.name}`).join(' — ')} (British Council – EAQUALS Core
+          Inventory)
+        </p>
+      )}
+
       <div className="mb-6 flex gap-1 overflow-x-auto border-b border-line">
         {tabs.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              if (t.id === 'practice') setQuick(false);
+            }}
             className={cx(
               '-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition',
               tab === t.id ? 'border-accent text-fg' : 'border-transparent text-fg-muted hover:text-fg',
@@ -215,10 +259,16 @@ export default function LessonPage({ params }: { params: { id: string } }) {
         </div>
       )}
 
+      {tab === 'practice' && quick && (
+        <p className="mb-3 flex items-center gap-2 text-[13px] text-fg-muted">
+          <span className="chip tone-green">Kiểm tra nhanh</span> Cần ≥ {data.quickPassScore}% để qua bài.
+        </p>
+      )}
       {tab === 'practice' && (
         <Practice
-          key={lesson.id}
+          key={`${lesson.id}-${quick}`}
           detail={data}
+          quick={quick}
           onFinished={load}
           onReview={() => setTab('theory')}
         />
@@ -232,7 +282,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
         ) : (
           <span />
         )}
-        <button onClick={regenerate} className="btn btn-ghost btn-xs text-fg-subtle" title="Nội dung có lỗi? Để AI soạn lại.">
+        <button onClick={() => regenerate()} className="btn btn-ghost btn-xs text-fg-subtle" title="Nội dung có lỗi? Để AI soạn lại.">
           <Icon name="refresh" /> Soạn lại bài
         </button>
       </div>

@@ -54,16 +54,26 @@ function answered(ex: Exercise, r: Response): boolean {
   }
 }
 
+/** Exercises in a quick check: the hardest few (the list runs easy → hard), no matching. */
+const QUICK_COUNT = 6;
+
 export function Practice({
   detail,
+  quick = false,
   onFinished,
   onReview,
 }: {
   detail: LessonDetail;
+  /** Quick check for a lesson the placement test marked as mastered. */
+  quick?: boolean;
   onFinished: () => void;
   onReview: () => void;
 }) {
-  const exercises = detail.lesson.exercises ?? [];
+  const exercises = useMemo(() => {
+    const all = detail.lesson.exercises ?? [];
+    if (!quick) return all;
+    return all.filter((e) => e.type !== 'match').slice(-QUICK_COUNT);
+  }, [detail.lesson.exercises, quick]);
   const [run, setRun] = useState(0); // bump to restart
   const [idx, setIdx] = useState(0);
   const [response, setResponse] = useState<Response>(() => blank(exercises[0]));
@@ -111,6 +121,7 @@ export function Practice({
           correct,
           total: exercises.length,
           answers: results.map((r) => ({ correct: r.correct, ...r.response })),
+          quick,
         }),
       );
       onFinished();
