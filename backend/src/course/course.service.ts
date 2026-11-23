@@ -76,11 +76,15 @@ export interface LessonSummary {
   locked: boolean;
 }
 
-/** Where to go next: weak points first, then the path, skipping placement-mastered lessons. */
-function pickNext(ordered: LessonSummary[]): LessonSummary | null {
+/**
+ * Where to go next: the first open lesson in path order, skipping ones the
+ * placement test marked mastered. With `weakFirst` (goal setting), lessons on
+ * weak points jump the queue.
+ */
+function pickNext(ordered: LessonSummary[], weakFirst = false): LessonSummary | null {
   const open = (l: LessonSummary) => !l.completedAt && !l.locked && l.status === LessonStatus.READY;
   return (
-    ordered.find((l) => open(l) && l.mastery === 'weak') ??
+    (weakFirst ? ordered.find((l) => open(l) && l.mastery === 'weak') : undefined) ??
     ordered.find((l) => open(l) && l.mastery !== 'mastered') ??
     ordered.find((l) => !l.completedAt && l.mastery !== 'mastered') ??
     ordered.find((l) => !l.completedAt) ??
@@ -162,7 +166,7 @@ export class CourseService {
     const { units, ordered, placement } = await this.levelPath(level);
     const byUnit = new Map<string, LessonSummary[]>();
     for (const l of ordered) byUnit.set(l.unitId, [...(byUnit.get(l.unitId) ?? []), l]);
-    const next = pickNext(ordered);
+    const next = pickNext(ordered, await this.weakFirst());
     const scored = ordered.filter((l) => l.bestScore !== null);
     const completed = await this.lessons.find({
       where: { level, completedAt: Not(IsNull()) },
@@ -292,7 +296,7 @@ export class CourseService {
     // Lessons can be done out of order (weak points open early), so "next" is the
     // lesson the path recommends now, not simply the one after this.
     const after = ordered[index + 1];
-    const recommended = pickNext(ordered);
+    const recommended = pickNext(ordered, await this.weakFirst());
     const nextId =
       recommended && !recommended.locked && recommended.status === LessonStatus.READY
         ? recommended.id
@@ -350,6 +354,11 @@ export class CourseService {
 
   // --- goal & journey ---
 
+  private async weakFirst(): Promise<boolean> {
+    const [goal] = await this.goals.find({ take: 1 });
+    return !!goal?.weakFirst;
+  }
+
   /** Set where the journey goes and how fast. The start stays unless given. */
   async setGoal(dto: SetGoalDto) {
     const current = await this.goals.find({ take: 1 });
@@ -360,6 +369,7 @@ export class CourseService {
       startLevel: start,
       targetLevel: target,
       weeklyLessons: dto.weeklyLessons,
+      weakFirst: dto.weakFirst ?? current[0]?.weakFirst ?? false,
     });
     return this.journey();
   }
@@ -433,7 +443,7 @@ export class CourseService {
     for (const l of levels) {
       if (l.done >= l.total) continue;
       const { ordered } = await this.levelPath(l.level);
-      next = pickNext(ordered);
+      next = pickNext(ordered, !!goal?.weakFirst);
       if (next) break;
     }
 
@@ -442,6 +452,7 @@ export class CourseService {
       target,
       goalSet: !!goal,
       weeklyLessons,
+      weakFirst: !!goal?.weakFirst,
       levels,
       done,
       total,

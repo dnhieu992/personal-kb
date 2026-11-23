@@ -171,7 +171,7 @@ export function JourneyCard({ journey: j, onChange }: { journey: Journey; onChan
         <div className="flex flex-wrap items-center gap-3 border-t border-line bg-accent-soft/40 px-5 py-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs text-fg-muted">
-              {next.mastery === 'weak' ? 'Ưu tiên củng cố' : next.kind === 'REVIEW' ? 'Ôn tập cuối unit' : 'Bài tiếp theo'} · {next.level}
+              {next.kind === 'REVIEW' ? 'Ôn tập cuối unit' : next.mastery === 'weak' ? 'Bài tiếp theo · cần củng cố' : 'Bài tiếp theo'} · {next.level}
             </p>
             <p className="truncate text-sm font-medium text-fg">{next.title}</p>
           </div>
@@ -188,6 +188,7 @@ function GoalEditor({ journey: j, onSaved }: { journey: Journey; onSaved: (j: Jo
   const [start, setStart] = useState<CourseLevel>(j.start);
   const [target, setTarget] = useState<CourseLevel>(j.target);
   const [weekly, setWeekly] = useState(j.weeklyLessons);
+  const [weakFirst, setWeakFirst] = useState(j.weakFirst);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const from = COURSE_LEVELS.indexOf(start);
@@ -195,7 +196,7 @@ function GoalEditor({ journey: j, onSaved }: { journey: Journey; onSaved: (j: Jo
   async function save() {
     setSaving(true);
     try {
-      onSaved(await api.course.setGoal({ startLevel: start, targetLevel: target, weeklyLessons: weekly }));
+      onSaved(await api.course.setGoal({ startLevel: start, targetLevel: target, weeklyLessons: weekly, weakFirst }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -247,8 +248,22 @@ function GoalEditor({ journey: j, onSaved }: { journey: Journey; onSaved: (j: Jo
           </div>
         </div>
       </div>
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-fg-muted">Thứ tự học</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button className={choice(!weakFirst)} onClick={() => setWeakFirst(false)}>
+            Theo lộ trình (Unit 1 → 12)
+          </button>
+          <button className={choice(weakFirst)} onClick={() => setWeakFirst(true)}>
+            Ưu tiên điểm yếu trước
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-fg-subtle">
+          Bài điểm yếu (từ test xếp lớp) luôn được mở sẵn; tuỳ chọn này chỉ quyết định nút “Học tiếp” gợi ý bài nào.
+        </p>
+      </div>
       <p className="text-xs text-fg-muted">
-        Mỗi bài khoảng 15 phút. {weekly} bài/tuần ≈ {Math.round((weekly * 15) / 7)} phút mỗi ngày.
+        Mỗi bài khoảng 25 phút. {weekly} bài/tuần ≈ {Math.round((weekly * 25) / 7)} phút mỗi ngày.
       </p>
       {error && <p className="text-xs text-danger-text">{error}</p>}
       <div className="flex justify-end">

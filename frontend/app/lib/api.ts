@@ -518,7 +518,7 @@ export const api = {
     regenerate: (id: string) =>
       request<CourseLesson>(`/course/lessons/${id}/regenerate`, { method: 'POST' }),
     journey: () => request<Journey>('/course/journey'),
-    setGoal: (goal: { targetLevel: CourseLevel; weeklyLessons: number; startLevel?: CourseLevel }) =>
+    setGoal: (goal: { targetLevel: CourseLevel; weeklyLessons: number; startLevel?: CourseLevel; weakFirst?: boolean }) =>
       request<Journey>('/course/goal', { method: 'PUT', body: JSON.stringify(goal) }),
     placement: () => request<PlacementResult | null>('/course/placement'),
     placementTest: () => request<PlacementTest>('/course/placement/test'),
@@ -820,6 +820,8 @@ export interface Journey {
   target: CourseLevel;
   goalSet: boolean;
   weeklyLessons: number;
+  /** Recommend weak-point lessons before the path order. */
+  weakFirst: boolean;
   /** `estimated`: not fully written yet, `total` is the planned size. */
   levels: { level: CourseLevel; done: number; total: number; estimated: boolean; minutesLeft: number }[];
   done: number;

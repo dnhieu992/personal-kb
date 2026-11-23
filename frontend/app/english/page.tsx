@@ -236,10 +236,10 @@ function CoursePage() {
             <section className="card overflow-hidden">
               <header className="border-b border-line p-4">
                 <p className="eyebrow">Theo kết quả test xếp lớp</p>
-                <h2 className="text-[15px] font-semibold text-fg">Ưu tiên củng cố</h2>
+                <h2 className="text-[15px] font-semibold text-fg">Điểm cần củng cố</h2>
                 <p className="mt-0.5 text-[13px] text-fg-muted">
-                  Bạn làm sai điểm ngữ pháp của các bài này trong bài test, nên chúng được mở sẵn — học trước, không cần
-                  đi lần lượt.
+                  Bạn làm sai điểm ngữ pháp của các bài này trong bài test, nên chúng được mở sẵn — muốn học sớm thì bấm
+                  vào, còn không thì cứ đi theo lộ trình, tới nơi sẽ gặp.
                 </p>
               </header>
               <ul className="divide-y divide-line">

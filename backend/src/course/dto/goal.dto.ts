@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { CefrLevel } from '../../knowledge/entities/knowledge.entity';
 
 export class SetGoalDto {
@@ -17,4 +17,9 @@ export class SetGoalDto {
   @Min(1)
   @Max(30)
   weeklyLessons: number;
+
+  @ApiPropertyOptional({ description: 'Weak-point lessons first instead of path order' })
+  @IsOptional()
+  @IsBoolean()
+  weakFirst?: boolean;
 }

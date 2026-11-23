@@ -21,6 +21,10 @@ export class CourseGoal {
   @Column({ type: 'int' })
   weeklyLessons: number;
 
+  @ApiProperty({ description: 'Recommend lessons on placement weak points before the path order' })
+  @Column({ type: 'boolean', default: false })
+  weakFirst: boolean;
+
   @ApiProperty()
   @UpdateDateColumn()
   updatedAt: Date;
