@@ -6,6 +6,7 @@ import { Icon, IconName } from '../icons';
 import { Alert, cx, EmptyState, Loading } from '../ui';
 import { api } from '../../lib/api';
 import { NoteMarkdown, plainText, wordCount } from './markdown';
+import { EnglishCheckDialog, EnglishChecker } from './EnglishCheckDialog';
 
 /** The CRUD a notebook needs; diary and tech notes each have their own backend table. */
 export interface NoteStore {
@@ -24,6 +25,8 @@ export interface NotebookProps {
   placeholder: string;
   /** What one entry is called in messages, e.g. "ghi chép". */
   noun: string;
+  /** Adds a "Check English" button (AI proofreading + review cards). */
+  englishCheck?: EnglishChecker;
 }
 
 const dayKey = (iso: string) => new Date(iso).toDateString();
@@ -61,7 +64,7 @@ function writeDraft(key: string, text: string) {
  * toolbar, image upload/paste, and a History dialog of saved entries (by day,
  * search, edit, delete). Used by /diary and /tech-notes.
  */
-export default function Notebook({ title, description, store, draftKey, placeholder, noun }: NotebookProps) {
+export default function Notebook({ title, description, store, draftKey, placeholder, noun, englishCheck }: NotebookProps) {
   const [entries, setEntries] = useState<NoteEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +74,8 @@ export default function Notebook({ title, description, store, draftKey, placehol
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  /** Snapshot of the text being checked (the dialog is open while set). */
+  const [checking, setChecking] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
   const preview = useRef<HTMLDivElement>(null);
@@ -98,7 +103,7 @@ export default function Notebook({ title, description, store, draftKey, placehol
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(null), 3000);
+    const t = setTimeout(() => setNotice(null), 6000);
     return () => clearTimeout(t);
   }, [notice]);
 
@@ -364,6 +369,16 @@ export default function Notebook({ title, description, store, draftKey, placehol
                 Huỷ sửa
               </button>
             )}
+            {englishCheck && (
+              <button
+                onClick={() => setChecking(text)}
+                disabled={!text.trim()}
+                className="btn btn-secondary btn-sm"
+                title="AI sửa ngữ pháp, từ vựng và từ tiếng Việt — bạn chọn sửa gì"
+              >
+                <Icon name="sparkles" /> Check English
+              </button>
+            )}
             <button onClick={save} disabled={saving || !text.trim()} className="btn btn-primary btn-sm">
               <Icon name={editing ? 'check' : 'send'} /> {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Lưu'}
             </button>
@@ -382,6 +397,20 @@ export default function Notebook({ title, description, store, draftKey, placehol
           e.target.value = '';
         }}
       />
+
+      {englishCheck && checking !== null && (
+        <EnglishCheckDialog
+          text={checking}
+          noteId={editing?.id ?? null}
+          checker={englishCheck}
+          onClose={() => setChecking(null)}
+          onApply={(next, summary) => {
+            setText(next);
+            setChecking(null);
+            setNotice(`${summary} — nhớ bấm ${editing ? 'Cập nhật' : 'Lưu'}`);
+          }}
+        />
+      )}
 
       {historyOpen && (
         <HistoryDialog

@@ -10,9 +10,10 @@ import {
   REVIEWABLE_KINDS,
 } from '../knowledge/entities/knowledge.entity';
 import { Task } from '../task/entities/task.entity';
+import { TechNote } from '../tech-note/entities/tech-note.entity';
 
 /** What produced a batch of review cards. */
-export type CollectedSourceKind = 'ENTRY' | 'TASK';
+export type CollectedSourceKind = 'ENTRY' | 'TASK' | 'NOTE';
 
 /** Just enough of the source row to link back to it from the English pages. */
 export interface CollectedSource {
@@ -44,6 +45,8 @@ export class EnglishCoachService {
     private readonly repo: Repository<Knowledge>,
     @InjectRepository(Task)
     private readonly taskRepo: Repository<Task>,
+    @InjectRepository(TechNote)
+    private readonly noteRepo: Repository<TechNote>,
     private readonly ai: AiService,
     private readonly embedding: EmbeddingService,
   ) {}
@@ -170,9 +173,10 @@ export class EnglishCoachService {
     if (!items.length) return [];
 
     const sourceIds = [...new Set(items.map((it) => it.sourceId!))];
-    const [entries, tasks] = await Promise.all([
+    const [entries, tasks, notes] = await Promise.all([
       this.repo.find({ where: { id: In(sourceIds) } }),
       this.taskRepo.find({ where: { id: In(sourceIds) } }),
+      this.noteRepo.find({ where: { id: In(sourceIds) } }),
     ]);
 
     const bySourceId = new Map<string, CollectedSource>();
@@ -192,6 +196,17 @@ export class EnglishCoachService {
         title: t.title,
         kind: 'TASK',
         createdAt: t.createdAt,
+      });
+    }
+
+    for (const n of notes) {
+      // A note has no title: its first heading or line stands in for one.
+      const first = n.content.split('\n').find((l) => l.trim()) ?? 'Technical note';
+      bySourceId.set(n.id, {
+        id: n.id,
+        title: first.replace(/^#+\s*/, '').slice(0, 80),
+        kind: 'NOTE',
+        createdAt: n.createdAt,
       });
     }
 

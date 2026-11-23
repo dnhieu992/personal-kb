@@ -11,6 +11,6 @@ import { ClaudeCodeService } from './claude-code.service';
   imports: [TypeOrmModule.forFeature([Knowledge]), EmbeddingModule],
   controllers: [AiController],
   providers: [ClaudeCodeService, AiService, CourseAiService],
-  exports: [AiService, CourseAiService],
+  exports: [AiService, CourseAiService, ClaudeCodeService],
 })
 export class AiModule {}

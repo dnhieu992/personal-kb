@@ -130,7 +130,7 @@ export interface JournalWithItems {
 export interface CollectedSource {
   id: string;
   title: string;
-  kind: 'ENTRY' | 'TASK';
+  kind: 'ENTRY' | 'TASK' | 'NOTE';
   createdAt: string;
 }
 
@@ -617,7 +617,16 @@ export const api = {
   },
 
   diary: noteStore('/diary'),
-  techNotes: noteStore('/tech-notes'),
+  techNotes: {
+    ...noteStore('/tech-notes'),
+    checkEnglish: (content: string) =>
+      request<EnglishCheck>('/tech-notes/english/check', { method: 'POST', body: JSON.stringify({ content }) }),
+    saveCards: (cards: EnglishCard[], noteId: string | null) =>
+      request<{ saved: number; skipped: number }>('/tech-notes/english/cards', {
+        method: 'POST',
+        body: JSON.stringify({ cards, noteId }),
+      }),
+  },
 
   phrases: {
     list: () => request<Phrase[]>('/phrases'),
@@ -993,6 +1002,27 @@ export interface AttemptResult {
   cardsAdded: number;
   nextId: string | null;
   journey: Journey;
+}
+
+/** One proposed fix from "Check English". */
+export interface EnglishChange {
+  original: string;
+  replacement: string;
+  kind: 'grammar' | 'vocab' | 'vietnamese' | 'spelling' | 'style';
+  note: string;
+}
+
+export interface EnglishCard {
+  front: string;
+  meaning: string;
+  kind: 'VOCAB' | 'MISTAKE' | 'GRAMMAR';
+  example: string;
+}
+
+export interface EnglishCheck {
+  corrected: string;
+  changes: EnglishChange[];
+  cards: EnglishCard[];
 }
 
 /** A Markdown notebook entry (diary, tech note): content + when written. */

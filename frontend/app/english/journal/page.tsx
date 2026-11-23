@@ -107,7 +107,7 @@ export default async function EnglishPage() {
       {/* Collected while writing knowledge entries */}
       {collected.length > 0 && (
         <section>
-          <h2 className="section-title mb-1">Thu thập từ entry & task</h2>
+          <h2 className="section-title mb-1">Thu thập từ entry, task & tech note</h2>
           <p className="mb-4 text-[13px] text-fg-muted">
             Ngữ pháp và từ vựng AI nhặt ra khi dịch các entry và task của bạn
             sang tiếng Anh — đã nằm sẵn trong hàng đợi ôn tập.
@@ -121,16 +121,20 @@ export default async function EnglishPage() {
                       className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                         source.kind === 'TASK'
                           ? 'tone-green'
-                          : 'tone-gray'
+                          : source.kind === 'NOTE'
+                            ? 'tone-sky'
+                            : 'tone-gray'
                       }`}
                     >
-                      {source.kind === 'TASK' ? 'Task' : 'Entry'}
+                      {source.kind === 'TASK' ? 'Task' : source.kind === 'NOTE' ? 'Tech note' : 'Entry'}
                     </span>
                     <Link
                       href={
                         source.kind === 'TASK'
                           ? '/plan'
-                          : `/knowledge/${source.id}/edit`
+                          : source.kind === 'NOTE'
+                            ? '/tech-notes'
+                            : `/knowledge/${source.id}/edit`
                       }
                       className="truncate font-medium link"
                     >
