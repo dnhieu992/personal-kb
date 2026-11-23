@@ -5,6 +5,8 @@ import { EnglishCoachService } from '../english/english-coach.service';
 import { CefrLevel, EnglishKind } from '../knowledge/entities/knowledge.entity';
 import { CourseGeneratorService } from './course-generator.service';
 import { CourseAiService } from '../ai/course-ai.service';
+import { CourseReviewService } from './course-review.service';
+import { CourseExerciseStat } from './entities/course-exercise-stat.entity';
 import {
   COURSE_LEVELS,
   SKILLS_VERSION,
@@ -101,10 +103,12 @@ export class CourseService {
     @InjectRepository(CourseLesson) private readonly lessons: Repository<CourseLesson>,
     @InjectRepository(CourseAttempt) private readonly attempts: Repository<CourseAttempt>,
     @InjectRepository(CourseGoal) private readonly goals: Repository<CourseGoal>,
+    @InjectRepository(CourseExerciseStat) private readonly stats: Repository<CourseExerciseStat>,
     private readonly generator: CourseGeneratorService,
     private readonly coach: EnglishCoachService,
     private readonly placement: PlacementService,
     private readonly ai: CourseAiService,
+    private readonly review: CourseReviewService,
   ) {}
 
   /** No level asked for: the placement test's level, else B1. */
@@ -270,6 +274,13 @@ export class CourseService {
     const passScore = passScoreOf(lesson.kind, dto.quick);
     const passed = score >= passScore;
     const firstPass = passed && !lesson.completedAt;
+    // Per-exercise results feed the review (spaced repetition of mistakes).
+    const indexed = ((dto.answers ?? []) as Record<string, unknown>[])
+      .filter((a) => typeof a?.index === 'number')
+      .map((a) => ({ index: a.index as number, correct: !!a.correct, answer: a }));
+    if (indexed.length) {
+      await this.review.record(lesson, indexed).catch((e) => this.logger.warn(`review stats: ${e.message}`));
+    }
     lesson.attemptCount += 1;
     lesson.bestScore = Math.max(lesson.bestScore ?? 0, score);
     if (firstPass) lesson.completedAt = new Date();
@@ -426,7 +437,12 @@ export class CourseService {
       where: { createdAt: MoreThan(new Date(now - 120 * DAY)) },
       select: ['id', 'createdAt'],
     });
-    const days = new Set(attempts.map((a) => vnDay(a.createdAt)));
+    // Review tests count as study days too.
+    const reviewed = await this.stats.find({
+      where: { updatedAt: MoreThan(new Date(now - 120 * DAY)) },
+      select: ['id', 'updatedAt'],
+    });
+    const days = new Set([...attempts.map((a) => vnDay(a.createdAt)), ...reviewed.map((r) => vnDay(r.updatedAt))]);
     const today = vnDay(new Date(now));
     let streak = 0;
     let cursor = days.has(today) ? now : now - DAY;

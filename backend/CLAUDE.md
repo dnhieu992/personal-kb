@@ -69,6 +69,14 @@ npm run build       # → dist/
   `passage`; dictation or choice), `read` (passage + question) and `write` (AI-graded via
   `POST /course/lessons/:id/grade`, Haiku). Lessons with `skillsVersion < SKILLS_VERSION` get these
   appended by the next generate run (`CourseAiService.generateSkills`), and their unit review is redrawn.
+- **Review on mistakes** (`CourseReviewService`, table `course_exercise_stat`, one row per lesson ×
+  exercise index): every practice answer (sent with its `index`; unit-review answers are mapped back to
+  the lesson they were copied from) updates seen/wrong/streak. Wrong → due now; then right answers push
+  it 1 / 3 / 7 days; 3 right in a row resolves it. `GET /course/review/weak` groups by syllabus key
+  (weakest first, placement weak points included), `/review/points/:key` = the lessons' "Lỗi hay gặp"
+  section + your wrong answers + a 10-item test, `/review/daily` = due mistakes + fresh items on weak
+  points (studied lessons only), `POST /review/results` records a test. First boot replays past full
+  lesson runs (in order, no index) into the table.
 - **Unit reviews**: `course_lesson.kind = REVIEW`, built by `CourseGeneratorService.buildReview`
   (no AI) from the harder exercises of the unit's lessons once they are all READY (also on boot);
   pass mark `REVIEW_PASS_SCORE` (80%).

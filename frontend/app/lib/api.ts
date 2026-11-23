@@ -518,6 +518,11 @@ export const api = {
     regenerate: (id: string) =>
       request<CourseLesson>(`/course/lessons/${id}/regenerate`, { method: 'POST' }),
     journey: () => request<Journey>('/course/journey'),
+    weak: () => request<WeakOverview>('/course/review/weak'),
+    dailyReview: () => request<{ items: ReviewItem[]; due: number }>('/course/review/daily'),
+    reviewFocus: (key: string) => request<ReviewFocus>(`/course/review/points/${encodeURIComponent(key)}`),
+    submitReview: (results: { lessonId: string; index: number; correct: boolean; answer?: Record<string, unknown> }[]) =>
+      request<ReviewSubmitResult>('/course/review/results', { method: 'POST', body: JSON.stringify({ results }) }),
     setGoal: (goal: { targetLevel: CourseLevel; weeklyLessons: number; startLevel?: CourseLevel; weakFirst?: boolean }) =>
       request<Journey>('/course/goal', { method: 'PUT', body: JSON.stringify(goal) }),
     placement: () => request<PlacementResult | null>('/course/placement'),
@@ -1002,6 +1007,63 @@ export interface AttemptResult {
   cardsAdded: number;
   nextId: string | null;
   journey: Journey;
+}
+
+// --- Review built on mistakes ---
+
+export interface WeakPoint {
+  key: string;
+  name: string;
+  vi: string;
+  level: string | null;
+  seen: number;
+  wrong: number;
+  /** % right, null before any answer. */
+  accuracy: number | null;
+  /** Missed exercises due now. */
+  due: number;
+  /** Missed exercises not resolved yet (3 right in a row resolves one). */
+  open: number;
+  /** Flagged by the placement test. */
+  placement: boolean;
+  lessons: { id: string; title: string }[];
+}
+
+export interface WeakOverview {
+  points: WeakPoint[];
+  due: number;
+  open: number;
+  resolved: number;
+}
+
+export interface ReviewItem {
+  lessonId: string;
+  index: number;
+  lessonTitle: string;
+  point: { key: string; name: string; vi: string } | null;
+  exercise: Exercise;
+  missed: boolean;
+}
+
+export interface ReviewFocus {
+  point: { key: string; name: string; vi: string; level: string | null };
+  tips: { lessonId: string; lessonTitle: string; markdown: string }[];
+  mistakes: {
+    lessonId: string;
+    lessonTitle: string;
+    index: number;
+    exercise: Exercise;
+    answer: Record<string, unknown> | null;
+    wrong: number;
+    resolved: boolean;
+  }[];
+  test: ReviewItem[];
+}
+
+export interface ReviewSubmitResult {
+  correct: number;
+  total: number;
+  points: WeakPoint[];
 }
 
 /** One proposed fix from "Check English". */

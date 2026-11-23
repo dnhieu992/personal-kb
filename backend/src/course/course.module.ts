@@ -7,6 +7,8 @@ import { CourseController } from './course.controller';
 import { CourseService } from './course.service';
 import { CourseAttempt } from './entities/course-attempt.entity';
 import { CourseGoal } from './entities/course-goal.entity';
+import { CourseExerciseStat } from './entities/course-exercise-stat.entity';
+import { CourseReviewService } from './course-review.service';
 import { CourseLesson } from './entities/course-lesson.entity';
 import { CoursePlacement } from './entities/course-placement.entity';
 import { CourseUnit } from './entities/course-unit.entity';
@@ -16,11 +18,11 @@ import { PlacementService } from './placement.service';
 /** "English for IT": an AI-written, stored course with lessons, practice and progress. */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CourseUnit, CourseLesson, CourseAttempt, CoursePlacement, CourseGoal]),
+    TypeOrmModule.forFeature([CourseUnit, CourseLesson, CourseAttempt, CoursePlacement, CourseGoal, CourseExerciseStat]),
     AiModule,
     EnglishModule,
   ],
   controllers: [CourseController],
-  providers: [CourseService, CourseGeneratorService, PlacementService, CourseSyllabusService],
+  providers: [CourseService, CourseReviewService, CourseGeneratorService, PlacementService, CourseSyllabusService],
 })
 export class CourseModule {}

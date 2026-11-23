@@ -7,7 +7,7 @@ import { answerText, isChoice, isCorrect, Response, shuffle, speak } from '../..
 import { Icon } from '../../../components/icons';
 import { Alert, cx, ProgressBar } from '../../../components/ui';
 
-const TYPE_LABEL: Record<ExerciseType, string> = {
+export const TYPE_LABEL: Record<ExerciseType, string> = {
   mcq: 'Trắc nghiệm',
   gap: 'Điền vào chỗ trống',
   order: 'Sắp xếp thành câu',
@@ -29,14 +29,14 @@ const TYPE_HINT: Record<ExerciseType, string> = {
   write: 'Viết bằng tiếng Anh theo yêu cầu — AI chấm và sửa cho bạn.',
 };
 
-const hintOf = (ex: Exercise) =>
+export const hintOf = (ex: Exercise) =>
   ex.type === 'listen' && ex.options.length ? 'Nghe đoạn nói rồi chọn đáp án đúng (phím 1–4).' : TYPE_HINT[ex.type];
 
 /** Drill types used for a quick check (no listening/reading/writing, no matching). */
 const QUICK_TYPES: ExerciseType[] = ['mcq', 'gap', 'order', 'fix'];
 
 /** An empty answer for an exercise, ready to be filled in. */
-function blank(ex: Exercise): Response {
+export function blank(ex: Exercise): Response {
   if (isChoice(ex)) return { type: 'mcq', choice: '' };
   switch (ex.type) {
     case 'listen':
@@ -57,7 +57,7 @@ function blank(ex: Exercise): Response {
   }
 }
 
-function answered(ex: Exercise, r: Response): boolean {
+export function answered(ex: Exercise, r: Response): boolean {
   switch (r.type) {
     case 'mcq':
       return !!r.choice;
@@ -158,7 +158,12 @@ export function Practice({
         await api.course.submitAttempt(detail.lesson.id, {
           correct,
           total: exercises.length,
-          answers: results.map((r) => ({ correct: r.correct, ...r.response })),
+          // `index` = position in the lesson's exercises, so mistakes can be tracked per exercise.
+          answers: results.map((r, i) => ({
+            index: (detail.lesson.exercises ?? []).indexOf(exercises[i]),
+            correct: r.correct,
+            ...r.response,
+          })),
           quick,
         }),
       );
@@ -291,7 +296,7 @@ export function Practice({
   );
 }
 
-function ExerciseView({
+export function ExerciseView({
   ex,
   response,
   onChange,
@@ -504,7 +509,7 @@ function ExerciseView({
   return <MatchView ex={ex} rights={rights} response={response} onChange={onChange} checked={checked} />;
 }
 
-const SKILL_TONE: Partial<Record<ExerciseType, string>> = {
+export const SKILL_TONE: Partial<Record<ExerciseType, string>> = {
   listen: 'tone-sky',
   read: 'tone-amber',
   write: 'tone-green',

@@ -4,6 +4,8 @@ import { CefrLevel } from '../knowledge/entities/knowledge.entity';
 import { CourseGeneratorService } from './course-generator.service';
 import { CourseService } from './course.service';
 import { SetGoalDto } from './dto/goal.dto';
+import { SubmitReviewDto } from './dto/review.dto';
+import { CourseReviewService } from './course-review.service';
 import { EfsetScoreDto, SubmitPlacementDto } from './dto/placement.dto';
 import { GradeWritingDto, SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { PlacementService } from './placement.service';
@@ -15,7 +17,32 @@ export class CourseController {
     private readonly service: CourseService,
     private readonly generator: CourseGeneratorService,
     private readonly placement: PlacementService,
+    private readonly review: CourseReviewService,
   ) {}
+
+  @Get('review/weak')
+  @ApiOperation({ summary: 'Weak points ranked from your mistakes (and the placement test)' })
+  weak() {
+    return this.review.weakPoints();
+  }
+
+  @Get('review/daily')
+  @ApiOperation({ summary: 'Today’s mixed review test: due mistakes + fresh items on weak points' })
+  daily() {
+    return this.review.daily();
+  }
+
+  @Get('review/points/:key')
+  @ApiOperation({ summary: 'One weak point: common-mistake notes, your wrong answers, a short test' })
+  focus(@Param('key') key: string) {
+    return this.review.focus(key);
+  }
+
+  @Post('review/results')
+  @ApiOperation({ summary: 'Record a review test (updates the spaced schedule)' })
+  submitReview(@Body() dto: SubmitReviewDto) {
+    return this.review.submit(dto.results);
+  }
 
   @Get('overview')
   @ApiOperation({ summary: 'Course dashboard: levels, units, lessons, progress' })

@@ -12,7 +12,7 @@ app/
 ├── knowledge/                # list, new, [id]/edit pages
 ├── plan/                     # daily planner + plan/lists (long-term todo lists)
 ├── planner/                  # web port of the Planner Mac app (full-width client app)
-├── english/                  # English for IT course (page.tsx), placement test, lesson/[id] (theory · vocab · practice / quick check), journal, review queue
+├── english/                  # English for IT course (page.tsx), placement test, lesson/[id] (theory · vocab · practice / quick check), journal, review (weak points from your mistakes → focus page + auto-graded tests via `review/runner.tsx`, which reuses the lesson `ExerciseView`; saved words tested as multiple choice)
 ├── diary/, tech-notes/       # thin pages over components/notebook/Notebook.tsx: split Markdown editor | live preview (full height), History dialog (by day, search, edit, delete), draft in localStorage; each has its own API store (api.diary / api.techNotes)
 ├── chat/page.tsx             # RAG chat UI
 ├── design/page.tsx           # living style guide (tokens + components)
