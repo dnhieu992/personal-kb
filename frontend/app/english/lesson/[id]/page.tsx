@@ -88,11 +88,13 @@ export default function LessonPage({ params }: { params: { id: string } }) {
       <>
         {header}
         <Alert tone="warning" title="Bài này chưa mở">
-          Qua bài trước để mở khóa.{' '}
-          {data.prevId && (
-            <Link href={`/english/lesson/${data.prevId}`} className="underline">
-              Đến bài trước
-            </Link>
+          Lộ trình đi lần lượt: các bài phía trước cần qua (hoặc đã vững trong test xếp lớp) thì bài này mới mở.
+          {data.blockedBy && (
+            <div className="mt-3">
+              <Link href={`/english/lesson/${data.blockedBy.id}`} className="btn btn-secondary btn-sm">
+                <Icon name="play" /> Học bài đang chặn: Unit {data.blockedBy.unit} · {data.blockedBy.title}
+              </Link>
+            </div>
           )}
         </Alert>
       </>

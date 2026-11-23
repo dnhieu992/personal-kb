@@ -215,9 +215,19 @@ export class CourseService {
     const unit = await this.units.findOne({ where: { id: lesson.unitId } });
     const { ordered } = await this.levelPath(lesson.level);
     const index = ordered.findIndex((l) => l.id === id);
+    // What keeps a locked lesson closed: the first earlier lesson neither passed nor mastered.
+    const blocker = ordered[index]?.locked
+      ? ordered.slice(0, index).find((l) => !l.completedAt && l.mastery !== 'mastered')
+      : undefined;
+    const unitPos = new Map(
+      (await this.units.find({ where: { level: lesson.level }, select: ['id', 'position'] })).map((u) => [u.id, u.position]),
+    );
     return {
       lesson,
       unit,
+      blockedBy: blocker
+        ? { id: blocker.id, title: blocker.title, unit: unitPos.get(blocker.unitId) ?? null, position: blocker.position }
+        : null,
       locked: ordered[index]?.locked ?? false,
       mastery: ordered[index]?.mastery ?? null,
       points: (lesson.syllabusKeys ?? []).map((k) => syllabusPoint(k)).filter(Boolean),
@@ -270,6 +280,16 @@ export class CourseService {
 
     const { ordered } = await this.levelPath(lesson.level);
     const index = ordered.findIndex((l) => l.id === id);
+    // Lessons can be done out of order (weak points open early), so "next" is the
+    // lesson the path recommends now, not simply the one after this.
+    const after = ordered[index + 1];
+    const recommended = pickNext(ordered);
+    const nextId =
+      recommended && !recommended.locked && recommended.status === LessonStatus.READY
+        ? recommended.id
+        : after && !after.locked
+          ? after.id
+          : null;
     return {
       score,
       passed,
@@ -277,7 +297,7 @@ export class CourseService {
       bestScore: lesson.bestScore,
       passScore,
       cardsAdded: firstPass ? lesson.vocab?.length ?? 0 : 0,
-      nextId: ordered[index + 1]?.id ?? null,
+      nextId,
       journey: await this.journey(),
     };
   }

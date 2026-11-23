@@ -500,7 +500,7 @@ function Summary({
         <p className="mt-2 text-fg-muted">
           {result.passed
             ? result.firstPass
-              ? 'Qua bài! Bài tiếp theo đã được mở.'
+              ? 'Qua bài!'
               : 'Qua bài!'
             : `Cần ≥ ${result.passScore}% để qua bài — thử lại nhé.`}
         </p>

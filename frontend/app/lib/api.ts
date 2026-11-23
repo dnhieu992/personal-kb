@@ -954,6 +954,8 @@ export interface LessonDetail {
   lesson: CourseLesson;
   unit: CourseUnit | null;
   locked: boolean;
+  /** For a locked lesson: the earlier lesson to pass first. */
+  blockedBy: { id: string; title: string; unit: number | null; position: number } | null;
   index: number;
   total: number;
   prevId: string | null;
