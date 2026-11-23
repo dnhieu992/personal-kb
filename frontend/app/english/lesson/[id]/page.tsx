@@ -141,7 +141,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
       ];
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full">
       {header}
       <JourneyStrip journey={data.journey} />
 
@@ -213,12 +213,13 @@ export default function LessonPage({ params }: { params: { id: string } }) {
             </div>
           </div>
 
-          <article className="prose-kb card p-5 text-[14.5px]">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <article className="prose-kb card min-w-0 p-5 text-[14.5px] md:p-6">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{lesson.theory ?? ''}</ReactMarkdown>
           </article>
 
           {!!lesson.phrases?.length && (
-            <section>
+            <section className="xl:sticky xl:top-4 xl:self-start">
               <h2 className="section-title mb-3">Mẫu câu dùng ngay</h2>
               <ul className="card divide-y divide-line">
                 {lesson.phrases.map((p) => (
@@ -233,6 +234,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
               </ul>
             </section>
           )}
+          </div>
 
           <div className="flex justify-end">
             <button onClick={() => setTab('vocab')} className="btn btn-primary">
@@ -244,7 +246,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
 
       {tab === 'vocab' && (
         <div className="space-y-6">
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {(lesson.vocab ?? []).map((v) => (
               <li key={v.word} className="card p-4">
                 <div className="flex items-start justify-between gap-2">

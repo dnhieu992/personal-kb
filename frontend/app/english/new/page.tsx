@@ -42,7 +42,7 @@ export default function NewJournalPage() {
   // After saving, show what the AI pulled out.
   if (result) {
     return (
-      <div className="max-w-2xl space-y-6">
+      <div className="w-full space-y-6">
         <PageHeader title="Đã ghi vào nhật ký" back={{ href: '/english/journal', label: 'Journal' }} />
         <div className="card p-4">
           <p className="eyebrow">
@@ -134,7 +134,7 @@ export default function NewJournalPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <PageHeader
         back={{ href: '/english/journal', label: 'Journal' }}
         title="Ghi nhật ký"

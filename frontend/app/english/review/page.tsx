@@ -103,7 +103,7 @@ export default function EnglishReviewPage() {
   const card = queue[index];
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <div className="mb-6 flex items-center gap-4">
         <Link href="/english" className="btn btn-ghost btn-icon btn-sm" title="Thoát">
           <Icon name="x" />
@@ -114,12 +114,12 @@ export default function EnglishReviewPage() {
         </span>
       </div>
 
-      <div className="card flex min-h-[18rem] flex-col p-8 shadow-sm">
+      <div className="card flex min-h-[22rem] flex-col p-8 shadow-sm md:p-10">
         <div className="mb-4 flex items-center gap-2">
           {card.englishKind && <span className={`chip ${KIND_COLORS[card.englishKind as EnglishKind]}`}>{KIND_LABELS[card.englishKind as EnglishKind]}</span>}
           {card.hard && <span className="chip tone-amber">khó nhớ</span>}
         </div>
-        <p className="text-xl font-medium leading-relaxed text-fg">{card.content}</p>
+        <p className="text-xl font-medium leading-relaxed text-fg md:text-2xl">{card.content}</p>
 
         {revealed ? (
           <div className="mt-6 space-y-3 border-t border-line pt-5 animate-fade-in">

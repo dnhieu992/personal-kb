@@ -379,7 +379,7 @@ function ExerciseView({
       <>
         {lead}
         <p className="mb-4 text-lg font-medium leading-relaxed text-fg">{ex.prompt}</p>
-        <div className="grid gap-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           {options.map((o, i) => {
             const chosen = response.choice === o;
             const right = checked && o === ex.answer[0];

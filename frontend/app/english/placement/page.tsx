@@ -138,7 +138,7 @@ export default function PlacementPage() {
     const block = blocks[levelIdx];
     const level = block[0].level;
     return (
-      <div className="max-w-3xl">
+      <div className="w-full">
         {header}
         {error && <Alert className="mb-4">{error}</Alert>}
         <div className="mb-5">
@@ -182,7 +182,7 @@ export default function PlacementPage() {
 
   if (phase === 'result' && result) {
     return (
-      <div className="max-w-4xl">
+      <div className="w-full">
         {header}
         <ResultView result={result} onRetake={start} onResult={setResult} />
       </div>
@@ -191,7 +191,7 @@ export default function PlacementPage() {
 
   // Intro
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       {header}
       {error && <Alert>{error}</Alert>}
       <section className="card p-6">
