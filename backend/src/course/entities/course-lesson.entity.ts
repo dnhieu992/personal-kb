@@ -108,6 +108,10 @@ export class CourseLesson {
   @Column({ type: 'json', nullable: true })
   exercises: Exercise[] | null;
 
+  @ApiProperty({ description: 'Exercise-mix version (SKILLS_VERSION); 0 = no listening/reading/writing yet' })
+  @Column({ type: 'int', default: 0 })
+  skillsVersion: number;
+
   @ApiProperty({ description: 'Estimated minutes to finish' })
   @Column({ type: 'int', default: 15 })
   minutes: number;

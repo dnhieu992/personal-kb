@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CourseAiService } from '../ai/course-ai.service';
 import { CefrLevel } from '../knowledge/entities/knowledge.entity';
-import { COURSE_LEVELS, Exercise, UNITS_PER_LEVEL } from './course.types';
+import { COURSE_LEVELS, Exercise, LessonSpec, SKILLS_VERSION, UNITS_PER_LEVEL } from './course.types';
 import { CourseLesson, LessonKind, LessonStatus } from './entities/course-lesson.entity';
 import { CourseUnit } from './entities/course-unit.entity';
 import { frameworkFor, syllabusPoint } from './syllabus';
@@ -101,6 +101,16 @@ export class CourseGeneratorService implements OnModuleInit {
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+    // Older lessons: add listening / reading / writing without rewriting them.
+    const older = (await this.orderedLessons(level, LessonStatus.READY)).filter(
+      (l) => l.kind === LessonKind.LESSON && l.skillsVersion < SKILLS_VERSION,
+    );
+    if (older.length) this.logger.log(`${level}: adding skill practice to ${older.length} lessons`);
+    const topUpWorker = async () => {
+      for (let next = older.shift(); next; next = older.shift()) await this.addSkills(next.id);
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, topUpWorker));
     await this.buildReviews(level);
     this.logger.log(`${level}: done`);
   }
@@ -188,21 +198,10 @@ export class CourseGeneratorService implements OnModuleInit {
     let lastError = '';
     for (let attempt = 1; attempt <= TRIES; attempt++) {
       try {
-        const content = await this.ai.generateLesson({
-          level: lesson.level,
-          unitTitle: unit?.title ?? '',
-          unitSummary: unit?.summary ?? '',
-          title: lesson.title,
-          grammar: lesson.grammar,
-          vocabTheme: lesson.vocabTheme,
-          objective: lesson.objective,
-          syllabus: (lesson.syllabusKeys ?? [])
-            .map((k) => syllabusPoint(k)?.name)
-            .filter((n): n is string => !!n),
-          otherGrammar: siblings.filter((s) => s.id !== id).map((s) => s.grammar),
-        });
+        const content = await this.ai.generateLesson(this.specOf(lesson, unit, siblings));
         await this.lessons.update(id, {
           ...content,
+          skillsVersion: SKILLS_VERSION,
           status: LessonStatus.READY,
           error: null,
           generatedAt: new Date(),
@@ -216,6 +215,56 @@ export class CourseGeneratorService implements OnModuleInit {
       }
     }
     await this.lessons.update(id, { status: LessonStatus.FAILED, error: lastError.slice(0, 1000) });
+  }
+
+  private specOf(lesson: CourseLesson, unit: CourseUnit | null, siblings: CourseLesson[]): LessonSpec {
+    return {
+      level: lesson.level,
+      unitTitle: unit?.title ?? '',
+      unitSummary: unit?.summary ?? '',
+      title: lesson.title,
+      grammar: lesson.grammar,
+      vocabTheme: lesson.vocabTheme,
+      objective: lesson.objective,
+      syllabus: (lesson.syllabusKeys ?? [])
+        .map((k) => syllabusPoint(k)?.name)
+        .filter((n): n is string => !!n),
+      otherGrammar: siblings.filter((s) => s.id !== lesson.id).map((s) => s.grammar),
+    };
+  }
+
+  /** Append listening / reading / writing / word-order practice to an older lesson. */
+  private async addSkills(id: string) {
+    const lesson = await this.lessons.findOne({ where: { id } });
+    if (!lesson || lesson.skillsVersion >= SKILLS_VERSION) return;
+    const unit = await this.units.findOne({ where: { id: lesson.unitId } });
+    for (let attempt = 1; attempt <= TRIES; attempt++) {
+      try {
+        const extra = await this.ai.generateSkills(
+          this.specOf(lesson, unit, []),
+          (lesson.vocab ?? []).map((v) => v.word),
+        );
+        await this.lessons.update(id, {
+          exercises: [...(lesson.exercises ?? []), ...extra],
+          skillsVersion: SKILLS_VERSION,
+          minutes: lesson.minutes + 10,
+        });
+        this.logger.log(`lesson "${lesson.title}": +${extra.length} skill exercises`);
+        await this.refreshReview(lesson.unitId);
+        return;
+      } catch (e) {
+        this.logger.warn(`skills for "${lesson.title}" try ${attempt} failed: ${e.message}`);
+      }
+    }
+  }
+
+  /** Once every lesson of a unit has skill practice, redraw its review to include it. */
+  private async refreshReview(unitId: string) {
+    const rows = await this.lessons.find({ where: { unitId }, select: ['id', 'kind', 'skillsVersion'] });
+    const review = rows.find((l) => l.kind === LessonKind.REVIEW);
+    const taught = rows.filter((l) => l.kind === LessonKind.LESSON);
+    if (!review || taught.some((l) => l.skillsVersion < SKILLS_VERSION)) return;
+    await this.lessons.update(review.id, { exercises: await this.reviewExercises(unitId) });
   }
 
   /** Build the review of every unit of the level whose lessons are all written. */
@@ -267,7 +316,8 @@ export class CourseGeneratorService implements OnModuleInit {
     const per = Math.max(2, Math.ceil(REVIEW_SIZE / Math.max(1, taught.length)));
     const picked = taught.map((l) => {
       // Exercises run easy → hard; take from the harder half, one of each type first.
-      const pool = (l.exercises ?? []).filter((e) => e.type !== 'match');
+      // Writing needs an AI grade per answer; matching is too easy for a review.
+      const pool = (l.exercises ?? []).filter((e) => e.type !== 'match' && e.type !== 'write');
       const hard = pool.slice(Math.floor(pool.length / 3)).reverse();
       const out: Exercise[] = [];
       for (const e of hard) if (out.length < per && !out.some((o) => o.type === e.type)) out.push(e);

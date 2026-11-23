@@ -4,8 +4,10 @@ import { In, IsNull, MoreThan, Not, Repository } from 'typeorm';
 import { EnglishCoachService } from '../english/english-coach.service';
 import { CefrLevel, EnglishKind } from '../knowledge/entities/knowledge.entity';
 import { CourseGeneratorService } from './course-generator.service';
+import { CourseAiService } from '../ai/course-ai.service';
 import {
   COURSE_LEVELS,
+  SKILLS_VERSION,
   DEFAULT_WEEKLY_LESSONS,
   LESSON_PASS_SCORE,
   LESSONS_PER_UNIT,
@@ -38,6 +40,8 @@ interface PlacementView {
 }
 
 const DAY = 86_400_000;
+/** AI score a written answer needs to count as right. */
+const WRITE_PASS_SCORE = 70;
 const levelIndex = (l: CefrLevel) => COURSE_LEVELS.indexOf(l);
 /** Calendar day in Vietnam (the learner's clock; the server runs on UTC). */
 const vnDay = (d: Date) => new Date(d.getTime() + 7 * 3_600_000).toISOString().slice(0, 10);
@@ -96,6 +100,7 @@ export class CourseService {
     private readonly generator: CourseGeneratorService,
     private readonly coach: EnglishCoachService,
     private readonly placement: PlacementService,
+    private readonly ai: CourseAiService,
   ) {}
 
   /** No level asked for: the placement test's level, else B1. */
@@ -135,7 +140,7 @@ export class CourseService {
       COURSE_LEVELS.map(async (lvl) => {
         const rows = await this.lessons.find({
           where: { level: lvl },
-          select: ['id', 'status', 'completedAt'],
+          select: ['id', 'status', 'completedAt', 'kind', 'skillsVersion'],
         });
         return {
           level: lvl,
@@ -143,6 +148,10 @@ export class CourseService {
           total: rows.length,
           ready: rows.filter((r) => r.status === LessonStatus.READY).length,
           failed: rows.filter((r) => r.status === LessonStatus.FAILED).length,
+          /** Written before listening/reading/writing existed: the next generate run adds them. */
+          needSkills: rows.filter(
+            (r) => r.kind === LessonKind.LESSON && r.status === LessonStatus.READY && r.skillsVersion < SKILLS_VERSION,
+          ).length,
           done: rows.filter((r) => r.completedAt).length,
           generating: this.generator.isRunning(lvl),
           error: this.generator.outlineError(lvl),
@@ -299,6 +308,43 @@ export class CourseService {
       cardsAdded: firstPass ? lesson.vocab?.length ?? 0 : 0,
       nextId,
       journey: await this.journey(),
+    };
+  }
+
+  /**
+   * Grade a written answer (`write` exercise #index of the lesson). The task and
+   * model answers come from the stored lesson, not the client.
+   */
+  async gradeWriting(id: string, index: number, text: string) {
+    const lesson = await this.lessons.findOne({ where: { id } });
+    const ex = lesson?.exercises?.[index];
+    if (!lesson || !ex || ex.type !== 'write') throw new NotFoundException('Writing exercise not found');
+    const answer = text.trim().slice(0, 1000);
+    if (this.ai.isEnabled()) {
+      try {
+        const g = await this.ai.gradeWriting({
+          level: lesson.level,
+          task: ex.prompt,
+          models: ex.answer,
+          criteria: ex.explanation,
+          text: answer,
+        });
+        return { ...g, correct: g.score >= WRITE_PASS_SCORE, ai: true };
+      } catch (e) {
+        this.logger.warn(`grading writing failed: ${(e as Error).message}`);
+      }
+    }
+    // No AI: only an answer matching a model answer can be recognised as right.
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const match = ex.answer.some((a) => norm(a) === norm(answer));
+    return {
+      score: match ? 100 : 0,
+      correct: match,
+      feedback: match
+        ? 'Khớp với câu mẫu.'
+        : 'Không chấm được bằng AI lúc này — so với câu mẫu bên dưới và tự đánh giá nhé.',
+      corrected: '',
+      ai: false,
     };
   }
 

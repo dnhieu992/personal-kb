@@ -25,7 +25,10 @@ export const PLANNED_PER_LEVEL = UNITS_PER_LEVEL * (LESSONS_PER_UNIT + 1);
 /** Pace target when no goal has been set. */
 export const DEFAULT_WEEKLY_LESSONS = 5;
 
-export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix';
+export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix' | 'listen' | 'read' | 'write';
+
+/** Version of the exercise mix; lessons below it get the skills top-up (listen/read/write). */
+export const SKILLS_VERSION = 1;
 
 /**
  * One auto-graded exercise. A single flat shape (unused fields are empty) so it
@@ -35,6 +38,10 @@ export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix';
  * - order: `options` = the sentence's words IN ORDER (the UI shuffles), `answer[0]` = the sentence
  * - match: `pairs` = English ↔ Vietnamese
  * - fix:   `prompt` = sentence with one mistake, `answer` = accepted corrected sentences
+ * - listen: `passage` = what the browser reads aloud (hidden). With `options`: a question
+ *           (`prompt`) answered by choice, `answer[0]`. Without: dictation, `answer` = accepted transcripts
+ * - read:  `passage` = a short work text, `prompt` = question, `options` (3–4), `answer[0]`
+ * - write: `prompt` = Vietnamese task, `answer` = model answers; graded by AI (`/course/lessons/:id/grade`)
  */
 export interface Exercise {
   type: ExerciseType;
@@ -43,6 +50,8 @@ export interface Exercise {
   answer: string[];
   pairs: { left: string; right: string }[];
   explanation: string;
+  /** listen / read only ('' elsewhere; absent on exercises written before they existed). */
+  passage?: string;
 }
 
 export interface VocabItem {

@@ -1,4 +1,4 @@
-import type { Exercise } from './api';
+import type { Exercise, WritingGrade } from './api';
 
 /** Compare typed English loosely: case, spacing, curly quotes and end punctuation don't count. */
 export function normalise(s: string): string {
@@ -18,7 +18,34 @@ export type Response =
   | { type: 'gap'; text: string }
   | { type: 'order'; picked: number[]; words: string[] } // picked = indexes into the shuffled words
   | { type: 'match'; pairs: Record<string, string> } // left → right
-  | { type: 'fix'; text: string };
+  | { type: 'fix'; text: string }
+  | { type: 'listen'; text: string } // dictation (listen with options answers as 'mcq')
+  | { type: 'write'; text: string; grade?: WritingGrade };
+
+/** Dictation: punctuation doesn't count, only the words. */
+function words(s: string): string {
+  return normalise(s).replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Levenshtein distance, for forgiving a typo or two in dictation. */
+function distance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return row[b.length];
+}
+
+/** Exercise types that are answered by picking one option. */
+export function isChoice(ex: Exercise): boolean {
+  return ex.type === 'mcq' || ex.type === 'read' || (ex.type === 'listen' && ex.options.length > 0);
+}
 
 export function isCorrect(ex: Exercise, r: Response): boolean {
   switch (r.type) {
@@ -31,6 +58,16 @@ export function isCorrect(ex: Exercise, r: Response): boolean {
       return normalise(r.words.join(' ')) === normalise(ex.options.join(' '));
     case 'match':
       return ex.pairs.every((p) => r.pairs[p.left] === p.right);
+    case 'listen': {
+      const typed = words(r.text);
+      // One slip per ~25 characters is a typo, not a listening mistake.
+      return ex.answer.some((a) => {
+        const key = words(a);
+        return typed === key || distance(typed, key) <= Math.floor(key.length / 25);
+      });
+    }
+    case 'write':
+      return !!r.grade?.correct;
   }
 }
 
@@ -41,6 +78,9 @@ export function answerText(ex: Exercise): string {
       return ex.pairs.map((p) => `${p.left} = ${p.right}`).join(' · ');
     case 'order':
       return ex.options.join(' ');
+    case 'listen':
+    case 'read':
+      return ex.answer[0];
     default:
       return ex.answer.join('  /  ');
   }

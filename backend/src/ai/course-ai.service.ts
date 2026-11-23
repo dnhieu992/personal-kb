@@ -68,7 +68,8 @@ const LESSON_SCHEMA = obj({
   exercises: {
     type: 'array',
     items: obj({
-      type: { type: 'string', enum: ['mcq', 'gap', 'order', 'match', 'fix'] },
+      type: { type: 'string', enum: ['mcq', 'gap', 'order', 'match', 'fix', 'listen', 'read', 'write'] },
+      passage: str,
       prompt: str,
       options: strList,
       answer: strList,
@@ -78,6 +79,34 @@ const LESSON_SCHEMA = obj({
   },
   minutes: { type: 'integer' },
 });
+
+const SKILLS_SCHEMA = obj({ exercises: (LESSON_SCHEMA.properties as Record<string, unknown>).exercises });
+
+const GRADE_SCHEMA = obj({
+  score: { type: 'integer' },
+  feedback: str,
+  corrected: str,
+});
+
+/** Grading one written answer is quick and frequent: a small model is plenty. */
+const GRADE_MODEL = 'claude-haiku-5-5';
+
+/** How to write the skill exercises; shared by full lessons and the top-up of older ones. */
+const SKILL_RULES =
+  '  • listen (dictation): passage = ONE natural sentence someone says at work (8–16 words, uses the lesson\'s ' +
+  'grammar or vocab) — the app reads it aloud and hides it; prompt = ""; options = []; answer = [the sentence exactly ' +
+  'as in passage, plus a variant with/without contractions if both are fine].\n' +
+  '  • listen (choice): passage = a short spoken message, 2–4 sentences (a stand-up update, a voicemail, a meeting ' +
+  'remark); prompt = one question about it (in English); options = exactly 4; answer = [the correct option]. ' +
+  'The answer must need listening, not guessing.\n' +
+  '  • read: passage = ONE realistic work text of 90–150 words (email, Slack thread, Jira ticket, PR description, ' +
+  'doc excerpt) using the lesson\'s grammar and vocab; write 3 read items that share the SAME passage text ' +
+  '(copy it exactly into each), each with a different question (gist, detail, inference) and exactly 4 options; ' +
+  'answer = [the correct option].\n' +
+  '  • write: prompt = a Vietnamese task describing a concrete work situation and what to write ' +
+  '(1–2 English sentences), naming the structure to use (e.g. "Nhắn Slack báo team bạn đã deploy bản fix, dùng ' +
+  'hiện tại hoàn thành"); answer = 2–3 good model answers; options = []; explanation = what a good answer must contain.\n' +
+  '  • passage = "" for every non-listen/read type.\n';
 
 /** Writes the English-for-IT course: a level's syllabus, then each lesson. */
 @Injectable()
@@ -186,8 +215,10 @@ export class CourseAiService {
       '- phrases: 5–6 ready-to-use workplace sentences or chunks using this lesson\'s grammar/vocab (en + vi).\n' +
       '- vocab: exactly 10 items for the vocabulary theme: word (or short phrase), ipa (American, with slashes), ' +
       'pos (noun/verb/adj/adv/phrase…), meaning (Vietnamese), example (one English sentence from work).\n' +
-      '- exercises: 12–14 items, easy → hard, testing THIS lesson\'s grammar and vocab: ' +
-      'about 4 mcq, 3 gap, 2 order, 1 match, 2 fix. Every field must be present; use [] for fields a type does not use.\n' +
+      '- exercises: 19–21 items testing THIS lesson\'s grammar and vocab, in this order: ' +
+      'drills easy → hard (3 mcq, 2 gap, 3 order, 1 match, 2 fix), then listening (2 listen dictation, ' +
+      '1 listen choice), then reading (3 read on one passage), then writing (2 write). ' +
+      'Every field must be present; use [] / "" for fields a type does not use.\n' +
       '  • mcq: prompt = question or sentence with ___; options = exactly 4; answer = [the correct option, copied exactly]. ' +
       'Exactly one option is correct; distractors are clearly wrong for a stated reason.\n' +
       '  • gap: prompt = one sentence containing ___ exactly once (add the base verb in brackets when testing a form, e.g. "(fix)"); ' +
@@ -197,8 +228,9 @@ export class CourseAiService {
       '  • match: pairs = 5 vocabulary items from this lesson, left = English, right = Vietnamese meaning. prompt = a short Vietnamese instruction.\n' +
       '  • fix: prompt = one sentence with exactly ONE grammar mistake about this lesson\'s point; ' +
       'answer = the corrected full sentence(s) (all acceptable corrections). options = [].\n' +
+      SKILL_RULES +
       '  • explanation (all types): 1–2 Vietnamese sentences on why the answer is right.\n' +
-      '- minutes: realistic estimate to read the theory and do the practice (10–25).\n' +
+      '- minutes: realistic estimate to read the theory and do the practice (15–30).\n' +
       'Double-check every answer before finishing: a wrong answer key teaches the learner the wrong thing.';
     const user =
       `Unit: ${spec.unitTitle} — ${spec.unitSummary}\n` +
@@ -230,6 +262,70 @@ export class CourseAiService {
     };
   }
 
+  /**
+   * Listening, reading, writing and extra word-order items for a lesson written
+   * before they existed; appended to its exercises.
+   */
+  async generateSkills(spec: LessonSpec, vocab: string[]): Promise<Exercise[]> {
+    const system =
+      'You write practice for "English for IT", a self-study course. ' +
+      AUDIENCE +
+      '\n\nThe lesson described by the user already has its theory and grammar drills. Add skill practice at CEFR ' +
+      spec.level +
+      ', reusing the lesson\'s grammar point and vocabulary: exactly 2 order, 2 listen dictation, 1 listen choice, ' +
+      '3 read (one shared passage), 2 write — 10 items, in that order. Every field must be present; ' +
+      'use [] / "" for fields a type does not use.\n' +
+      '  • order: options = the words of ONE correct sentence, in the correct order (the app shuffles them); ' +
+      'keep punctuation attached to its word; 7–14 words; the order must be unambiguous. answer = [the full sentence]. ' +
+      'prompt = the Vietnamese meaning.\n' +
+      SKILL_RULES +
+      '  • explanation (all types): 1–2 Vietnamese sentences on why the answer is right.\n' +
+      'Double-check every answer key.';
+    const user =
+      `Unit: ${spec.unitTitle} — ${spec.unitSummary}\n` +
+      `Lesson: ${spec.title}\nGrammar point: ${spec.grammar}\nVocabulary theme: ${spec.vocabTheme}\n` +
+      `Lesson vocabulary: ${vocab.join(', ')}\nObjective: ${spec.objective}`;
+    const raw = await this.call<{ exercises: Exercise[] }>(system, user, SKILLS_SCHEMA, 'medium');
+    const out = (raw.exercises ?? []).map((e) => normaliseExercise(e)).filter((e): e is Exercise => !!e);
+    if (out.length < 6) throw new Error(`only ${out.length} valid skill exercises`);
+    return out;
+  }
+
+  /** Grade one written answer against the task and model answers. */
+  async gradeWriting(input: {
+    level: string;
+    task: string;
+    models: string[];
+    criteria: string;
+    text: string;
+  }): Promise<{ score: number; feedback: string; corrected: string }> {
+    const system =
+      'You grade short written answers in "English for IT", a course for a Vietnamese software engineer at CEFR ' +
+      input.level +
+      '. Judge whether the answer does the task with correct, natural English and uses the required structure. ' +
+      'Model answers are examples, not the only right answers — any correct, natural answer that fits the task ' +
+      'deserves full marks. Small typos cost a little; wrong grammar for the required structure costs a lot; ' +
+      'off-task answers score low.\n' +
+      'score: 0–100. feedback: 1–3 short Vietnamese sentences: what is good, the main mistake and how to fix it. ' +
+      'corrected: the learner\'s answer with mistakes fixed, changed as little as possible (copy it unchanged if it is right).';
+    const user =
+      `Task (Vietnamese): ${input.task}\nWhat a good answer contains: ${input.criteria}\n` +
+      `Model answers: ${input.models.join(' | ')}\n\nLearner's answer: ${input.text}`;
+    const { data } = await this.claude.ask<{ score: number; feedback: string; corrected: string }>({
+      model: GRADE_MODEL,
+      system,
+      user,
+      schema: GRADE_SCHEMA,
+      timeoutMs: 90_000,
+    });
+    if (!data) throw new Error('no grade');
+    return {
+      score: Math.max(0, Math.min(100, Math.round(data.score))),
+      feedback: data.feedback ?? '',
+      corrected: data.corrected ?? '',
+    };
+  }
+
   /** One structured-output call through headless Claude Code, parsed as JSON. */
   private async call<T>(
     system: string,
@@ -243,7 +339,7 @@ export class CourseAiService {
   }
 }
 
-const TYPES: ExerciseType[] = ['mcq', 'gap', 'order', 'match', 'fix'];
+const TYPES: ExerciseType[] = ['mcq', 'gap', 'order', 'match', 'fix', 'listen', 'read', 'write'];
 const clean = (list: unknown): string[] =>
   Array.isArray(list)
     ? list.map((s) => String(s ?? '').trim()).filter(Boolean)
@@ -263,8 +359,20 @@ export function normaliseExercise(e: Partial<Exercise>): Exercise | null {
           .filter((p) => p.left && p.right)
       : [],
     explanation: String(e.explanation ?? '').trim(),
+    passage: String(e.passage ?? '').trim(),
   };
+  if (ex.type !== 'listen' && ex.type !== 'read') ex.passage = '';
   switch (ex.type) {
+    case 'listen':
+      if (!ex.passage) return null;
+      if (ex.options.length) return ex.prompt && ex.options.includes(ex.answer[0]) ? ex : null;
+      // Dictation: the spoken sentence is always an accepted transcript.
+      ex.answer = [...new Set([ex.passage, ...ex.answer])];
+      return ex;
+    case 'read':
+      return ex.passage && ex.prompt && ex.options.length >= 2 && ex.options.includes(ex.answer[0]) ? ex : null;
+    case 'write':
+      return ex.prompt && ex.answer.length ? ex : null;
     case 'mcq':
       if (ex.options.length < 2 || !ex.answer.length) return null;
       // The key must be one of the options, or nothing could ever be marked right.

@@ -513,6 +513,8 @@ export const api = {
       }),
     generate: (level: CourseLevel) =>
       request<{ started: boolean; enabled: boolean }>(`/course/levels/${level}/generate`, { method: 'POST' }),
+    grade: (id: string, index: number, text: string) =>
+      request<WritingGrade>(`/course/lessons/${id}/grade`, { method: 'POST', body: JSON.stringify({ index, text }) }),
     regenerate: (id: string) =>
       request<CourseLesson>(`/course/lessons/${id}/regenerate`, { method: 'POST' }),
     journey: () => request<Journey>('/course/journey'),
@@ -758,7 +760,7 @@ export type CourseLevel = 'A2' | 'B1' | 'B2' | 'C1';
 export const COURSE_LEVELS: CourseLevel[] = ['A2', 'B1', 'B2', 'C1'];
 
 export type LessonStatus = 'PENDING' | 'GENERATING' | 'READY' | 'FAILED';
-export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix';
+export type ExerciseType = 'mcq' | 'gap' | 'order' | 'match' | 'fix' | 'listen' | 'read' | 'write';
 
 export interface Exercise {
   type: ExerciseType;
@@ -767,6 +769,17 @@ export interface Exercise {
   answer: string[];
   pairs: { left: string; right: string }[];
   explanation: string;
+  /** listen: what is read aloud (hidden until checked); read: the text. */
+  passage?: string;
+}
+
+export interface WritingGrade {
+  score: number;
+  correct: boolean;
+  feedback: string;
+  corrected: string;
+  /** false = AI unavailable, only an exact model-answer match counts. */
+  ai: boolean;
 }
 
 export interface VocabItem {
@@ -925,6 +938,8 @@ export interface LevelStatus {
   total: number;
   ready: number;
   failed: number;
+  /** Older lessons still without listening/reading/writing practice. */
+  needSkills: number;
   done: number;
   generating: boolean;
   error: string | null;

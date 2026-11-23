@@ -65,6 +65,10 @@ npm run build       # → dist/
   one is gradable; grading happens in the browser (`frontend/app/lib/course.ts`) and the run's
   score is posted to `/course/lessons/:id/attempts`. Progress lives on `course_lesson`
   (single learner). Lessons stuck GENERATING after a restart are reset to PENDING on boot.
+- **Skill exercises**: besides mcq/gap/order/match/fix, lessons have `listen` (browser TTS of
+  `passage`; dictation or choice), `read` (passage + question) and `write` (AI-graded via
+  `POST /course/lessons/:id/grade`, Haiku). Lessons with `skillsVersion < SKILLS_VERSION` get these
+  appended by the next generate run (`CourseAiService.generateSkills`), and their unit review is redrawn.
 - **Unit reviews**: `course_lesson.kind = REVIEW`, built by `CourseGeneratorService.buildReview`
   (no AI) from the harder exercises of the unit's lessons once they are all READY (also on boot);
   pass mark `REVIEW_PASS_SCORE` (80%).

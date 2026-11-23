@@ -187,7 +187,7 @@ function CoursePage() {
         )
       ) : (
         <>
-          {(generating || current.failed > 0 || pending > 0 || missingUnits > 0) && (
+          {(generating || current.failed > 0 || pending > 0 || missingUnits > 0 || current.needSkills > 0) && (
             <div className="card flex flex-wrap items-center gap-4 p-4">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fg">
@@ -197,6 +197,7 @@ function CoursePage() {
                         missingUnits > 0 && `Còn ${missingUnits} unit chưa có (${current.units}/${plan.units})`,
                         current.failed > 0 && `${current.failed} bài soạn bị lỗi`,
                         pending > 0 && `${pending} bài chưa soạn`,
+                        current.needSkills > 0 && `${current.needSkills} bài chưa có phần nghe / đọc / viết`,
                       ]
                         .filter(Boolean)
                         .join(' · ')}
@@ -211,7 +212,13 @@ function CoursePage() {
               {!generating && (
                 <button onClick={generate} disabled={starting} className="btn btn-secondary btn-sm">
                   <Icon name={missingUnits > 0 ? 'sparkles' : 'refresh'} />{' '}
-                  {missingUnits > 0 ? `Soạn thêm ${missingUnits} unit` : pending > 0 ? 'Soạn bài còn thiếu' : 'Soạn lại bài lỗi'}
+                  {missingUnits > 0
+                    ? `Soạn thêm ${missingUnits} unit`
+                    : pending > 0
+                      ? 'Soạn bài còn thiếu'
+                      : current.failed > 0
+                        ? 'Soạn lại bài lỗi'
+                        : 'Thêm nghe / đọc / viết'}
                 </button>
               )}
             </div>

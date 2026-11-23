@@ -5,7 +5,7 @@ import { CourseGeneratorService } from './course-generator.service';
 import { CourseService } from './course.service';
 import { SetGoalDto } from './dto/goal.dto';
 import { EfsetScoreDto, SubmitPlacementDto } from './dto/placement.dto';
-import { SubmitAttemptDto } from './dto/submit-attempt.dto';
+import { GradeWritingDto, SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { PlacementService } from './placement.service';
 
 @ApiTags('course')
@@ -87,6 +87,12 @@ export class CourseController {
   @ApiOperation({ summary: 'Record a practice run (passing completes the lesson)' })
   submit(@Param('id') id: string, @Body() dto: SubmitAttemptDto) {
     return this.service.submitAttempt(id, dto);
+  }
+
+  @Post('lessons/:id/grade')
+  @ApiOperation({ summary: 'AI-grade the answer to one writing exercise of the lesson' })
+  grade(@Param('id') id: string, @Body() dto: GradeWritingDto) {
+    return this.service.gradeWriting(id, dto.index, dto.text);
   }
 
   @Post('lessons/:id/regenerate')

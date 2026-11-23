@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class SubmitAttemptDto {
   @ApiProperty({ description: 'Exercises answered correctly' })
@@ -21,4 +21,17 @@ export class SubmitAttemptDto {
   @IsOptional()
   @IsBoolean()
   quick?: boolean;
+}
+
+export class GradeWritingDto {
+  @ApiProperty({ description: 'Index of the writing exercise in the lesson' })
+  @IsInt()
+  @Min(0)
+  index: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  text: string;
 }

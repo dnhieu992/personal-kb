@@ -154,7 +154,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
 
       {data.mastery === 'mastered' && !lesson.completedAt && (
         <Alert tone="success" title="Bạn đã làm đúng điểm ngữ pháp này trong test xếp lớp" className="mb-5">
-          Làm kiểm tra nhanh {Math.min(6, (lesson.exercises ?? []).filter((e) => e.type !== 'match').length)} câu khó
+          Làm kiểm tra nhanh {Math.min(6, (lesson.exercises ?? []).filter((e) => ['mcq', 'gap', 'order', 'fix'].includes(e.type)).length)} câu khó
           nhất, đạt ≥ {data.quickPassScore}% là qua bài (từ vựng của bài vẫn vào hàng ôn thẻ). Muốn học kỹ thì cứ học như
           bình thường.
           <div className="mt-3">

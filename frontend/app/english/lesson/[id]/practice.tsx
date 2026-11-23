@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, AttemptResult, Exercise, ExerciseType, LessonDetail } from '../../../lib/api';
-import { answerText, isCorrect, Response, shuffle, speak } from '../../../lib/course';
+import { answerText, isChoice, isCorrect, Response, shuffle, speak } from '../../../lib/course';
 import { Icon } from '../../../components/icons';
 import { Alert, cx, ProgressBar } from '../../../components/ui';
 
@@ -13,6 +13,9 @@ const TYPE_LABEL: Record<ExerciseType, string> = {
   order: 'Sắp xếp thành câu',
   match: 'Nối từ với nghĩa',
   fix: 'Sửa lỗi sai',
+  listen: 'Nghe',
+  read: 'Đọc hiểu',
+  write: 'Viết',
 };
 
 const TYPE_HINT: Record<ExerciseType, string> = {
@@ -21,12 +24,27 @@ const TYPE_HINT: Record<ExerciseType, string> = {
   order: 'Bấm các từ theo đúng thứ tự. Bấm lại để bỏ.',
   match: 'Bấm một từ bên trái, rồi bấm nghĩa của nó bên phải.',
   fix: 'Câu có một lỗi sai — sửa lại cả câu.',
+  listen: 'Nghe rồi gõ lại đúng câu bạn nghe (không tính dấu câu).',
+  read: 'Đọc đoạn văn rồi chọn đáp án đúng.',
+  write: 'Viết bằng tiếng Anh theo yêu cầu — AI chấm và sửa cho bạn.',
 };
+
+const hintOf = (ex: Exercise) =>
+  ex.type === 'listen' && ex.options.length ? 'Nghe đoạn nói rồi chọn đáp án đúng (phím 1–4).' : TYPE_HINT[ex.type];
+
+/** Drill types used for a quick check (no listening/reading/writing, no matching). */
+const QUICK_TYPES: ExerciseType[] = ['mcq', 'gap', 'order', 'fix'];
 
 /** An empty answer for an exercise, ready to be filled in. */
 function blank(ex: Exercise): Response {
+  if (isChoice(ex)) return { type: 'mcq', choice: '' };
   switch (ex.type) {
+    case 'listen':
+      return { type: 'listen', text: '' };
+    case 'write':
+      return { type: 'write', text: '' };
     case 'mcq':
+    case 'read':
       return { type: 'mcq', choice: '' };
     case 'gap':
       return { type: 'gap', text: '' };
@@ -44,6 +62,8 @@ function answered(ex: Exercise, r: Response): boolean {
     case 'mcq':
       return !!r.choice;
     case 'gap':
+    case 'listen':
+    case 'write':
       return !!r.text.trim();
     case 'fix':
       return !!r.text.trim() && r.text.trim() !== ex.prompt.trim();
@@ -72,7 +92,7 @@ export function Practice({
   const exercises = useMemo(() => {
     const all = detail.lesson.exercises ?? [];
     if (!quick) return all;
-    return all.filter((e) => e.type !== 'match').slice(-QUICK_COUNT);
+    return all.filter((e) => QUICK_TYPES.includes(e.type)).slice(-QUICK_COUNT);
   }, [detail.lesson.exercises, quick]);
   const [run, setRun] = useState(0); // bump to restart
   const [idx, setIdx] = useState(0);
@@ -82,6 +102,7 @@ export function Practice({
   const [result, setResult] = useState<AttemptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [grading, setGrading] = useState(false);
 
   const ex = exercises[idx];
   const correctNow = checked && ex ? isCorrect(ex, response) : false;
@@ -97,11 +118,28 @@ export function Practice({
     setError(null);
   }
 
-  function check() {
-    if (!ex || checked || !answered(ex, response)) return;
+  async function check() {
+    if (!ex || checked || grading || !answered(ex, response)) return;
+    let r = response;
+    if (r.type === 'write') {
+      // Writing is graded by the AI on the server (the task + model answers are stored there).
+      setGrading(true);
+      const index = (detail.lesson.exercises ?? []).indexOf(ex);
+      try {
+        r = { ...r, grade: await api.course.grade(detail.lesson.id, index, r.text) };
+      } catch (e) {
+        r = {
+          ...r,
+          grade: { score: 0, correct: false, feedback: `Không chấm được: ${(e as Error).message}`, corrected: '', ai: false },
+        };
+      } finally {
+        setGrading(false);
+      }
+      setResponse(r);
+    }
     setChecked(true);
-    const ok = isCorrect(ex, response);
-    setResults((r) => [...r, { correct: ok, response }]);
+    const ok = isCorrect(ex, r);
+    setResults((list) => [...list, { correct: ok, response: r }]);
     if (ex.type === 'order' || ex.type === 'fix') speak(ex.type === 'order' ? ex.options.join(' ') : ex.answer[0]);
   }
 
@@ -136,7 +174,7 @@ export function Practice({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (done) return;
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         if (checked) next();
         else check();
@@ -181,8 +219,8 @@ export function Practice({
 
       <div className="card p-6">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="chip tone-violet">{TYPE_LABEL[ex.type]}</span>
-          <span className="text-xs text-fg-subtle">{TYPE_HINT[ex.type]}</span>
+          <span className={cx('chip', SKILL_TONE[ex.type] ?? 'tone-violet')}>{TYPE_LABEL[ex.type]}</span>
+          <span className="text-xs text-fg-subtle">{hintOf(ex)}</span>
         </div>
         <ExerciseView
           key={`${run}-${idx}`}
@@ -205,10 +243,37 @@ export function Practice({
             <Icon name={correctNow ? 'check' : 'x'} className="h-4 w-4" strokeWidth={2.25} />
             {correctNow ? 'Chính xác!' : 'Chưa đúng'}
           </p>
-          {!correctNow && (
+          {response.type === 'write' && response.grade && (
+            <div className="mt-2 space-y-1.5 text-sm text-fg">
+              {response.grade.ai && (
+                <p>
+                  <span className="text-fg-muted">Điểm: </span>
+                  <span className="font-semibold tabular-nums">{response.grade.score}/100</span>
+                </p>
+              )}
+              <p>{response.grade.feedback}</p>
+              {response.grade.corrected && response.grade.corrected.trim() !== response.text.trim() && (
+                <p>
+                  <span className="text-fg-muted">Sửa lại: </span>
+                  <span className="font-medium">{response.grade.corrected}</span>
+                </p>
+              )}
+              <p>
+                <span className="text-fg-muted">Câu mẫu: </span>
+                {ex.answer.join('  /  ')}
+              </p>
+            </div>
+          )}
+          {!correctNow && ex.type !== 'write' && (
             <p className="mt-2 text-sm text-fg">
               <span className="text-fg-muted">Đáp án: </span>
               <span className="font-medium">{answerText(ex)}</span>
+            </p>
+          )}
+          {ex.type === 'listen' && ex.options.length > 0 && (
+            <p className="mt-2 text-sm text-fg">
+              <span className="text-fg-muted">Bạn đã nghe: </span>
+              {ex.passage}
             </p>
           )}
           {ex.explanation && <p className="mt-1.5 text-sm text-fg-secondary">{ex.explanation}</p>}
@@ -217,8 +282,9 @@ export function Practice({
           </button>
         </div>
       ) : (
-        <button onClick={check} disabled={!answered(ex, response)} className="btn btn-primary btn-lg mt-4 w-full">
-          Kiểm tra <span className="kbd ml-1 border-white/30 bg-white/15 text-white">Enter</span>
+        <button onClick={check} disabled={grading || !answered(ex, response)} className="btn btn-primary btn-lg mt-4 w-full">
+          {grading ? 'AI đang chấm…' : 'Kiểm tra'}{' '}
+          {!grading && <span className="kbd ml-1 border-white/30 bg-white/15 text-white">Enter</span>}
         </button>
       )}
     </div>
@@ -242,8 +308,13 @@ function ExerciseView({
   const options = useMemo(() => shuffle(ex.options), [ex]);
   const rights = useMemo(() => shuffle(ex.pairs.map((p) => p.right)), [ex]);
 
+  // Listening plays once on arrival; the buttons replay it.
   useEffect(() => {
-    if (ex.type !== 'mcq' || checked) return;
+    if (ex.type === 'listen' && ex.passage) speak(ex.passage);
+  }, [ex]);
+
+  useEffect(() => {
+    if (!isChoice(ex) || checked) return;
     const onKey = (e: KeyboardEvent) => {
       const n = Number(e.key);
       if (n >= 1 && n <= options.length) onChange({ type: 'mcq', choice: options[n - 1] });
@@ -252,9 +323,61 @@ function ExerciseView({
     return () => window.removeEventListener('keydown', onKey);
   }, [ex, checked, options, onChange]);
 
+  const lead =
+    ex.type === 'read' ? (
+      <Passage text={ex.passage ?? ''} />
+    ) : ex.type === 'listen' ? (
+      <AudioBar text={ex.passage ?? ''} />
+    ) : null;
+
+  if (response.type === 'listen') {
+    return (
+      <>
+        {lead}
+        <input
+          autoFocus
+          disabled={checked}
+          value={response.text}
+          onChange={(e) => onChange({ type: 'listen', text: e.target.value })}
+          placeholder="Gõ câu bạn nghe được…"
+          className={cx('input w-full text-base', checked && (isCorrect(ex, response) ? 'border-success' : 'border-danger'))}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        {checked && (
+          <p className="mt-3 text-[15px] text-fg">
+            <span className="text-fg-muted">Câu gốc: </span>
+            {ex.passage}
+          </p>
+        )}
+      </>
+    );
+  }
+
+  if (response.type === 'write') {
+    return (
+      <>
+        <p className="mb-3 text-lg font-medium leading-relaxed text-fg">{ex.prompt}</p>
+        <textarea
+          autoFocus
+          disabled={checked}
+          value={response.text}
+          onChange={(e) => onChange({ type: 'write', text: e.target.value })}
+          rows={3}
+          placeholder="Write your answer in English…"
+          className="input w-full resize-y text-base"
+          spellCheck={false}
+        />
+        <p className="hint mt-1">Enter để nộp · Shift+Enter xuống dòng.</p>
+      </>
+    );
+  }
+
   if (response.type === 'mcq') {
     return (
       <>
+        {lead}
         <p className="mb-4 text-lg font-medium leading-relaxed text-fg">{ex.prompt}</p>
         <div className="grid gap-2">
           {options.map((o, i) => {
@@ -379,6 +502,38 @@ function ExerciseView({
   }
 
   return <MatchView ex={ex} rights={rights} response={response} onChange={onChange} checked={checked} />;
+}
+
+const SKILL_TONE: Partial<Record<ExerciseType, string>> = {
+  listen: 'tone-sky',
+  read: 'tone-amber',
+  write: 'tone-green',
+};
+
+/** Play / slow-play buttons for a listening item (the text stays hidden). */
+function AudioBar({ text }: { text: string }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      <button type="button" onClick={() => speak(text)} className="btn btn-secondary">
+        <Icon name="volume" /> Nghe
+      </button>
+      <button type="button" onClick={() => speak(text, 0.7)} className="btn btn-ghost">
+        <Icon name="volume" /> Nghe chậm
+      </button>
+    </div>
+  );
+}
+
+/** A reading text, with a button to hear it read aloud. */
+function Passage({ text }: { text: string }) {
+  return (
+    <div className="mb-4 rounded-lg border border-line bg-subtle p-4">
+      <p className="max-h-72 overflow-y-auto whitespace-pre-line text-[15px] leading-relaxed text-fg">{text}</p>
+      <button type="button" onClick={() => speak(text)} className="btn btn-ghost btn-xs mt-2 text-fg-muted">
+        <Icon name="volume" /> Nghe đoạn văn
+      </button>
+    </div>
+  );
 }
 
 function MatchView({
@@ -558,7 +713,13 @@ function Summary({
           <ul className="space-y-2">
             {wrong.map((ex, i) => (
               <li key={i} className="card p-4 text-sm">
-                <p className="text-fg-muted">{ex.type === 'match' ? ex.prompt || 'Nối từ' : ex.prompt || ex.options.join(' / ')}</p>
+                <p className="text-fg-muted">
+                  {ex.type === 'match'
+                    ? ex.prompt || 'Nối từ'
+                    : ex.type === 'listen' && !ex.options.length
+                      ? `🎧 ${ex.passage}`
+                      : ex.prompt || ex.options.join(' / ')}
+                </p>
                 <p className="mt-1 font-medium text-fg">✓ {answerText(ex)}</p>
                 {ex.explanation && <p className="mt-1 text-fg-secondary">{ex.explanation}</p>}
               </li>
