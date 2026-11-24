@@ -253,14 +253,21 @@ function Shell() {
         <div className="flex min-w-0 flex-1">
           <main className="min-w-0 flex-1 px-4 py-4 md:px-6">{main}</main>
           {selectedTaskId && (
-            <aside
-              className={cx(
-                'z-40 shrink-0 border-l border-line bg-surface',
-                'fixed inset-y-0 right-0 w-full max-w-sm shadow-xl xl:sticky xl:inset-auto xl:top-12 xl:h-[calc(100vh-48px)] xl:w-[380px] xl:max-w-none xl:shadow-none',
-              )}
+            // Task details open in a dialog over the list (click outside or Esc closes it).
+            <div
+              className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-2 pt-[6vh] sm:p-4 sm:pt-[8vh]"
+              onMouseDown={() => openTask(null)}
             >
-              <Inspector />
-            </aside>
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Task details"
+                className="flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <Inspector />
+              </div>
+            </div>
           )}
         </div>
       </div>

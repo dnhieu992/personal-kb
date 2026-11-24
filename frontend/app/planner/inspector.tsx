@@ -105,7 +105,7 @@ export function Inspector() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-start gap-3 border-b border-line p-4">
         <div className="pt-1">
           <CheckBox done={t.done} color={color} size={22} onToggle={() => patch({ done: !t.done })} />
@@ -139,7 +139,7 @@ export function Inspector() {
         </button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         <div className="space-y-1">
           <Field label="Area">
             <AreaPicker value={t.area} onChange={(a) => patch({ area: a })} />
