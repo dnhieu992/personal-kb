@@ -449,7 +449,7 @@ export function ExerciseView({
           disabled={checked}
           value={response.text}
           onChange={(e) => onChange({ type: 'fix', text: e.target.value })}
-          className="input text-base"
+          className="input w-full text-base"
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
