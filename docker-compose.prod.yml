@@ -22,6 +22,10 @@ services:
     # (the host MySQL only binds localhost, shared with the market-analysis app).
     # In that mode the backend also listens on the host's 0.0.0.0:4001 directly.
     network_mode: host
+    # Hard cap (incl. the Claude Code processes it spawns): if the backend runs away
+    # it gets OOM-killed and restarted, instead of the kernel killing the shared
+    # host MySQL (happened 2026-11-24). Claude calls are also capped at 2 at a time.
+    mem_limit: 1400m
     env_file:
       # DATABASE_URL=mysql://pkb:pkbpass@127.0.0.1:3306/personal_kb , CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), FRONTEND_URL
       - /opt/personal-kb/backend.env

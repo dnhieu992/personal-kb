@@ -96,6 +96,8 @@ npm run build       # → dist/
   written before this (by grammar label) and adds the B1 "Sprint Retrospectives" unit on boot — idempotent.
 - **Claude Code, not the API**: `ClaudeCodeService.ask()` spawns one headless Claude Code process per call
   (built-in tools, settings, MCP all off; API-key env vars stripped). Expect ~5 s of overhead per call.
+  **At most 2 run at once** (`CLAUDE_MAX_CONCURRENCY`, FIFO queue beyond that): each process is ~150 MB and
+  unbounded fan-out once got the shared host MySQL OOM-killed; the backend container also has `mem_limit`.
   Login: `CLAUDE_CODE_OAUTH_TOKEN` in `/opt/personal-kb/backend.env` (made with `claude setup-token`,
   valid ~1 year). The native binary comes from the SDK's per-platform optional dependency, so keep
   `@anthropic-ai/claude-agent-sdk-linux-x64` in the lockfile.

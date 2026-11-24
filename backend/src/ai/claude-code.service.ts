@@ -52,10 +52,20 @@ function buildEnv(): Record<string, string> {
   return env;
 }
 
+/**
+ * Each call spawns a Claude Code process (~150 MB RSS). The VPS has 4 GB shared
+ * with MySQL and another app: unbounded fan-out (e.g. creating 20 planner tasks,
+ * each auto-checking its English) once got MySQL OOM-killed. Calls beyond this
+ * many wait in a FIFO queue.
+ */
+const MAX_CONCURRENT = Math.max(1, Number(process.env.CLAUDE_MAX_CONCURRENCY) || 2);
+
 @Injectable()
 export class ClaudeCodeService {
   private readonly logger = new Logger(ClaudeCodeService.name);
   private readonly enabled: boolean;
+  private running = 0;
+  private readonly waiting: Array<() => void> = [];
 
   constructor() {
     const configDir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
@@ -76,6 +86,31 @@ export class ClaudeCodeService {
 
   async ask<T = unknown>(opts: AskOptions): Promise<AskResult<T>> {
     if (!this.enabled) throw new Error('Claude Code is not logged in on this server');
+    await this.acquire();
+    try {
+      return await this.run<T>(opts);
+    } finally {
+      this.release();
+    }
+  }
+
+  private acquire(): Promise<void> {
+    if (this.running < MAX_CONCURRENT) {
+      this.running++;
+      return Promise.resolve();
+    }
+    if (this.waiting.length >= 10) this.logger.warn(`${this.waiting.length + 1} Claude calls queued`);
+    // The slot is handed over by release(), so `running` stays counted.
+    return new Promise((resolve) => this.waiting.push(resolve));
+  }
+
+  private release() {
+    const next = this.waiting.shift();
+    if (next) next();
+    else this.running--;
+  }
+
+  private async run<T>(opts: AskOptions): Promise<AskResult<T>> {
     const { query } = await importEsm('@anthropic-ai/claude-agent-sdk');
     const abortController = new AbortController();
     const timer = setTimeout(() => abortController.abort(), opts.timeoutMs ?? 10 * 60_000);
