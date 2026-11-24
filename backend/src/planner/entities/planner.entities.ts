@@ -21,7 +21,8 @@ import {
 export const AREAS = ['WORK', 'PERSONAL'] as const;
 export type Area = (typeof AREAS)[number];
 
-export const GOAL_PERIODS = ['week', 'month'] as const;
+/** quarter = 3 months from periodStart (any day). */
+export const GOAL_PERIODS = ['week', 'month', 'quarter'] as const;
 export type GoalPeriod = (typeof GOAL_PERIODS)[number];
 
 export const RECURRENCE_KINDS = ['daily', 'weekdays', 'weekly', 'monthly'] as const;

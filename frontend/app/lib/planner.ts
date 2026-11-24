@@ -116,7 +116,8 @@ export interface PTaskDetail extends PTask {
   checklistPending: number[];
 }
 
-export type GoalPeriod = 'week' | 'month';
+/** quarter = 3 months from periodStart (any day). */
+export type GoalPeriod = 'week' | 'month' | 'quarter';
 
 export interface PGoal {
   id: number;
@@ -233,8 +234,21 @@ export const hhmm = (m: number) =>
 export const durationLabel = (m: number) =>
   m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
 
+/** Last day of a goal's period. */
+export function goalEnd(g: Pick<PGoal, 'period' | 'periodStart'>): string {
+  if (g.period === 'week') return addDays(g.periodStart, 6);
+  if (g.period === 'month') return addDays(addMonths(g.periodStart, 1), -1);
+  const d = parseKey(g.periodStart);
+  d.setUTCMonth(d.getUTCMonth() + 3);
+  return addDays(toKey(d), -1);
+}
+
 export function goalPeriodLabel(g: Pick<PGoal, 'period' | 'periodStart'>): string {
   if (g.period === 'month') return monthTitle(g.periodStart);
+  if (g.period === 'quarter') {
+    const end = goalEnd(g);
+    return `3 months · ${dayMonth(g.periodStart)} ${g.periodStart.slice(0, 4)} – ${dayMonth(end)} ${end.slice(0, 4)}`;
+  }
   return `Week ${weekNumber(g.periodStart)} · ${dayMonth(g.periodStart)}–${dayMonth(addDays(g.periodStart, 6))}`;
 }
 

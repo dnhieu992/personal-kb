@@ -11,6 +11,7 @@ import {
   PNote,
   addDays,
   addMonths,
+  goalEnd,
   goalPeriodLabel,
   otherArea,
   AREA_LABEL,
@@ -51,9 +52,7 @@ export function GoalsView({ area }: { area: Area }) {
 
   useEffect(() => setSelected(null), [area]);
 
-  const week = startOfWeek(today);
-  const month = startOfMonth(today);
-  const current = (goals ?? []).filter((g) => !g.done && (g.periodStart === week || g.periodStart === month || g.periodStart > today));
+  const current = (goals ?? []).filter((g) => !g.done && goalEnd(g) >= today);
   const earlierOpen = (goals ?? []).filter((g) => !g.done && !current.includes(g));
   const done = (goals ?? []).filter((g) => g.done);
   const groups = [
@@ -68,7 +67,7 @@ export function GoalsView({ area }: { area: Area }) {
         <Header
           eyebrow={<AreaBadge area={area} />}
           title="Goals"
-          subtitle="Weekly & monthly goals, broken into tasks"
+          subtitle="Weekly, monthly & 3-month goals, broken into tasks"
           right={
             <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
               + Goal
@@ -135,7 +134,12 @@ function NewGoalModal({ area, onClose, onCreated }: { area: Area; onClose: () =>
   const [period, setPeriod] = useState<GoalPeriod>('week');
   const [next, setNext] = useState(false);
   const [cat, setCat] = useState<number | null>(null);
-  const start = period === 'week' ? addDays(startOfWeek(today), next ? 7 : 0) : next ? addMonths(today, 1) : startOfMonth(today);
+  const start =
+    period === 'week'
+      ? addDays(startOfWeek(today), next ? 7 : 0)
+      : period === 'month'
+        ? next ? addMonths(today, 1) : startOfMonth(today)
+        : next ? addMonths(today, 1) : today; // quarter: 3 months from today, or from the 1st of next month
   const create = async () => {
     if (!title.trim()) return;
     const g = await run(api.planner.addGoal({ title: title.trim(), area, period, periodStart: start, categoryId: cat }));
@@ -153,12 +157,16 @@ function NewGoalModal({ area, onClose, onCreated }: { area: Area; onClose: () =>
           onKeyDown={(e) => e.key === 'Enter' && create()}
         />
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented value={period} onChange={setPeriod} options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />
+          <Segmented
+            value={period}
+            onChange={setPeriod}
+            options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }, { value: 'quarter', label: '3 months' }]}
+          />
           <Segmented
             value={next}
             onChange={setNext}
             options={[
-              { value: false, label: period === 'week' ? 'This week' : 'This month' },
+              { value: false, label: period === 'week' ? 'This week' : period === 'month' ? 'This month' : 'From today' },
               { value: true, label: period === 'week' ? 'Next week' : 'Next month' },
             ]}
           />
