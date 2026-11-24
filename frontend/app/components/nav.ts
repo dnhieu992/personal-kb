@@ -39,6 +39,7 @@ export const NAV: NavGroup[] = [
       { href: '/english/placement', label: 'Placement test', icon: 'target', keywords: 'test xếp lớp trình độ cefr ef set placement' },
       { href: '/english/journal', label: 'Journal', icon: 'pen', keywords: 'english diary nhật ký' },
       { href: '/english/review', label: 'Review', icon: 'cards', keywords: 'flashcards ôn tập srs' },
+      { href: '/english/games', label: 'Games', icon: 'gamepad', keywords: 'game trò chơi nối từ match vocabulary từ vựng' },
       { href: '/phrases', label: 'Phrases', icon: 'quote', keywords: 'telegram cụm từ' },
     ],
   },

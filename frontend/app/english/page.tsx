@@ -89,6 +89,9 @@ function CoursePage() {
             <Link href="/english/journal" className="btn btn-secondary">
               <Icon name="pen" /> Nhật ký
             </Link>
+            <Link href="/english/games" className="btn btn-secondary">
+              <Icon name="gamepad" /> Game
+            </Link>
           </>
         }
       />

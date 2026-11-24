@@ -12,13 +12,13 @@ One sidebar, grouped by job (`app/components/nav.ts` — the sidebar and ⌘K bo
 | —         | Home (today across planner, English and knowledge) |
 | Plan      | Planner · Daily plan · Lists |
 | Knowledge | Entries · Projects · Ask AI |
-| English   | Course · Journal · Review · Phrases |
+| English   | Course · Placement test · Journal · Review · Games · Phrases |
 
 - **Desktop:** 240px sidebar, collapsible to a 60px icon rail (remembered). App pages with their
   own sidebar (`/planner`) start as a rail.
 - **Mobile:** top bar + drawer. No horizontal scrolling.
 - **⌘K / Ctrl+K** palette everywhere: go to a page, create things, or semantic-search knowledge
-  (`/knowledge?q=`). Page shortcuts: Planner `N` `/` `B` `Esc`; Review `Space` `1` `2`; lesson practice `Enter` (check / next), `1`–`4` (choice).
+  (`/knowledge?q=`). Page shortcuts: Planner `N` `/` `B` `Esc`; Review `Space` `1` `2`; lesson practice `Enter` (check / next), `1`–`4` (choice); match game `1`–`9` (left) `A`–`J` (right) `Esc`.
 
 ## Tokens (`app/globals.css` → `tailwind.config.ts`)
 

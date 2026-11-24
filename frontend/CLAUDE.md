@@ -13,6 +13,7 @@ app/
 ├── plan/                     # daily planner + plan/lists (long-term todo lists)
 ├── planner/                  # web port of the Planner Mac app (full-width client app)
 ├── english/                  # English for IT course (page.tsx), placement test, lesson/[id] (theory · vocab · practice / quick check), journal, review (weak points from your mistakes → focus page + auto-graded tests via `review/runner.tsx`, which reuses the lesson `ExerciseView`; saved words tested as multiple choice)
+│                             # english/games: hub + games/match ("Nối từ"): content in match/data.ts (6 worlds × 22 pairs, traps = common mistakes), levels/scoring/localStorage progress in match/engine.ts, play UI in match/game.tsx
 ├── diary/, tech-notes/       # thin pages over components/notebook/Notebook.tsx: split Markdown editor | live preview (full height), History dialog (by day, search, edit, delete), draft in localStorage; each has its own API store (api.diary / api.techNotes)
 ├── chat/page.tsx             # RAG chat UI
 ├── design/page.tsx           # living style guide (tokens + components)

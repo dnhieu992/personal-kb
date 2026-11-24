@@ -61,10 +61,14 @@ const config: Config = {
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
         'pop-in': { from: { opacity: '0', transform: 'translateY(-4px) scale(.98)' }, to: { opacity: '1', transform: 'none' } },
+        shake: { '0%,100%': { transform: 'none' }, '20%,60%': { transform: 'translateX(-5px)' }, '40%,80%': { transform: 'translateX(5px)' } },
+        'match-out': { '0%': { transform: 'scale(1)' }, '40%': { transform: 'scale(1.04)' }, '100%': { transform: 'scale(1)' } },
       },
       animation: {
         'fade-in': 'fade-in 120ms ease-out',
         'pop-in': 'pop-in 140ms ease-out',
+        shake: 'shake 360ms ease-in-out',
+        'match-out': 'match-out 300ms ease-out',
       },
     },
   },
