@@ -375,6 +375,8 @@ function noteStore(base: string) {
 }
 
 export const api = {
+  /** URL of English speech (audio/wav) for `text` — played by lib/speech. */
+  ttsUrl: (text: string, rate = 1) => `${API}/tts?rate=${rate}&text=${encodeURIComponent(text.trim())}`,
   stats: () => request<Stats>('/knowledge/stats'),
 
   list: (params?: { type?: string; tag?: string; projectId?: string }) => {

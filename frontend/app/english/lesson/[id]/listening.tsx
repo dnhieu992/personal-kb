@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ListeningInfo, ListeningTask, SummaryGrade } from '../../../lib/api';
 import { Icon } from '../../../components/icons';
 import { Alert, cx, Loading } from '../../../components/ui';
+import { playSpeech, prefetchSpeech, stopSpeech } from '../../../lib/speech';
 
 /**
- * The lesson's listening task: hear a passage (browser voice, text hidden),
+ * The lesson's listening task: hear a passage (server voice via lib/speech, text hidden),
  * answer comprehension questions, then summarise it in English — the AI checks
  * which key ideas the summary covers; ≥ passScore % passes.
  */
@@ -479,14 +480,6 @@ function splitSentences(text: string): string[] {
 
 const RATES = [0.7, 0.8, 0.9, 1, 1.1];
 
-function pickVoice(): SpeechSynthesisVoice | undefined {
-  const voices = window.speechSynthesis.getVoices();
-  return (
-    voices.find((v) => v.lang === 'en-US' && /natural|google|samantha/i.test(v.name)) ??
-    voices.find((v) => v.lang === 'en-US')
-  );
-}
-
 interface PassagePlayer {
   supported: boolean;
   sentences: string[];
@@ -510,29 +503,23 @@ function usePassagePlayer(passage: string): PassagePlayer {
   // Bumped on every start/stop so callbacks of a cancelled utterance do nothing.
   const run = useRef(0);
   const rateRef = useRef(rate);
-  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const supported = typeof window !== 'undefined';
 
   const say = useCallback((text: string, token: number, onDone: () => void) => {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US';
-    u.rate = rateRef.current;
-    const voice = pickVoice();
-    if (voice) u.voice = voice;
-    u.onend = () => token === run.current && onDone();
-    u.onerror = () => token === run.current && onDone();
-    window.speechSynthesis.speak(u);
+    playSpeech(text, rateRef.current, () => token === run.current && onDone());
   }, []);
 
   const play = useCallback(
     (from?: number) => {
       if (!supported || !sentences.length) return;
-      window.speechSynthesis.cancel();
+      stopSpeech();
       const token = ++run.current;
       let i = Math.min(from ?? 0, sentences.length - 1);
       if (i === 0) setPlays((p) => p + 1);
       setPlaying(true);
       const next = () => {
         setIndex(i);
+        if (i + 1 < sentences.length) prefetchSpeech(sentences[i + 1], rateRef.current);
         say(sentences[i], token, () => {
           i += 1;
           if (i < sentences.length) {
@@ -551,7 +538,7 @@ function usePassagePlayer(passage: string): PassagePlayer {
 
   const pause = useCallback(() => {
     run.current++;
-    if (supported) window.speechSynthesis.cancel();
+    stopSpeech();
     setPlaying(false);
   }, [supported]);
 
@@ -563,7 +550,7 @@ function usePassagePlayer(passage: string): PassagePlayer {
   const playOne = useCallback(
     (text: string) => {
       if (!supported) return;
-      window.speechSynthesis.cancel();
+      stopSpeech();
       const token = ++run.current;
       setPlaying(false);
       say(text, token, () => {});
@@ -579,7 +566,7 @@ function usePassagePlayer(passage: string): PassagePlayer {
   useEffect(
     () => () => {
       run.current++;
-      if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
+      stopSpeech();
     },
     [],
   );

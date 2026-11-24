@@ -12,6 +12,7 @@ import {
   PlacementTest,
 } from '../../lib/api';
 import { shuffle, speak } from '../../lib/course';
+import { stopSpeech } from '../../lib/speech';
 import { Icon } from '../../components/icons';
 import { Alert, cx, Loading, PageHeader, ProgressBar } from '../../components/ui';
 
@@ -269,7 +270,7 @@ function Question({
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  useEffect(() => () => stopSpeech(), []);
 
   return (
     <div className="card p-5 sm:p-6">

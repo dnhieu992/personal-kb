@@ -15,6 +15,7 @@ NestJS + TypeORM API for the knowledge base. Entry point `src/main.ts`, root mod
 | `course` | `src/course/` | "English for IT" course at `/english` (tables `course_unit`, `course_lesson`, `course_attempt`): CEFR levels A2–C1 → 12 units × 5 lessons + a unit review each (`course.types.ts` `UNITS_PER_LEVEL`/`LESSONS_PER_UNIT`; older smaller levels are topped up with extra units on the next generate run). Learner goal in `course_goal` (single row: start/target level, lessons per week) → `GET /course/journey` (% over the whole path, pace, streak, ETA; unwritten levels count at planned size). Content is AI-written **once and stored** (`CourseGeneratorService`, background, resumable); lessons unlock in order when the previous one's practice scores ≥ 70%; first pass files the lesson's vocab as review cards via `EnglishCoachService.collect`. Built on a reference syllabus (`syllabus.ts`: British Council – EAQUALS Core Inventory points per level) and a placement test (`placement-bank.ts`, `course_placement`) that sets the default level and marks lessons mastered/weak. |
 | `diary` | `src/diary/` | Plain personal diary (`/diary`, table `diary_entry`): Markdown content + `createdAt` (when written), CRUD, newest first. No AI. Stamps are set in the service, not by MySQL defaults (VPS MySQL is +07, the container reads DATETIME as UTC). |
 | `tech-note` | `src/tech-note/` | Technical notes (`/tech-notes`, table `tech_note`): same shape as `diary`, deliberately a separate module/table so it can grow on its own. `POST /tech-notes/english/check` proofreads a draft (Sonnet via `EnglishCheckService`; code/links/images swapped for ⟦n⟧ placeholders so they come back untouched) → changes + suggested cards; `POST /tech-notes/english/cards` files the chosen ones through `EnglishCoachService.collect` (sourceId = note id, or `tech-notes` for an unsaved draft). |
+| `tts` | `src/tts/` | `GET /tts?text=&rate=` → audio/wav from **Piper** (offline neural TTS, binary + `en_US-lessac-medium` voice baked into the image at `/opt/piper` by the Dockerfile). Cached on disk by hash in `.cache/tts` (model_cache volume), one synthesis at a time. All course audio uses it (`frontend/app/lib/speech.ts`); browser Web Speech is only the fallback because Chrome on macOS can hang silently. |
 | `planner` | `src/planner/` | Web port of the "Planner" Mac app (`/planner/*`, tables `planner_*`, independent of `task`): Work/Personal areas, categories, todo tasks (backlog/today/week/month, Kanban), checklist, links, recurrence, goals, notes + day notes, stats, English auto-correct log. Reminders go to Telegram (cron every minute). |
 
 ## Conventions
@@ -65,12 +66,12 @@ npm run build       # → dist/
   one is gradable; grading happens in the browser (`frontend/app/lib/course.ts`) and the run's
   score is posted to `/course/lessons/:id/attempts`. Progress lives on `course_lesson`
   (single learner). Lessons stuck GENERATING after a restart are reset to PENDING on boot.
-- **Skill exercises**: besides mcq/gap/order/match/fix, lessons have `listen` (browser TTS of
+- **Skill exercises**: besides mcq/gap/order/match/fix, lessons have `listen` (server TTS of
   `passage`; dictation or choice), `read` (passage + question) and `write` (AI-graded via
   `POST /course/lessons/:id/grade`, Haiku). Lessons with `skillsVersion < SKILLS_VERSION` get these
   appended by the next generate run (`CourseAiService.generateSkills`), and their unit review is redrawn.
 - **Listening tasks** (`ListeningService`, table `course_listening`, one per taught lesson): a spoken passage
-  (browser TTS, text hidden) + MCQ questions + key ideas. Written by `CourseAiService.generateListening` on first
+  (server TTS per sentence, text hidden) + MCQ questions + key ideas. Written by `CourseAiService.generateListening` on first
   open (`POST /course/lessons/:id/listening/generate`, background, ~1 min; GENERATING rows → FAILED on boot). Length
   grows with the lesson's place in the level (`listeningTarget`: A2 100–180 → C1 380–500 words). The learner's
   English summary is graded by `gradeSummary` (Sonnet) per key idea (covered 1 / partial ½ / missing 0) →

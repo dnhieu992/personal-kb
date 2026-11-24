@@ -16,6 +16,7 @@ import { ProjectModule } from './project/project.module';
 import { StorageModule } from './storage/storage.module';
 import { TaskModule } from './task/task.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { TtsModule } from './tts/tts.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { TelegramModule } from './telegram/telegram.module';
     TechNoteModule,
     CourseModule,
     GameModule,
+    TtsModule,
   ],
 })
 export class AppModule {}

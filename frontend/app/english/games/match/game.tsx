@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { speak } from '../../../lib/course';
+import { stopSpeech } from '../../../lib/speech';
 import { Icon } from '../../../components/icons';
 import { cx } from '../../../components/ui';
 import { pairByKey, spoken } from './data';
@@ -105,7 +106,7 @@ export function MatchGame({
     return () => clearInterval(t);
   }, [def.timer, finish]);
 
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  useEffect(() => () => stopSpeech(), []);
 
   const evaluate = useCallback(
     (lId: string, rId: string) => {

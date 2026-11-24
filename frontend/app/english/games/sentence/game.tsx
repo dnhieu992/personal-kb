@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { speak } from '../../../lib/course';
+import { stopSpeech } from '../../../lib/speech';
 import { Icon } from '../../../components/icons';
 import { cx } from '../../../components/ui';
 import { comboMultiplier, starsFor } from '../progress';
@@ -112,7 +113,7 @@ export function SentenceGame({
     return () => clearInterval(t);
   }, [total, status, finish]);
 
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  useEffect(() => () => stopSpeech(), []);
 
   const place = useCallback(
     (chip: Chip) => {

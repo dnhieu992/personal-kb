@@ -1,4 +1,5 @@
 import type { Exercise, WritingGrade } from './api';
+import { playSpeech } from './speech';
 
 /** Compare typed English loosely: case, spacing, curly quotes and end punctuation don't count. */
 export function normalise(s: string): string {
@@ -99,16 +100,7 @@ export function shuffle<T>(items: T[]): T[] {
   return out;
 }
 
-/** Read English aloud with the browser's voice (no-op where unsupported). */
+/** Read English aloud (server voice, browser voice as fallback — see lib/speech). */
 export function speak(text: string, rate = 0.95) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US';
-  u.rate = rate;
-  const voice = window.speechSynthesis
-    .getVoices()
-    .find((v) => v.lang === 'en-US' && /natural|google|samantha/i.test(v.name));
-  if (voice) u.voice = voice;
-  window.speechSynthesis.speak(u);
+  playSpeech(text, rate);
 }
