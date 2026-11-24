@@ -1,5 +1,5 @@
 import { shuffle } from '../../../lib/course';
-import { loadStore, Progress, recordRound as recordStore, RoundRecord, saveStore } from '../progress';
+import { loadStore, Progress, recordRound as recordStore, RoundRecord, saveStore, syncStore } from '../progress';
 import { Sentence, sentenceByKey, sentenceKey, WORLDS } from './data';
 
 /**
@@ -159,12 +159,20 @@ export const basePoints = (words: number) => 50 + words * 10;
 const STORE = 'kb.game.sentence.v1';
 export const loadProgress = (): Progress => loadStore(STORE);
 export const saveProgress = (p: Progress) => saveStore(STORE, p);
+export const syncProgress = (): Promise<Progress> => syncStore(STORE);
 export const recordRound = (p: Progress, r: RoundRecord) => recordStore(p, r);
 
+const bossDone = (p: Progress, w: number) => w >= 0 && (p.levels[levelDef(w, LEVELS_PER_WORLD - 1).id]?.stars ?? 0) > 0;
+
+/**
+ * A world opens after the boss of either of the two worlds before it. Worlds
+ * come in pairs (grammar topic, then the same grammar at work), so each track
+ * can be played on its own and progress from before the work worlds were
+ * added stays open.
+ */
 export function isUnlocked(p: Progress, w: number, index: number): boolean {
   if (index > 0) return (p.levels[levelDef(w, index - 1).id]?.stars ?? 0) > 0;
-  if (w === 0) return true;
-  return (p.levels[levelDef(w - 1, LEVELS_PER_WORLD - 1).id]?.stars ?? 0) > 0;
+  return w === 0 || bossDone(p, w - 1) || bossDone(p, w - 2);
 }
 
 export function worldStars(p: Progress, w: number): number {

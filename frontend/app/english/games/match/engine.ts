@@ -1,6 +1,6 @@
 import { shuffle } from '../../../lib/course';
 import { Kind, pairByKey, pairKey, Pair, WORLDS } from './data';
-import { loadStore, Progress, recordRound as recordStore, RoundRecord, saveStore } from '../progress';
+import { loadStore, Progress, recordRound as recordStore, RoundRecord, saveStore, syncStore } from '../progress';
 
 /**
  * Level rules for the match game. Each world has 4 learning levels that take
@@ -136,6 +136,7 @@ export type { Progress } from '../progress';
 const STORE = 'kb.game.match.v1';
 export const loadProgress = (): Progress => loadStore(STORE);
 export const saveProgress = (p: Progress) => saveStore(STORE, p);
+export const syncProgress = (): Promise<Progress> => syncStore(STORE);
 
 export interface RoundResult extends Omit<RoundRecord, 'levelId'> {
   def: LevelDef;

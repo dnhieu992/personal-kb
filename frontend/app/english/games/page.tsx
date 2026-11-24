@@ -11,7 +11,7 @@ import * as sentence from './sentence/engine';
 import { Progress } from './progress';
 import { IconName } from '../../components/icons';
 
-/** English games hub. Each game teaches through play; progress lives in this browser. */
+/** English games hub. Each game teaches through play; progress is saved to the server, so it follows you across browsers. */
 interface GameCard {
   href: string;
   icon: IconName;
@@ -20,6 +20,7 @@ interface GameCard {
   desc: string;
   max: number;
   load: () => Progress;
+  sync: () => Promise<Progress>;
   stars: (p: Progress) => number;
   mistakes: (p: Progress) => number;
 }
@@ -33,6 +34,7 @@ const GAMES: GameCard[] = [
     desc: 'Đọc nghĩa tiếng Việt, chọn từng từ theo đúng thứ tự để thành câu tiếng Anh đúng ngữ pháp. Càng lên câu càng dài, bớt gợi ý, có từ bẫy và đồng hồ.',
     max: SENTENCE_WORLDS.length * sentence.LEVELS_PER_WORLD * 3,
     load: sentence.loadProgress,
+    sync: sentence.syncProgress,
     stars: (p) => SENTENCE_WORLDS.reduce((a, _, w) => a + sentence.worldStars(p, w), 0),
     mistakes: (p) => sentence.mistakeKeys(p).length,
   },
@@ -44,15 +46,21 @@ const GAMES: GameCard[] = [
     desc: 'Ghép từ với nghĩa, động từ với danh từ, nửa câu với nửa câu. Có thẻ bẫy là lỗi người Việt hay mắc.',
     max: MATCH_WORLDS.length * match.LEVELS_PER_WORLD * 3,
     load: match.loadProgress,
+    sync: match.syncProgress,
     stars: (p) => MATCH_WORLDS.reduce((a, _, w) => a + match.worldStars(p, w), 0),
     mistakes: (p) => match.mistakeKeys(p).length,
   },
 ];
 
-/** English games hub. Each game teaches through play; progress lives in this browser. */
+/** English games hub. Each game teaches through play; progress is saved to the server, so it follows you across browsers. */
 export default function GamesPage() {
   const [progress, setProgress] = useState<Progress[] | null>(null);
-  useEffect(() => setProgress(GAMES.map((g) => g.load())), []);
+  useEffect(() => {
+    setProgress(GAMES.map((g) => g.load()));
+    Promise.all(GAMES.map((g) => g.sync()))
+      .then(setProgress)
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,12 @@
 /**
- * Progress shared by the English games, kept in this browser (localStorage).
- * Each game has its own store key; the shape is the same.
+ * Progress shared by the English games. Each game has its own store key; the
+ * shape is the same. localStorage is the instant copy, the backend
+ * (`/games/progress/:key`, MySQL) is the durable one so progress follows you
+ * to another browser: every save goes to both, and `syncStore` merges the two
+ * when a game page opens.
  */
+
+const API = process.env.NEXT_PUBLIC_API_URL || '/api-proxy';
 
 export interface Progress {
   levels: Record<string, { stars: number; best: number; plays: number }>;
@@ -11,9 +16,11 @@ export interface Progress {
   learned: Record<string, number>;
   streak: { last: string; days: number };
   sound: boolean;
+  /** When this copy was last saved (ms); decides which copy's mistakes/streak win a merge. */
+  savedAt?: number;
 }
 
-const empty = (): Progress => ({ levels: {}, mistakes: {}, learned: {}, streak: { last: '', days: 0 }, sound: true });
+const empty = (): Progress => ({ levels: {}, mistakes: {}, learned: {}, streak: { last: '', days: 0 }, sound: true, savedAt: 0 });
 
 export function loadStore(key: string): Progress {
   if (typeof window === 'undefined') return empty();
@@ -24,8 +31,51 @@ export function loadStore(key: string): Progress {
   }
 }
 
+function pushRemote(key: string, p: Progress) {
+  return fetch(`${API}/games/progress/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: p }),
+    keepalive: true,
+  }).then((r) => r.ok);
+}
+
 export function saveStore(key: string, p: Progress) {
-  localStorage.setItem(key, JSON.stringify(p));
+  const stamped = { ...p, savedAt: Date.now() };
+  localStorage.setItem(key, JSON.stringify(stamped));
+  pushRemote(key, stamped).catch(() => {
+    /* offline: the next sync uploads it */
+  });
+}
+
+/**
+ * Combine two copies. Level records and learned counts only grow, so take the
+ * best of both; mistakes, streak and sound come from the newer copy (a mistake
+ * you fixed must not come back from an older copy).
+ */
+export function mergeProgress(a: Progress, b: Progress): Progress {
+  const [older, newer] = (a.savedAt ?? 0) > (b.savedAt ?? 0) ? [b, a] : [a, b];
+  const levels = { ...older.levels };
+  for (const [id, r] of Object.entries(newer.levels)) {
+    const o = levels[id];
+    levels[id] = o ? { stars: Math.max(o.stars, r.stars), best: Math.max(o.best, r.best), plays: Math.max(o.plays, r.plays) } : r;
+  }
+  const learned = { ...older.learned };
+  for (const [k, n] of Object.entries(newer.learned)) learned[k] = Math.max(learned[k] || 0, n);
+  return { ...newer, levels, learned, savedAt: Math.max(a.savedAt ?? 0, b.savedAt ?? 0) };
+}
+
+/** Pull the server copy, merge it with this browser's, store the result in both. */
+export async function syncStore(key: string): Promise<Progress> {
+  const local = loadStore(key);
+  const res = await fetch(`${API}/games/progress/${encodeURIComponent(key)}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`sync ${res.status}`);
+  const { data } = (await res.json()) as { data: Partial<Progress> | null };
+  const remote = data ? { ...empty(), ...data } : null;
+  const merged = remote ? mergeProgress(local, remote) : local;
+  localStorage.setItem(key, JSON.stringify(merged));
+  if (!remote || JSON.stringify(merged) !== JSON.stringify(remote)) await pushRemote(key, merged);
+  return merged;
 }
 
 const day = (offset = 0) => new Date(Date.now() - offset * 864e5).toLocaleDateString('sv');

@@ -16,6 +16,7 @@ import {
   recordRound,
   reviewDef,
   saveProgress,
+  syncProgress,
   worldStars,
 } from './engine';
 import { Full, GameOutcome, MatchGame, SpeakButton } from './game';
@@ -32,7 +33,13 @@ export default function MatchGamePage() {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [view, setView] = useState<View>({ kind: 'map' });
 
-  useEffect(() => setProgress(loadProgress()), []);
+  useEffect(() => {
+    setProgress(loadProgress());
+    // Pick up progress saved from another browser.
+    syncProgress()
+      .then(setProgress)
+      .catch(() => {});
+  }, []);
 
   const update = useCallback((p: Progress) => {
     setProgress(p);

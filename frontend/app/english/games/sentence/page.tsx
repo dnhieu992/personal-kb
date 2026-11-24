@@ -17,6 +17,7 @@ import {
   recordRound,
   reviewDef,
   saveProgress,
+  syncProgress,
   worldStars,
 } from './engine';
 import { SentenceGame, SentenceOutcome } from './game';
@@ -32,7 +33,13 @@ const MAX_STARS = WORLDS.length * LEVELS_PER_WORLD * 3;
 export default function SentenceGamePage() {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [view, setView] = useState<View>({ kind: 'map' });
-  useEffect(() => setProgress(loadProgress()), []);
+  useEffect(() => {
+    setProgress(loadProgress());
+    // Pick up progress saved from another browser.
+    syncProgress()
+      .then(setProgress)
+      .catch(() => {});
+  }, []);
 
   const update = useCallback((p: Progress) => {
     setProgress(p);
@@ -152,7 +159,7 @@ function WorldMap({ progress, onPlay }: { progress: Progress; onPlay: (d: LevelD
                     {!open && <Icon name="lock" className="h-3.5 w-3.5 text-fg-muted" />}
                   </div>
                   <h2 className="mt-1 text-[15px] font-semibold text-fg">{world.title}</h2>
-                  <p className="text-[13px] text-fg-muted">{open ? world.vi : `Qua màn trùm của thế giới ${w} để mở khoá.`}</p>
+                  <p className="text-[13px] text-fg-muted">{open ? world.vi : w > 1 ? `Qua màn trùm của thế giới ${w - 1} hoặc ${w} để mở khoá.` : `Qua màn trùm của thế giới ${w} để mở khoá.`}</p>
                 </div>
                 <div className="flex items-center gap-1 text-sm text-fg-muted">
                   <Icon name="star" className="h-4 w-4 fill-current text-warning" /> {worldStars(progress, w)}/{LEVELS_PER_WORLD * 3}

@@ -7,6 +7,7 @@ import { CourseModule } from './course/course.module';
 import { DiaryModule } from './diary/diary.module';
 import { TechNoteModule } from './tech-note/tech-note.module';
 import { EmbeddingModule } from './embedding/embedding.module';
+import { GameModule } from './game/game.module';
 import { EnglishModule } from './english/english.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { PhraseModule } from './phrase/phrase.module';
@@ -43,6 +44,7 @@ import { TelegramModule } from './telegram/telegram.module';
     DiaryModule,
     TechNoteModule,
     CourseModule,
+    GameModule,
   ],
 })
 export class AppModule {}
