@@ -107,3 +107,62 @@ export interface LessonSpec {
   /** Grammar points of the other lessons in the level, so this one stays in its lane. */
   otherGrammar: string[];
 }
+
+/** Share of a passage's key ideas a summary must cover to pass the listening task. */
+export const LISTENING_PASS_SCORE = 60;
+
+/** Passage length range (words) per level; it grows across the level's lessons. */
+export const LISTENING_WORDS: Record<string, [number, number]> = {
+  A2: [100, 180],
+  B1: [180, 280],
+  B2: [280, 400],
+  C1: [380, 500],
+};
+
+/** Words the listening passage of the n-th lesson (0-based) of `total` in a level should have. */
+export function listeningTarget(level: string, n: number, total: number): number {
+  const [lo, hi] = LISTENING_WORDS[level] ?? [100, 180];
+  const t = total > 1 ? Math.min(1, Math.max(0, n / (total - 1))) : 0;
+  return Math.round((lo + (hi - lo) * t) / 10) * 10;
+}
+
+/** One comprehension question on the listening passage (multiple choice). */
+export interface ListeningQuestion {
+  question: string;
+  options: string[];
+  answer: string;
+  explanation: string;
+}
+
+/** One main idea of the passage: what a summary has to say. */
+export interface ListeningIdea {
+  idea: string;
+  /** Vietnamese, shown after grading. */
+  vi: string;
+}
+
+/** What the model writes for a listening task. */
+export interface ListeningContent {
+  title: string;
+  context: string;
+  passage: string;
+  translation: string;
+  questions: ListeningQuestion[];
+  ideas: ListeningIdea[];
+}
+
+/** How a summary covered one idea. */
+export interface IdeaVerdict {
+  index: number;
+  status: 'covered' | 'partial' | 'missing';
+  note: string;
+}
+
+export interface SummaryGrade {
+  score: number;
+  passed: boolean;
+  ideas: (IdeaVerdict & ListeningIdea)[];
+  feedback: string;
+  corrected: string;
+  ai: boolean;
+}

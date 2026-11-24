@@ -9,9 +9,10 @@ import { speak } from '../../../lib/course';
 import { Icon } from '../../../components/icons';
 import { Alert, cx, Loading, PageHeader } from '../../../components/ui';
 import { Practice } from './practice';
+import { Listening } from './listening';
 import { JourneyStrip } from '../../journey';
 
-type Tab = 'theory' | 'vocab' | 'practice';
+type Tab = 'theory' | 'vocab' | 'practice' | 'listening';
 
 export default function LessonPage({ params }: { params: { id: string } }) {
   const [data, setData] = useState<LessonDetail | null>(null);
@@ -138,6 +139,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
         { id: 'theory', label: '1. Kiến thức' },
         { id: 'vocab', label: '2. Từ vựng', count: lesson.vocab?.length },
         { id: 'practice', label: '3. Luyện tập', count: lesson.exercises?.length },
+        { id: 'listening', label: '4. Nghe hiểu' },
       ];
 
   return (
@@ -294,6 +296,8 @@ export default function LessonPage({ params }: { params: { id: string } }) {
           onReview={isReview ? undefined : () => setTab('theory')}
         />
       )}
+
+      {tab === 'listening' && !isReview && <Listening lessonId={lesson.id} />}
 
       <div className="mt-12 flex items-center justify-between border-t border-line pt-4 text-[13px]">
         {data.prevId ? (

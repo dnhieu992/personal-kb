@@ -517,6 +517,14 @@ export const api = {
       request<WritingGrade>(`/course/lessons/${id}/grade`, { method: 'POST', body: JSON.stringify({ index, text }) }),
     regenerate: (id: string) =>
       request<CourseLesson>(`/course/lessons/${id}/regenerate`, { method: 'POST' }),
+    listening: (id: string) => request<ListeningInfo>(`/course/lessons/${id}/listening`),
+    generateListening: (id: string) =>
+      request<ListeningInfo>(`/course/lessons/${id}/listening/generate`, { method: 'POST' }),
+    gradeListening: (id: string, text: string, questionsCorrect?: number) =>
+      request<SummaryGrade>(`/course/lessons/${id}/listening/grade`, {
+        method: 'POST',
+        body: JSON.stringify({ text, questionsCorrect }),
+      }),
     journey: () => request<Journey>('/course/journey'),
     weak: () => request<WeakOverview>('/course/review/weak'),
     dailyReview: () => request<{ items: ReviewItem[]; due: number }>('/course/review/daily'),
@@ -785,6 +793,59 @@ export interface Exercise {
   explanation: string;
   /** listen: what is read aloud (hidden until checked); read: the text. */
   passage?: string;
+}
+
+export interface ListeningQuestion {
+  question: string;
+  options: string[];
+  answer: string;
+  explanation: string;
+}
+
+export interface ListeningIdea {
+  idea: string;
+  vi: string;
+}
+
+/** A lesson's listening task: passage read aloud, questions, summary graded on key ideas. */
+export interface ListeningTask {
+  id: string;
+  lessonId: string;
+  level: CourseLevel;
+  status: 'GENERATING' | 'READY' | 'FAILED';
+  error: string | null;
+  targetWords: number;
+  title: string | null;
+  context: string | null;
+  passage: string | null;
+  translation: string | null;
+  wordCount: number;
+  questions: ListeningQuestion[] | null;
+  ideas: ListeningIdea[] | null;
+  bestScore: number | null;
+  passedAt: string | null;
+  attemptCount: number;
+  lastSummary: string | null;
+  lastGrade: SummaryGrade | null;
+}
+
+export interface ListeningInfo {
+  /** null = not written yet. */
+  task: ListeningTask | null;
+  targetWords: number;
+  passScore: number;
+  minSummaryWords: number;
+  enabled: boolean;
+}
+
+export interface SummaryGrade {
+  score: number;
+  passed: boolean;
+  ideas: (ListeningIdea & { index: number; status: 'covered' | 'partial' | 'missing'; note: string })[];
+  feedback: string;
+  corrected: string;
+  ai: boolean;
+  bestScore?: number;
 }
 
 export interface WritingGrade {

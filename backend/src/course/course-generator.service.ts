@@ -217,7 +217,7 @@ export class CourseGeneratorService implements OnModuleInit {
     await this.lessons.update(id, { status: LessonStatus.FAILED, error: lastError.slice(0, 1000) });
   }
 
-  private specOf(lesson: CourseLesson, unit: CourseUnit | null, siblings: CourseLesson[]): LessonSpec {
+  specOf(lesson: CourseLesson, unit: CourseUnit | null, siblings: CourseLesson[]): LessonSpec {
     return {
       level: lesson.level,
       unitTitle: unit?.title ?? '',

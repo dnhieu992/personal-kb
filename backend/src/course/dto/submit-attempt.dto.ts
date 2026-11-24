@@ -35,3 +35,17 @@ export class GradeWritingDto {
   @MaxLength(1000)
   text: string;
 }
+
+export class GradeSummaryDto {
+  @ApiProperty({ description: 'The learner’s summary of the listening passage (English)' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
+  text: string;
+
+  @ApiPropertyOptional({ description: 'Comprehension questions answered right (kept with the grade)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  questionsCorrect?: number;
+}

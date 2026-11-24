@@ -10,6 +10,9 @@ import {
   LessonSpec,
   LESSONS_PER_UNIT,
   LevelOutline,
+  IdeaVerdict,
+  ListeningContent,
+  ListeningIdea,
   UNITS_PER_LEVEL,
 } from '../course/course.types';
 
@@ -87,6 +90,29 @@ const GRADE_SCHEMA = obj({
   feedback: str,
   corrected: str,
 });
+
+const LISTENING_SCHEMA = obj({
+  title: str,
+  context: str,
+  passage: str,
+  translation: str,
+  questions: { type: 'array', items: obj({ question: str, options: strList, answer: str, explanation: str }) },
+  ideas: { type: 'array', items: obj({ idea: str, vi: str }) },
+});
+
+const SUMMARY_SCHEMA = obj({
+  ideas: {
+    type: 'array',
+    items: obj({ index: { type: 'integer' }, status: { type: 'string', enum: ['covered', 'partial', 'missing'] }, note: str }),
+  },
+  feedback: str,
+  corrected: str,
+});
+
+/** Judging which ideas a summary covers needs care (paraphrase, partial credit): a mid-size model. */
+const SUMMARY_MODEL = 'claude-sonnet-5-5';
+
+const wordsIn = (s: string) => (s.match(/[A-Za-z0-9'’-]+/g) ?? []).length;
 
 /** Grading one written answer is quick and frequent: a small model is plenty. */
 const GRADE_MODEL = 'claude-haiku-5-5';
@@ -324,6 +350,103 @@ export class CourseAiService {
       feedback: data.feedback ?? '',
       corrected: data.corrected ?? '',
     };
+  }
+
+  /**
+   * A listening task for a lesson: a spoken passage of about `words` words,
+   * comprehension questions and the key ideas a summary is graded against.
+   */
+  async generateListening(spec: LessonSpec, vocab: string[], words: number): Promise<ListeningContent> {
+    const questions = Math.min(8, 4 + Math.floor((words - 100) / 100));
+    const ideas = Math.min(9, 4 + Math.round(words / 100));
+    const system =
+      'You write listening practice for "English for IT", a self-study course. ' +
+      AUDIENCE +
+      ' Their listening is weak, so the text must be clear, natural spoken English at CEFR ' +
+      spec.level +
+      ' (vocabulary and sentence length at that level; at A2/B1 keep sentences short).\n\n' +
+      'Write ONE listening task tied to the lesson described by the user.\n' +
+      `- passage: about ${words} words (stay within ±10%). ONE speaker talking (the app reads it aloud with a single ` +
+      'browser voice): e.g. a stand-up update, a team lead briefing, an onboarding talk, a voicemail, an incident ' +
+      'debrief, a short tech talk, a demo walkthrough. Spoken style (contractions, signposting like "first", "so", ' +
+      '"the main thing is"), no speaker labels, no headings, no bullet points, no markdown, no URLs or code. ' +
+      'Write numbers, versions and times the way they are said aloud ("version two point three", "half past ten"). ' +
+      'Paragraphs separated by a blank line. Use the lesson\'s grammar point naturally several times and some of its ' +
+      'vocabulary. It must have a clear structure and distinct main points, so it can be summarised.\n' +
+      '- title: short English title. context: one Vietnamese sentence saying who is speaking, to whom and why ' +
+      '(shown before listening; must not give away the answers).\n' +
+      '- translation: a natural Vietnamese translation of the passage, same paragraphs.\n' +
+      `- questions: exactly ${questions} multiple-choice questions in English, in the order the information appears: ` +
+      'gist first, then details (who/what/when/why/numbers), and at least one inference. options = exactly 4 plausible ' +
+      'options of similar length; answer = the correct option copied exactly; the answer must come from listening, not ' +
+      'common sense. explanation = 1–2 Vietnamese sentences quoting what the speaker said.\n' +
+      `- ideas: the ${ideas} main ideas of the passage, in order, together covering everything a good summary should ` +
+      'say (not tiny details). idea = one short English sentence; vi = its Vietnamese meaning.\n' +
+      'Double-check every answer key against the passage.';
+    const user =
+      `Unit: ${spec.unitTitle} — ${spec.unitSummary}\nLesson: ${spec.title}\nGrammar point: ${spec.grammar}\n` +
+      `Vocabulary theme: ${spec.vocabTheme}\nLesson vocabulary: ${vocab.join(', ')}\nObjective: ${spec.objective}`;
+    const raw = await this.call<ListeningContent>(system, user, LISTENING_SCHEMA, 'medium');
+    const passage = String(raw.passage ?? '').trim();
+    const count = wordsIn(passage);
+    if (count < words * 0.6) throw new Error(`passage too short (${count} words, wanted ${words})`);
+    const qs = (raw.questions ?? [])
+      .map((q) => ({
+        question: String(q.question ?? '').trim(),
+        options: (q.options ?? []).map((o) => String(o ?? '').trim()).filter(Boolean),
+        answer: String(q.answer ?? '').trim(),
+        explanation: String(q.explanation ?? '').trim(),
+      }))
+      .filter((q) => q.question && q.options.length >= 2 && q.options.includes(q.answer));
+    const keyIdeas = (raw.ideas ?? [])
+      .map((i) => ({ idea: String(i.idea ?? '').trim(), vi: String(i.vi ?? '').trim() }))
+      .filter((i) => i.idea);
+    if (qs.length < 3) throw new Error(`only ${qs.length} valid questions`);
+    if (keyIdeas.length < 3) throw new Error(`only ${keyIdeas.length} key ideas`);
+    return {
+      title: String(raw.title ?? '').trim() || spec.title,
+      context: String(raw.context ?? '').trim(),
+      passage,
+      translation: String(raw.translation ?? '').trim(),
+      questions: qs,
+      ideas: keyIdeas,
+    };
+  }
+
+  /** Which of the passage's key ideas a learner's summary covers. */
+  async gradeSummary(input: {
+    level: string;
+    passage: string;
+    ideas: ListeningIdea[];
+    summary: string;
+  }): Promise<{ ideas: IdeaVerdict[]; feedback: string; corrected: string }> {
+    const system =
+      'You grade summaries in "English for IT", a course for a Vietnamese software engineer at CEFR ' +
+      input.level +
+      ' whose listening is weak. They listened (audio only) to the passage below and wrote a summary from memory.\n' +
+      'For EACH key idea (by its 0-based index) decide: covered = the summary states it (any wording, paraphrase ' +
+      'or simpler words are fine); partial = only part of it, or vague but clearly about it; missing = absent or ' +
+      'wrong (contradicts the passage). Grade understanding, not language: grammar and spelling mistakes never ' +
+      'lower a verdict if the meaning is clear. Do not give credit for invented facts. note = a few Vietnamese ' +
+      'words on what was said or missed.\n' +
+      'feedback: 2–4 short Vietnamese sentences: what they understood well, the most important thing they missed or ' +
+      'got wrong, and one tip on the English of the summary. If the summary is not in English, still grade the ideas ' +
+      'but remind them to write in English.\n' +
+      'corrected: their summary rewritten in correct, natural English, keeping their ideas and changing as little as ' +
+      'possible (do not add missing ideas).';
+    const user =
+      `Passage:\n${input.passage}\n\nKey ideas:\n` +
+      input.ideas.map((i, n) => `${n}. ${i.idea}`).join('\n') +
+      `\n\nLearner's summary:\n${input.summary}`;
+    const { data } = await this.claude.ask<{ ideas: IdeaVerdict[]; feedback: string; corrected: string }>({
+      model: SUMMARY_MODEL,
+      system,
+      user,
+      schema: SUMMARY_SCHEMA,
+      timeoutMs: 120_000,
+    });
+    if (!data) throw new Error('no grade');
+    return { ideas: data.ideas ?? [], feedback: data.feedback ?? '', corrected: data.corrected ?? '' };
   }
 
   /** One structured-output call through headless Claude Code, parsed as JSON. */

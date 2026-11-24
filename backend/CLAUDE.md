@@ -69,6 +69,12 @@ npm run build       # → dist/
   `passage`; dictation or choice), `read` (passage + question) and `write` (AI-graded via
   `POST /course/lessons/:id/grade`, Haiku). Lessons with `skillsVersion < SKILLS_VERSION` get these
   appended by the next generate run (`CourseAiService.generateSkills`), and their unit review is redrawn.
+- **Listening tasks** (`ListeningService`, table `course_listening`, one per taught lesson): a spoken passage
+  (browser TTS, text hidden) + MCQ questions + key ideas. Written by `CourseAiService.generateListening` on first
+  open (`POST /course/lessons/:id/listening/generate`, background, ~1 min; GENERATING rows → FAILED on boot). Length
+  grows with the lesson's place in the level (`listeningTarget`: A2 100–180 → C1 380–500 words). The learner's
+  English summary is graded by `gradeSummary` (Sonnet) per key idea (covered 1 / partial ½ / missing 0) →
+  `POST .../listening/grade`; ≥ `LISTENING_PASS_SCORE` (60%) passes. Independent of the lesson's pass mark.
 - **Review on mistakes** (`CourseReviewService`, table `course_exercise_stat`, one row per lesson ×
   exercise index): every practice answer (sent with its `index`; unit-review answers are mapped back to
   the lesson they were copied from) updates seen/wrong/streak. Wrong → due now; then right answers push

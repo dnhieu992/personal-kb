@@ -7,7 +7,8 @@ import { SetGoalDto } from './dto/goal.dto';
 import { SubmitReviewDto } from './dto/review.dto';
 import { CourseReviewService } from './course-review.service';
 import { EfsetScoreDto, SubmitPlacementDto } from './dto/placement.dto';
-import { GradeWritingDto, SubmitAttemptDto } from './dto/submit-attempt.dto';
+import { GradeSummaryDto, GradeWritingDto, SubmitAttemptDto } from './dto/submit-attempt.dto';
+import { ListeningService } from './listening.service';
 import { PlacementService } from './placement.service';
 
 @ApiTags('course')
@@ -18,6 +19,7 @@ export class CourseController {
     private readonly generator: CourseGeneratorService,
     private readonly placement: PlacementService,
     private readonly review: CourseReviewService,
+    private readonly listening: ListeningService,
   ) {}
 
   @Get('review/weak')
@@ -120,6 +122,24 @@ export class CourseController {
   @ApiOperation({ summary: 'AI-grade the answer to one writing exercise of the lesson' })
   grade(@Param('id') id: string, @Body() dto: GradeWritingDto) {
     return this.service.gradeWriting(id, dto.index, dto.text);
+  }
+
+  @Get('lessons/:id/listening')
+  @ApiOperation({ summary: 'The lesson’s listening task (null task = not written yet) and its planned length' })
+  getListening(@Param('id') id: string) {
+    return this.listening.get(id);
+  }
+
+  @Post('lessons/:id/listening/generate')
+  @ApiOperation({ summary: 'Write (or rewrite) the lesson’s listening task with the AI (background, ~1 min)' })
+  generateListening(@Param('id') id: string) {
+    return this.listening.generate(id);
+  }
+
+  @Post('lessons/:id/listening/grade')
+  @ApiOperation({ summary: 'AI-grade a summary of the listening passage (≥ 60% of key ideas passes)' })
+  gradeListening(@Param('id') id: string, @Body() dto: GradeSummaryDto) {
+    return this.listening.grade(id, dto.text, dto.questionsCorrect);
   }
 
   @Post('lessons/:id/regenerate')
