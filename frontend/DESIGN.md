@@ -18,7 +18,7 @@ One sidebar, grouped by job (`app/components/nav.ts` — the sidebar and ⌘K bo
   own sidebar (`/planner`) start as a rail.
 - **Mobile:** top bar + drawer. No horizontal scrolling.
 - **⌘K / Ctrl+K** palette everywhere: go to a page, create things, or semantic-search knowledge
-  (`/knowledge?q=`). Page shortcuts: Planner `N` `/` `B` `Esc`; Review `Space` `1` `2`; lesson practice `Enter` (check / next), `1`–`4` (choice); match game `1`–`9` (left) `A`–`J` (right) `Esc`.
+  (`/knowledge?q=`). Page shortcuts: Planner `N` `/` `B` `Esc`; Review `Space` `1` `2`; lesson practice `Enter` (check / next), `1`–`4` (choice); Nối từ `1`–`9` (word) `⌫` `Esc` `Enter`; Ghép cặp `1`–`9` (left) `A`–`J` (right) `Esc`.
 
 ## Tokens (`app/globals.css` → `tailwind.config.ts`)
 

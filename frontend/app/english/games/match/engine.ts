@@ -1,5 +1,6 @@
 import { shuffle } from '../../../lib/course';
 import { Kind, pairByKey, pairKey, Pair, WORLDS } from './data';
+import { loadStore, Progress, recordRound as recordStore, RoundRecord, saveStore } from '../progress';
 
 /**
  * Level rules for the match game. Each world has 4 learning levels that take
@@ -129,85 +130,18 @@ export function buildRound(def: LevelDef): Round {
 
 const firstWord = (s: string) => s.trim().split(/\s+/)[0].toLowerCase();
 
-/** Points for one correct match at the given combo (1 = first in a row). */
-export const comboMultiplier = (combo: number) => Math.min(3, 1 + 0.5 * (combo - 1));
-
-export function starsFor(mistakes: number): number {
-  return mistakes === 0 ? 3 : mistakes === 1 ? 2 : 1;
-}
-
-// ── progress (localStorage) ────────────────────────────────────────────────
-
-export interface Progress {
-  levels: Record<string, { stars: number; best: number; plays: number }>;
-  /** Pair key → times you picked a wrong answer for it (cleared by matching it first try in review). */
-  mistakes: Record<string, number>;
-  /** Pair key → times matched correctly. */
-  learned: Record<string, number>;
-  streak: { last: string; days: number };
-  sound: boolean;
-}
+export { comboMultiplier, starsFor } from '../progress';
+export type { Progress } from '../progress';
 
 const STORE = 'kb.game.match.v1';
-const empty = (): Progress => ({ levels: {}, mistakes: {}, learned: {}, streak: { last: '', days: 0 }, sound: true });
+export const loadProgress = (): Progress => loadStore(STORE);
+export const saveProgress = (p: Progress) => saveStore(STORE, p);
 
-export function loadProgress(): Progress {
-  if (typeof window === 'undefined') return empty();
-  try {
-    return { ...empty(), ...JSON.parse(localStorage.getItem(STORE) || '{}') };
-  } catch {
-    return empty();
-  }
-}
-
-export function saveProgress(p: Progress) {
-  localStorage.setItem(STORE, JSON.stringify(p));
-}
-
-const today = () => new Date().toLocaleDateString('sv');
-
-export interface RoundResult {
+export interface RoundResult extends Omit<RoundRecord, 'levelId'> {
   def: LevelDef;
-  won: boolean;
-  score: number;
-  stars: number;
-  /** Keys matched without any wrong attempt on their left card. */
-  clean: string[];
-  /** Keys that got a wrong attempt. */
-  missed: string[];
-  /** Keys matched (clean or not). */
-  matched: string[];
 }
 
-/** Fold a finished round into progress; returns the new progress and whether it's a new best. */
-export function recordRound(p: Progress, r: RoundResult): { progress: Progress; newBest: boolean } {
-  const next: Progress = { ...p, levels: { ...p.levels }, mistakes: { ...p.mistakes }, learned: { ...p.learned } };
-  for (const k of r.matched) next.learned[k] = (next.learned[k] || 0) + 1;
-  for (const k of r.missed) next.mistakes[k] = (next.mistakes[k] || 0) + 1;
-  // A clean match in review proves you fixed it; elsewhere it chips away at the count.
-  for (const k of r.clean) {
-    if (!next.mistakes[k]) continue;
-    const left = r.def.id === 'review' ? 0 : next.mistakes[k] - 1;
-    if (left > 0) next.mistakes[k] = left;
-    else delete next.mistakes[k];
-  }
-  let newBest = false;
-  if (r.def.id !== 'review') {
-    const prev = next.levels[r.def.id] || { stars: 0, best: 0, plays: 0 };
-    newBest = r.won && r.score > prev.best;
-    next.levels[r.def.id] = {
-      stars: r.won ? Math.max(prev.stars, r.stars) : prev.stars,
-      best: r.won ? Math.max(prev.best, r.score) : prev.best,
-      plays: prev.plays + 1,
-    };
-  }
-  const t = today();
-  if (next.streak.last !== t) {
-    const y = new Date(Date.now() - 864e5).toLocaleDateString('sv');
-    next.streak = { last: t, days: next.streak.last === y ? next.streak.days + 1 : 1 };
-  }
-  return { progress: next, newBest };
-}
+export const recordRound = (p: Progress, r: RoundResult) => recordStore(p, { ...r, levelId: r.def.id });
 
 export function isUnlocked(p: Progress, w: number, index: number): boolean {
   if (index > 0) return (p.levels[levelDef(w, index - 1).id]?.stars ?? 0) > 0;

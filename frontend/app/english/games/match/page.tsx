@@ -95,7 +95,7 @@ function WorldMap({ progress, onPlay }: { progress: Progress; onPlay: (d: LevelD
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Nối từ"
+        title="Ghép cặp"
         description="Ghép vế trái với vế phải. Mỗi cặp đúng hiện cả câu, nghĩa và cấu trúc. Đi từ từ vựng đến câu nâng cao, mỗi thế giới kết thúc bằng một màn trùm."
         back={{ href: '/english/games', label: 'Games' }}
         actions={
