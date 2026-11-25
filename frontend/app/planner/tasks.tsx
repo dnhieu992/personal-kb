@@ -4,13 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import {
   AREA_COLOR,
-  AREA_LABEL,
   Area,
   PTask,
   addDays,
   durationLabel,
   hhmm,
-  otherArea,
   relativeDay,
   startOfWeek,
 } from '../lib/planner';
@@ -145,9 +143,6 @@ function TaskMenu({ task, onClose }: { task: PTask; onClose: () => void }) {
           <span style={{ color: c.color }}>●</span> {c.name}
         </button>
       ))}
-      <button className={item} onClick={() => act(api.planner.updateTask(task.id, { area: otherArea(task.area) }))}>
-        Move to {AREA_LABEL[otherArea(task.area)]}
-      </button>
       <div className="my-1 border-t border-line" />
       <button
         className={cx(item, 'text-danger-text')}
