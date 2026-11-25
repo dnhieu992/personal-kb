@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../lib/api';
 import {
-  AREA_COLOR,
   AREA_ICON,
   AREA_LABEL,
   AREAS,
@@ -75,13 +74,9 @@ export function PriorityFlag({ p }: { p: number }) {
   );
 }
 
-export function AreaBadge({ area, className }: { area: Area; className?: string }) {
-  return (
-    <span className={cx('inline-flex items-center gap-1 font-semibold', className)} style={{ color: AREA_COLOR[area] }}>
-      <span className="text-[0.9em]">{AREA_ICON[area]}</span>
-      {AREA_LABEL[area]}
-    </span>
-  );
+export function AreaBadge(_: { area: Area; className?: string }) {
+  // Personal-only planner: no area label to show.
+  return null;
 }
 
 export function EmptyState({ icon, text, children }: { icon: string; text: string; children?: React.ReactNode }) {
@@ -194,13 +189,13 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 export function CategoryEditor() {
   const { categoryEditor: ed, closeCategoryEditor, run, go, meta } = usePlanner();
   const [name, setName] = useState('');
-  const [area, setArea] = useState<Area>('WORK');
+  const [area, setArea] = useState<Area>('PERSONAL');
   const [color, setColor] = useState(CATEGORY_PALETTE[0]);
 
   useEffect(() => {
     if (!ed) return;
     setName(ed.edit?.name ?? '');
-    setArea(ed.edit?.area ?? ed.area);
+    setArea('PERSONAL');
     setColor(ed.edit?.color ?? CATEGORY_PALETTE[(meta?.categories.length ?? 0) % CATEGORY_PALETTE.length]);
   }, [ed, meta?.categories.length]);
 
@@ -225,15 +220,11 @@ export function CategoryEditor() {
         <input
           autoFocus
           className="w-full input"
-          placeholder={area === 'WORK' ? 'Name (e.g. Backend, Meetings, Client A)' : 'Name (e.g. Trading, Health, Reading)'}
+          placeholder="Name (e.g. Trading, Health, Reading)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()}
         />
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-fg-muted">Area</span>
-          <AreaPicker value={area} onChange={setArea} />
-        </div>
         <div className="flex flex-wrap gap-2">
           {CATEGORY_PALETTE.map((c) => (
             <button

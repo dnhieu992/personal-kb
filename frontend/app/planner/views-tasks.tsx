@@ -470,7 +470,7 @@ function BoardView({ area, categoryId, right }: { area: Area; categoryId?: numbe
 
 export function OverdueView() {
   const { run, meta } = usePlanner();
-  const data = useTasks({ view: 'overdue' });
+  const data = useTasks({ view: 'overdue', area: 'PERSONAL' });
   const tasks = data?.tasks ?? [];
   return (
     <div className="flex flex-col gap-3">
@@ -478,10 +478,10 @@ export function OverdueView() {
         title="Overdue"
         subtitle={`${plural(tasks.length, 'unfinished task')} from earlier days`}
         right={
-          (meta?.overdue.total ?? 0) > 0 && (
+          (meta?.overdue.PERSONAL ?? 0) > 0 && (
             <button
               className="btn btn-primary btn-sm"
-              onClick={() => run(api.planner.moveOverdue())}
+              onClick={() => run(api.planner.moveOverdue('PERSONAL'))}
             >
               Move all to today
             </button>
@@ -491,7 +491,7 @@ export function OverdueView() {
       {data && !tasks.length ? (
         <EmptyState icon="🎉" text="Nothing overdue" />
       ) : (
-        <TaskListView groups={byDay(tasks, '', 'WORK').map((g) => ({ ...g, color: '#EF4444' }))} showArea pullToday />
+        <TaskListView groups={byDay(tasks, '', 'PERSONAL').map((g) => ({ ...g, color: '#EF4444' }))} pullToday />
       )}
     </div>
   );
@@ -547,7 +547,7 @@ export function CategoryTasksView({ id }: { id: number }) {
 }
 
 export function SearchResults({ q }: { q: string }) {
-  const data = useTasks({ view: 'search', q });
+  const data = useTasks({ view: 'search', q, area: 'PERSONAL' });
   const tasks = data?.tasks ?? [];
   return (
     <div className="flex flex-col gap-3">
@@ -557,7 +557,7 @@ export function SearchResults({ q }: { q: string }) {
       ) : (
         <div className="space-y-0.5">
           {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} showDate showArea />
+            <TaskRow key={t.id} task={t} showDate />
           ))}
         </div>
       )}

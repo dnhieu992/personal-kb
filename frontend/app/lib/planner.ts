@@ -6,6 +6,8 @@ export const AREAS: Area[] = ['WORK', 'PERSONAL'];
 export const AREA_LABEL: Record<Area, string> = { WORK: 'Work', PERSONAL: 'Personal' };
 export const AREA_COLOR: Record<Area, string> = { WORK: '#3B82F6', PERSONAL: '#22C55E' };
 export const AREA_ICON: Record<Area, string> = { WORK: '💼', PERSONAL: '👤' };
+/** The planner is personal-only now: the Work area is hidden from the UI (its old rows stay in the DB). */
+export const AREA: Area = 'PERSONAL';
 export const otherArea = (a: Area): Area => (a === 'WORK' ? 'PERSONAL' : 'WORK');
 
 export const CATEGORY_PALETTE = [

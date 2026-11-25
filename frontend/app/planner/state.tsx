@@ -76,7 +76,7 @@ function store(key: string, v: unknown) {
 export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const [meta, setMeta] = useState<PlannerMeta | null>(null);
   const [rev, setRev] = useState(0);
-  const [selection, setSelection] = useState<Selection>({ kind: 'tasks', area: 'WORK' });
+  const [selection, setSelection] = useState<Selection>({ kind: 'tasks', area: 'PERSONAL' });
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilterState] = useState<TaskFilter>('today');
@@ -90,7 +90,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setFilterState(stored('planner.filter', 'today'));
     setBoardState(stored('planner.board', false));
-    setSelection(stored('planner.selection', { kind: 'tasks', area: 'WORK' } as Selection));
+    const sel = stored('planner.selection', { kind: 'tasks', area: 'PERSONAL' } as Selection);
+    setSelection('area' in sel ? { ...sel, area: 'PERSONAL' } : sel);
     loaded.current = true;
   }, []);
 

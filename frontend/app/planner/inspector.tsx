@@ -19,7 +19,7 @@ import {
   weekdayOf,
 } from '../lib/planner';
 import { usePlanner } from './state';
-import { AreaPicker, CategoryPicker, CheckBox, EditableTitle, MarkdownField, Segmented, Spinner, cx } from './ui';
+import { CategoryPicker, CheckBox, EditableTitle, MarkdownField, Segmented, Spinner, cx } from './ui';
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240];
 
@@ -141,9 +141,6 @@ export function Inspector() {
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         <div className="space-y-1">
-          <Field label="Area">
-            <AreaPicker value={t.area} onChange={(a) => patch({ area: a })} />
-          </Field>
           <Field label="Category">
             <CategoryPicker area={t.area} value={t.categoryId} onChange={(c) => patch({ categoryId: c })} />
           </Field>

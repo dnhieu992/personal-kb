@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import {
   AREA_COLOR,
-  AREA_LABEL,
   AREAS,
   Area,
   GoalPeriod,
@@ -48,7 +47,7 @@ function Card({ title, value, color }: { title: string; value: string; color: st
 export function StatsView() {
   const { rev, today, category } = usePlanner();
   const [period, setPeriod] = useState<GoalPeriod>('week');
-  const [scope, setScope] = useState<Area | 'ALL'>('ALL');
+  const scope = 'PERSONAL' as Area | 'ALL';
   const [anchor, setAnchor] = useState(today);
   const [s, setS] = useState<StatsResponse | null>(null);
   const area = scope === 'ALL' ? undefined : scope;
@@ -90,11 +89,6 @@ export function StatsView() {
         subtitle={subtitle}
         right={
           <>
-            <Segmented
-              value={scope}
-              onChange={setScope}
-              options={[{ value: 'ALL' as const, label: 'All' }, ...AREAS.map((a) => ({ value: a, label: AREA_LABEL[a] }))]}
-            />
             <Segmented value={period} onChange={(p) => setPeriod(p)} options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />
             {!isCurrent && (
               <button className="rounded-md px-2 py-1 text-sm text-accent-text hover:bg-accent-soft" onClick={() => setAnchor(today)}>

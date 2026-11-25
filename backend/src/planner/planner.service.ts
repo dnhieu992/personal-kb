@@ -311,6 +311,7 @@ export class PlannerService {
           .orderBy('t.done', 'ASC')
           .addOrderBy('t.date', 'DESC')
           .take(200);
+        qb = this.withArea(qb, q.area);
         break;
       }
     }

@@ -13,7 +13,6 @@ import {
   addMonths,
   goalEnd,
   goalPeriodLabel,
-  otherArea,
   AREA_LABEL,
   relativeDay,
   shortDateTime,
@@ -25,7 +24,6 @@ import { AddTaskBar, TaskListView } from './tasks';
 import { Header } from './views-tasks';
 import {
   AreaBadge,
-  AreaPicker,
   CategoryPicker,
   CheckBox,
   EditableTitle,
@@ -416,7 +414,7 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-        {n.day ? <span className="text-xs text-fg-muted">📅 Day note · {n.day}</span> : <AreaPicker value={n.area} onChange={(a) => patch({ area: a })} />}
+        {n.day ? <span className="text-xs text-fg-muted">📅 Day note · {n.day}</span> : null}
         <CategoryPicker area={n.area} value={n.categoryId} onChange={(c) => patch({ categoryId: c })} />
         <span className="ml-auto text-xs text-fg-subtle">Edited {shortDateTime(n.updatedAt)}</span>
       </div>
@@ -446,18 +444,13 @@ function NoteEditor({ id, onDeleted }: { id: number; onDeleted: () => void }) {
           onClick={async () => {
             const t = await run(api.planner.noteToTask(n.id));
             if (t) {
-              go({ kind: 'tasks', area: n.area });
+              go({ kind: 'tasks', area: 'PERSONAL' });
               openTask(t.id);
             }
           }}
         >
           ☀️ Create task for today from this note
         </button>
-        {!n.day && (
-          <button className="text-fg-secondary hover:underline" onClick={() => patch({ area: otherArea(n.area) })}>
-            Move to {AREA_LABEL[otherArea(n.area)]}
-          </button>
-        )}
         <button
           className="ml-auto text-danger-text hover:underline"
           onClick={async () => {

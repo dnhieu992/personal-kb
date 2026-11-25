@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AREA_COLOR, AREA_LABEL, AREAS, Area, PCategory, otherArea } from '../lib/planner';
+import { AREA, PCategory } from '../lib/planner';
 import { api } from '../lib/api';
 import { Inspector } from './inspector';
 import { PlannerProvider, Selection, usePlanner } from './state';
@@ -12,7 +12,7 @@ import { GoalsView, NotesView } from './views-goals-notes';
 import { CategoryTasksView, OverdueView, SearchResults, TasksView } from './views-tasks';
 
 /**
- * Planner — the web version of the "Planner" Mac app. Work / Personal areas,
+ * Planner — the web version of the "Planner" Mac app, personal tasks only (the Work area is hidden),
  * todo-style tasks (Today / Week / Month / All / Backlog filters + Kanban),
  * goals, notes, stats and an English auto-correct log.
  */
@@ -75,15 +75,6 @@ function CategoryItem({ c, onPick }: { c: PCategory; onPick: () => void }) {
             Edit…
           </button>
           <button
-            className="menu-item"
-            onClick={() => {
-              setMenu(false);
-              run(api.planner.updateCategory(c.id, { area: otherArea(c.area) }));
-            }}
-          >
-            Move to {AREA_LABEL[otherArea(c.area)]}
-          </button>
-          <button
             className="menu-item text-danger-text hover:bg-danger-soft hover:text-danger-text"
             onClick={async () => {
               setMenu(false);
@@ -119,18 +110,18 @@ function Sidebar({ onPick }: { onPick: () => void }) {
       {badge}
     </button>
   );
-  const areaSection = (a: Area) => (
-    <div key={a} className="space-y-0.5">
-      <div className="flex items-center gap-2 px-2 pb-1 pt-4">
-        <span className="h-2 w-2 rounded-sm" style={{ background: AREA_COLOR[a] }} />
-        <span className="eyebrow text-fg-muted">{AREA_LABEL[a]}</span>
-        <button className="btn btn-ghost btn-icon btn-xs ml-auto" title={`Add a ${AREA_LABEL[a]} category`} onClick={() => editCategory({ area: a })}>
-          <Icon name="plus" className="h-3.5 w-3.5" />
-        </button>
-      </div>
+  const a = AREA;
+  const main = (
+    <div className="space-y-0.5 pt-3">
       {item({ kind: 'tasks', area: a }, 'planner', 'Tasks', <Badge n={meta?.remainingToday[a]} />)}
       {item({ kind: 'goals', area: a }, 'target', 'Goals')}
       {item({ kind: 'notes', area: a }, 'note', 'Notes')}
+      <div className="flex items-center gap-2 px-2 pb-1 pt-4">
+        <span className="eyebrow text-fg-muted">Categories</span>
+        <button className="btn btn-ghost btn-icon btn-xs ml-auto" title="Add a category" onClick={() => editCategory({ area: a })}>
+          <Icon name="plus" className="h-3.5 w-3.5" />
+        </button>
+      </div>
       {categoriesIn(a).map((c) => (
         <CategoryItem key={c.id} c={c} onPick={onPick} />
       ))}
@@ -141,9 +132,9 @@ function Sidebar({ onPick }: { onPick: () => void }) {
   );
   return (
     <nav className="space-y-1">
-      {AREAS.map(areaSection)}
+      {main}
       <div className="mt-3 space-y-0.5 border-t border-line pt-3">
-        {item({ kind: 'overdue' }, 'alert', 'Overdue', <Badge n={meta?.overdue.total} tone="red" />)}
+        {item({ kind: 'overdue' }, 'alert', 'Overdue', <Badge n={meta?.overdue[AREA]} tone="red" />)}
         {item({ kind: 'stats' }, 'chart', 'Stats')}
         {item({ kind: 'english' }, 'book', 'English', <Badge n={meta?.correctionCount} />)}
       </div>
@@ -184,13 +175,13 @@ function Shell() {
   else
     switch (selection.kind) {
       case 'tasks':
-        main = <TasksView area={selection.area} />;
+        main = <TasksView area={AREA} />;
         break;
       case 'goals':
-        main = <GoalsView area={selection.area} />;
+        main = <GoalsView area={AREA} />;
         break;
       case 'notes':
-        main = <NotesView area={selection.area} />;
+        main = <NotesView area={AREA} />;
         break;
       case 'category':
         main = <CategoryTasksView id={selection.id} />;
