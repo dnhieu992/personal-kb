@@ -64,7 +64,7 @@ export default async function HomePage() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Left today" value={left ?? '—'} icon="planner" tone="accent" href="/planner" hint={tasks.length ? `${doneCount} of ${tasks.length} done` : 'Nothing planned'} />
-        <StatCard label="Overdue" value={overdue} icon="alert" tone={overdue ? 'danger' : 'default'} href="/planner" hint={overdue ? 'Move them to today in Planner' : 'All caught up'} />
+        <StatCard label="Overdue" value={overdue} icon="alert" tone={overdue ? 'danger' : 'default'} href="/planner" hint={overdue ? 'Open them in Projects' : 'All caught up'} />
         <StatCard label="Cards to review" value={english?.dueForReview ?? '—'} icon="cards" tone="warning" href="/english/review" hint={english ? `${english.reviewAccuracy}% accuracy` : undefined} />
         <StatCard label="Knowledge entries" value={stats?.total ?? '—'} icon="book" href="/knowledge" hint={stats ? `+${stats.today} today` : undefined} />
       </div>
@@ -75,11 +75,11 @@ export default async function HomePage() {
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <h2 className="section-title">Today</h2>
             <Link href="/planner" className="inline-flex items-center gap-1 text-[13px] text-fg-muted hover:text-fg">
-              Open Planner <Icon name="arrow-right" className="h-3.5 w-3.5" />
+              Open projects <Icon name="arrow-right" className="h-3.5 w-3.5" />
             </Link>
           </div>
           {tasks.length === 0 ? (
-            <EmptyState className="m-4 border-0" icon="planner" title="Nothing planned for today" description="Add tasks in Planner — press N there to start typing." />
+            <EmptyState className="m-4 border-0" icon="planner" title="Nothing planned for today" description="Add tasks from a project's board." />
           ) : (
             <ul className="divide-y divide-line">
               {tasks.slice(0, 9).map((t) => (

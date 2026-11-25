@@ -17,6 +17,16 @@ import { AREAS, Area, GOAL_PERIODS, GoalPeriod, RECURRENCE_KINDS, RecurrenceKind
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
+export class CreateProjectDto {
+  @ApiProperty() @IsString() @MaxLength(200) name: string;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsString() description?: string | null;
+}
+
+export class UpdateProjectDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) name?: string;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsString() description?: string | null;
+}
+
 export class CreateCategoryDto {
   @ApiProperty() @IsString() @MaxLength(120) name: string;
   @ApiProperty({ example: '#3B82F6' }) @IsString() @Matches(/^#[0-9a-fA-F]{6}$/) color: string;
@@ -46,6 +56,7 @@ export class CreateTaskDto {
   @ApiProperty({ enum: AREAS }) @IsIn(AREAS as unknown as string[]) area: Area;
   @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsInt() categoryId?: number | null;
   @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsInt() goalId?: number | null;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsInt() projectId?: number | null;
   @ApiPropertyOptional({ description: 'Start "In progress" (board quick-add)' })
   @IsOptional()
   @IsBoolean()
@@ -74,6 +85,7 @@ export class UpdateTaskDto {
   @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsString() result?: string | null;
   @ApiPropertyOptional({ nullable: true }) @IsOptional() @ValidateIf((_, v) => v !== null) @IsDateString() reminderAt?: string | null;
   @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsInt() goalId?: number | null;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsInt() projectId?: number | null;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() inProgress?: boolean;
 }
 

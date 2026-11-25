@@ -8,11 +8,13 @@ import {
   CreateCategoryDto,
   CreateGoalDto,
   CreateNoteDto,
+  CreateProjectDto,
   CreateTaskDto,
   RecurrenceDto,
   UpdateCategoryDto,
   UpdateGoalDto,
   UpdateNoteDto,
+  UpdateProjectDto,
   UpdateTaskDto,
 } from './dto/planner.dto';
 import {
@@ -26,6 +28,7 @@ import {
   PlannerCorrection,
   PlannerGoal,
   PlannerNote,
+  PlannerProject,
   PlannerRecurrence,
   PlannerTask,
 } from './entities/planner.entities';
@@ -80,6 +83,7 @@ export class PlannerService {
     @InjectRepository(PlannerRecurrence) private readonly recurrences: Repository<PlannerRecurrence>,
     @InjectRepository(PlannerNote) private readonly notes: Repository<PlannerNote>,
     @InjectRepository(PlannerCorrection) private readonly corrections: Repository<PlannerCorrection>,
+    @InjectRepository(PlannerProject) private readonly projects: Repository<PlannerProject>,
     private readonly ai: AiService,
     config: ConfigService,
   ) {
@@ -128,6 +132,121 @@ export class PlannerService {
     const out: Record<Area, number> = { WORK: 0, PERSONAL: 0 };
     for (const r of rows) out[r.area as Area] = Number(r.n);
     return { ...out, total: out.WORK + out.PERSONAL };
+  }
+
+  // ───────────────────────────── Projects ─────────────────────────────
+
+  private async validProject(id: number | null | undefined): Promise<number | null> {
+    if (!id) return null;
+    return (await this.projects.existsBy({ id })) ? id : null;
+  }
+
+  /** Projects with task counts, a derived status and an 8-week completion trend (for cards + report). */
+  async listProjects() {
+    const today = this.today();
+    const projects = await this.projects.find({ order: { sort: 'ASC', id: 'ASC' } });
+    if (!projects.length) return [];
+    const ids = projects.map((p) => p.id);
+    const weekStart = startOfWeek(today);
+    const trendFrom = addDays(weekStart, -7 * 7);
+    const [counts, trend] = await Promise.all([
+      this.taskQb()
+        .select('t.projectId', 'pid')
+        .addSelect('COUNT(*)', 'total')
+        .addSelect('SUM(t.done)', 'done')
+        .addSelect('SUM(t.done = 0 AND t.inProgress = 1)', 'doing')
+        .addSelect('SUM(t.done = 0 AND t.recurrenceId IS NULL AND t.date < :today)', 'overdue')
+        .addSelect('SUM(t.done = 0 AND t.date = :today)', 'dueToday')
+        .addSelect('SUM(t.done = 1 AND t.doneAt >= :since)', 'done7')
+        .addSelect('MAX(t.doneAt)', 'lastDone')
+        .addSelect('MAX(t.createdAt)', 'lastAdded')
+        .andWhere('t.projectId IN (:...ids)', { ids })
+        // Future recurring instances would inflate the counts.
+        .andWhere('(t.recurrenceId IS NULL OR t.date <= :today)')
+        .setParameters({ today, since: new Date(Date.now() - 7 * 86_400_000) })
+        .groupBy('t.projectId')
+        .getRawMany(),
+      this.taskQb()
+        .select('t.projectId', 'pid')
+        .addSelect('t.date', 'date')
+        .andWhere('t.projectId IN (:...ids) AND t.done = 1 AND t.date >= :from', { ids, from: trendFrom })
+        .getRawMany(),
+    ]);
+    const byId = new Map(counts.map((r) => [Number(r.pid), r]));
+    const weeks = Array.from({ length: 8 }, (_, i) => addDays(trendFrom, i * 7));
+    return projects.map((p) => {
+      const r = byId.get(p.id);
+      const n = (k: string) => Number(r?.[k] ?? 0);
+      const total = n('total');
+      const done = n('done');
+      const doing = n('doing');
+      const lastActivity = [r?.lastDone, r?.lastAdded, p.createdAt]
+        .filter(Boolean)
+        .map((d) => new Date(d).getTime())
+        .reduce((a, b) => Math.max(a, b), 0);
+      const idleDays = Math.floor((Date.now() - lastActivity) / 86_400_000);
+      const status =
+        total === 0 || (done === 0 && doing === 0)
+          ? total === 0 || idleDays < 14 ? 'not_started' : 'stalled'
+          : done === total
+            ? 'done'
+            : doing === 0 && idleDays >= 14
+              ? 'stalled'
+              : 'in_progress';
+      const doneDates = trend.filter((t) => Number(t.pid) === p.id).map((t) => String(t.date));
+      return {
+        ...p,
+        total,
+        done,
+        doing,
+        todo: total - done - doing,
+        overdue: n('overdue'),
+        dueToday: n('dueToday'),
+        doneLast7: n('done7'),
+        lastActivity: lastActivity ? new Date(lastActivity).toISOString() : null,
+        status,
+        weekly: weeks.map((w) => ({ week: w, done: doneDates.filter((d) => d >= w && d <= addDays(w, 6)).length })),
+      };
+    });
+  }
+
+  async getProject(id: number) {
+    const p = (await this.listProjects()).find((x) => x.id === id);
+    if (!p) throw new NotFoundException('Project not found');
+    return p;
+  }
+
+  async addProject(dto: CreateProjectDto) {
+    const name = dto.name.trim();
+    if (!name) throw new NotFoundException('Empty name');
+    const max = await this.projects.maximum('sort');
+    const p = await this.projects.save(
+      this.projects.create({ name, description: dto.description?.trim() || null, sort: (max ?? 0) + 1 }),
+    );
+    return p;
+  }
+
+  async updateProject(id: number, dto: UpdateProjectDto) {
+    const p = await this.projects.findOneBy({ id });
+    if (!p) throw new NotFoundException('Project not found');
+    if (dto.name !== undefined && dto.name.trim()) p.name = dto.name.trim();
+    if (dto.description !== undefined) p.description = dto.description?.trim() || null;
+    await this.projects.save(p);
+    return this.getProject(id);
+  }
+
+  /** Deletes a project together with its tasks (checklists, attachments, series). */
+  async deleteProject(id: number) {
+    const tasks = await this.tasks.find({ where: { projectId: id }, select: { id: true } });
+    const ids = tasks.map((t) => t.id);
+    if (ids.length) {
+      await this.checklist.delete({ taskId: In(ids) });
+      await this.attachments.delete({ taskId: In(ids) });
+      await this.tasks.delete({ id: In(ids) });
+    }
+    await this.recurrences.delete({ projectId: id });
+    await this.projects.delete(id);
+    return { ok: true };
   }
 
   // ───────────────────────────── Categories ─────────────────────────────
@@ -235,6 +354,7 @@ export class PlannerService {
     area?: Area;
     categoryId?: number;
     goalId?: number;
+    projectId?: number;
     q?: string;
     anchor?: string;
   }) {
@@ -315,25 +435,30 @@ export class PlannerService {
         break;
       }
     }
+    if (q.projectId) qb.andWhere('t.projectId = :pid', { pid: q.projectId });
     const tasks = await this.decorate(await qb.getMany());
     return { today, range, tasks, goals };
   }
 
   /** Kanban: Backlog = open & not started (future recurring instances excluded); Done = last 7 days. */
-  async board(area: Area) {
+  async board(area: Area | undefined, projectId?: number) {
     const today = this.today();
     await this.ensureRecurring([today]);
+    const scoped = (qb: SelectQueryBuilder<PlannerTask>) => {
+      this.withArea(qb, area);
+      if (projectId) qb.andWhere('t.projectId = :pid', { pid: projectId });
+      return qb;
+    };
     const open = await this.orderByDate(
-      this.withArea(
+      scoped(
         this.taskQb().andWhere(
           't.done = 0 AND (t.inProgress = 1 OR t.date IS NULL OR t.date <= :today OR t.recurrenceId IS NULL)',
           { today },
         ),
-        area,
       ),
     ).getMany();
     const since = new Date(Date.now() - 7 * 86_400_000);
-    const done = await this.withArea(this.taskQb().andWhere('t.done = 1 AND t.doneAt >= :since', { since }), area)
+    const done = await scoped(this.taskQb().andWhere('t.done = 1 AND t.doneAt >= :since', { since }))
       .orderBy('t.doneAt', 'DESC')
       .take(100)
       .getMany();
@@ -384,6 +509,7 @@ export class PlannerService {
         startTime: e.startTime,
         tags: e.tags,
         goalId,
+        projectId: await this.validProject(dto.projectId),
         inProgress: !!dto.inProgress,
         notes: dto.notes ?? null,
         sort: (max ?? 0) + 1,
@@ -410,6 +536,7 @@ export class PlannerService {
     }
     if (dto.categoryId !== undefined) t.categoryId = await this.validCategory(dto.categoryId, t.area);
     if (dto.goalId !== undefined) t.goalId = dto.goalId;
+    if (dto.projectId !== undefined) t.projectId = await this.validProject(dto.projectId);
     for (const k of ['priority', 'startTime', 'duration', 'notes', 'result', 'inProgress'] as const) {
       if (dto[k] !== undefined) (t as any)[k] = dto[k];
     }
@@ -583,6 +710,7 @@ export class PlannerService {
           tags: r.tags ?? [],
           reminderAt: r.reminderTime != null ? atMinutes(day, r.reminderTime, this.tz) : null,
           goalId: r.goalId,
+          projectId: r.projectId,
           recurrenceId: r.id,
           sort: 0,
         });
@@ -606,6 +734,7 @@ export class PlannerService {
       duration: t.duration,
       tags: t.tags ?? [],
       goalId: t.goalId,
+      projectId: t.projectId,
     };
     await this.recurrences.update(rid, { ...tpl, reminderTime });
     if (!t.date) return;

@@ -1,267 +1,80 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AREA, PCategory } from '../lib/planner';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { Inspector } from './inspector';
-import { PlannerProvider, Selection, usePlanner } from './state';
-import { CategoryEditor, cx } from './ui';
-import { Icon, IconName } from '../components/icons';
-import { EnglishView, StatsView } from './views-stats-english';
-import { GoalsView, NotesView } from './views-goals-notes';
-import { CategoryTasksView, OverdueView, SearchResults, TasksView } from './views-tasks';
+import type { PProject } from '../lib/planner';
+import { Icon } from '../components/icons';
+import { Alert, EmptyState, Loading, PageHeader, ProgressBar } from '../components/ui';
+import { ProjectModal, StatusChip, ago, pct } from './projects';
 
-/**
- * Planner — the web version of the "Planner" Mac app, personal tasks only (the Work area is hidden),
- * todo-style tasks (Today / Week / Month / All / Backlog filters + Kanban),
- * goals, notes, stats and an English auto-correct log.
- */
-export default function PlannerPage() {
-  return (
-    <PlannerProvider>
-      <Shell />
-      <CategoryEditor />
-    </PlannerProvider>
-  );
-}
+/** Projects list: one card per project; a card opens the project's board. */
+export default function ProjectsPage() {
+  const router = useRouter();
+  const [projects, setProjects] = useState<PProject[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
-function same(a: Selection, b: Selection) {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
+  const load = useCallback(() => {
+    api.planner
+      .projects()
+      .then(setProjects)
+      .catch((e) => setError((e as Error).message));
+  }, []);
+  useEffect(load, [load]);
 
-function Badge({ n, tone = 'slate' }: { n?: number; tone?: 'slate' | 'red' }) {
-  if (!n) return null;
-  return (
-    <span
-      className={cx(
-        'ml-auto rounded-full px-1.5 text-[11px] font-semibold tabular-nums',
-        tone === 'red' ? 'tone-red' : 'bg-emphasis text-fg-secondary',
-      )}
-    >
-      {n}
-    </span>
-  );
-}
-
-function CategoryItem({ c, onPick }: { c: PCategory; onPick: () => void }) {
-  const { selection, go, editCategory, run } = usePlanner();
-  const [menu, setMenu] = useState(false);
-  const active = same(selection, { kind: 'category', id: c.id });
-  return (
-    <div className="group relative">
-      <button
-        onClick={() => {
-          go({ kind: 'category', id: c.id });
-          onPick();
-        }}
-        className={cx(
-          'flex h-8 w-full items-center gap-2.5 rounded-lg px-2 pr-7 text-left text-[13.5px] transition-colors',
-          active ? 'bg-surface font-medium text-fg shadow-xs' : 'text-fg-secondary hover:bg-emphasis/60 hover:text-fg',
-        )}
-      >
-        <span className="flex w-4 justify-center"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} /></span>
-        <span className="truncate">{c.name}</span>
-      </button>
-      <button
-        className="btn btn-ghost btn-icon btn-xs absolute right-1 top-1 hidden group-hover:inline-flex"
-        onClick={() => setMenu(!menu)}
-        title="Category options"
-      >
-        <Icon name="more" className="h-3.5 w-3.5" />
-      </button>
-      {menu && (
-        <div className="popover absolute right-0 top-8 z-30 w-48" onMouseLeave={() => setMenu(false)}>
-          <button className="menu-item" onClick={() => { setMenu(false); editCategory({ area: c.area, edit: c }); }}>
-            Edit…
-          </button>
-          <button
-            className="menu-item text-danger-text hover:bg-danger-soft hover:text-danger-text"
-            onClick={async () => {
-              setMenu(false);
-              if (!confirm(`Delete category “${c.name}”? Tasks in it are kept; they just lose the category.`)) return;
-              if (active) go({ kind: 'tasks', area: c.area });
-              await run(api.planner.deleteCategory(c.id));
-            }}
-          >
-            Delete…
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Sidebar({ onPick }: { onPick: () => void }) {
-  const { selection, go, meta, categoriesIn, editCategory } = usePlanner();
-  const item = (s: Selection, icon: IconName, label: string, badge?: React.ReactNode) => (
-    <button
-      key={label + JSON.stringify(s)}
-      onClick={() => {
-        go(s);
-        onPick();
-      }}
-      className={cx(
-        'group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-left text-[13.5px] transition-colors',
-        same(selection, s) ? 'bg-surface font-medium text-fg shadow-xs' : 'text-fg-secondary hover:bg-emphasis/60 hover:text-fg',
-      )}
-    >
-      <Icon name={icon} className={cx('h-4 w-4 shrink-0', same(selection, s) ? 'text-accent-text' : 'text-fg-muted')} />
-      {label}
-      {badge}
+  const add = (
+    <button className="btn btn-primary" onClick={() => setCreating(true)}>
+      <Icon name="plus" /> New project
     </button>
   );
-  const a = AREA;
-  const main = (
-    <div className="space-y-0.5 pt-3">
-      {item({ kind: 'tasks', area: a }, 'planner', 'Tasks', <Badge n={meta?.remainingToday[a]} />)}
-      {item({ kind: 'goals', area: a }, 'target', 'Goals')}
-      {item({ kind: 'notes', area: a }, 'note', 'Notes')}
-      <div className="flex items-center gap-2 px-2 pb-1 pt-4">
-        <span className="eyebrow text-fg-muted">Categories</span>
-        <button className="btn btn-ghost btn-icon btn-xs ml-auto" title="Add a category" onClick={() => editCategory({ area: a })}>
-          <Icon name="plus" className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      {categoriesIn(a).map((c) => (
-        <CategoryItem key={c.id} c={c} onPick={onPick} />
-      ))}
-      <button className="flex h-7 w-full items-center gap-2.5 rounded-lg px-2 text-left text-xs text-fg-subtle hover:text-fg-secondary" onClick={() => editCategory({ area: a })}>
-        <Icon name="plus" className="h-4 w-4" /> New category
-      </button>
-    </div>
-  );
-  return (
-    <nav className="space-y-1">
-      {main}
-      <div className="mt-3 space-y-0.5 border-t border-line pt-3">
-        {item({ kind: 'overdue' }, 'alert', 'Overdue', <Badge n={meta?.overdue[AREA]} tone="red" />)}
-        {item({ kind: 'stats' }, 'chart', 'Stats')}
-        {item({ kind: 'english' }, 'book', 'English', <Badge n={meta?.correctionCount} />)}
-      </div>
-    </nav>
-  );
-}
-
-function Shell() {
-  const { selection, search, setSearch, selectedTaskId, openTask, setBoard, board, error, clearError, meta } = usePlanner();
-  const [navOpen, setNavOpen] = useState(false);
-  const [q, setQ] = useState(search);
-
-  useEffect(() => setQ(search), [search]);
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(q), 250);
-    return () => clearTimeout(t);
-  }, [q, setSearch]);
-
-  // Shortcuts: "b" toggles list/board, Escape closes the inspector, "/" focuses search.
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || e.metaKey || e.ctrlKey) return;
-      if (e.key === 'b' && selection.kind === 'tasks') setBoard(!board);
-      if (e.key === 'Escape') openTask(null);
-      if (e.key === '/') {
-        e.preventDefault();
-        document.getElementById('planner-search')?.focus();
-      }
-    };
-    window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
-  }, [selection.kind, board, setBoard, openTask]);
-
-  const searching = search.trim().length > 0;
-  let main: React.ReactNode;
-  if (searching) main = <SearchResults q={search.trim()} />;
-  else
-    switch (selection.kind) {
-      case 'tasks':
-        main = <TasksView area={AREA} />;
-        break;
-      case 'goals':
-        main = <GoalsView area={AREA} />;
-        break;
-      case 'notes':
-        main = <NotesView area={AREA} />;
-        break;
-      case 'category':
-        main = <CategoryTasksView id={selection.id} />;
-        break;
-      case 'overdue':
-        main = <OverdueView />;
-        break;
-      case 'stats':
-        main = <StatsView />;
-        break;
-      case 'english':
-        main = <EnglishView />;
-        break;
-    }
 
   return (
-    <div className="flex" style={{ minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <aside
-        className={cx(
-          'scrollbar-thin z-40 w-56 shrink-0 overflow-y-auto border-r border-line bg-subtle px-2 pb-3',
-          'fixed inset-y-0 left-0 transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0',
-          navOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full',
-        )}
-      >
-        <Sidebar onPick={() => setNavOpen(false)} />
-      </aside>
-      {navOpen && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setNavOpen(false)} />}
-
-      {/* Main */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-line bg-canvas/85 px-4 backdrop-blur">
-          <button className="btn btn-ghost btn-icon btn-sm md:hidden" onClick={() => setNavOpen(true)} aria-label="Planner menu">
-            <Icon name="sidebar" />
-          </button>
-          <div className="relative w-full max-w-sm">
-          <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
-          <input
-            id="planner-search"
-            className="input input-sm h-8 w-full pl-8 pr-8"
-            placeholder="Search tasks"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Escape' && setQ('')}
-          />
-          <span className="kbd pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 md:inline-flex">/</span>
-          </div>
-          {meta && meta.englishPending > 0 && (
-            <span className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-fg-muted"><Icon name="sparkles" className="h-3.5 w-3.5 animate-pulse text-accent-text" /> Fixing English…</span>
-          )}
-        </div>
-        {error && (
-          <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger-soft px-3 py-2 text-sm text-danger-text">
-            {error}
-            <button className="ml-auto" onClick={clearError}>
-              ×
-            </button>
-          </div>
-        )}
-        <div className="flex min-w-0 flex-1">
-          <main className="min-w-0 flex-1 px-4 py-4 md:px-6">{main}</main>
-          {selectedTaskId && (
-            // Task details open in a dialog over the list (click outside or Esc closes it).
-            <div
-              className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-2 pt-[6vh] sm:p-4 sm:pt-[8vh]"
-              onMouseDown={() => openTask(null)}
-            >
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-label="Task details"
-                className="flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <Inspector />
+    <>
+      <PageHeader title="Projects" description="Everything you're working on. Open a project to see its board." actions={add} />
+      {error ? (
+        <Alert>{error}</Alert>
+      ) : !projects ? (
+        <Loading />
+      ) : projects.length === 0 ? (
+        <EmptyState icon="folder" title="No projects yet" description="Create one, then add its tasks on the board." action={add} />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {projects.map((p) => (
+            <Link key={p.id} href={`/planner/${p.id}`} className="card card-interactive flex flex-col p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-text">
+                  <Icon name="folder" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-fg">{p.name}</p>
+                  <p className="text-xs text-fg-subtle">Active {ago(p.lastActivity)}</p>
+                </div>
+                <StatusChip status={p.status} />
               </div>
-            </div>
-          )}
+              {p.description && <p className="mt-3 line-clamp-2 text-[13px] text-fg-muted">{p.description}</p>}
+              <div className="mt-auto pt-4">
+                <div className="mb-1.5 flex items-baseline justify-between text-xs">
+                  <span className="text-fg-muted">
+                    {p.done}/{p.total} done
+                  </span>
+                  <span className="font-medium tabular-nums text-fg">{pct(p)}%</span>
+                </div>
+                <ProgressBar value={p.total ? p.done / p.total : 0} tone={p.status === 'done' ? 'success' : 'accent'} />
+                <div className="mt-2 flex flex-wrap gap-x-3 text-xs text-fg-muted">
+                  <span>{p.doing} in progress</span>
+                  <span>{p.todo} to do</span>
+                  {p.overdue > 0 && <span className="text-danger-text">{p.overdue} overdue</span>}
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
-      </div>
-    </div>
+      )}
+      {creating && (
+        <ProjectModal onClose={() => setCreating(false)} onSaved={(p) => router.push(`/planner/${p.id}`)} />
+      )}
+    </>
   );
 }

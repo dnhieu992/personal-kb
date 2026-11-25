@@ -9,6 +9,7 @@ import {
   PlannerCorrection,
   PlannerGoal,
   PlannerNote,
+  PlannerProject,
   PlannerRecurrence,
   PlannerTask,
 } from './entities/planner.entities';
@@ -26,6 +27,7 @@ import { PlannerService } from './planner.service';
       PlannerGoal,
       PlannerRecurrence,
       PlannerNote,
+      PlannerProject,
       PlannerCorrection,
     ]),
     AiModule,

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import {
+  AREA,
   AREA_COLOR,
-  Area,
   PTask,
   addDays,
   durationLabel,
@@ -13,7 +13,7 @@ import {
   startOfWeek,
 } from '../lib/planner';
 import { usePlanner } from './state';
-import { AreaBadge, CategoryPicker, CheckBox, EditableTitle, PriorityFlag, Spinner, TagList, cx } from './ui';
+import { CheckBox, EditableTitle, PriorityFlag, Spinner, TagList, cx } from './ui';
 
 export interface TaskGroup {
   id: string;
@@ -25,20 +25,15 @@ export interface TaskGroup {
 /** Quick-add bar: "#tag", "!!!" priority, "@9:30" start time. */
 export function AddTaskBar({
   date,
-  area,
-  fixedCategoryId,
-  goalId,
+  projectId,
   placeholder,
 }: {
   date: string | null;
-  area: Area;
-  fixedCategoryId?: number | null;
-  goalId?: number | null;
+  projectId: number;
   placeholder: string;
 }) {
   const { run } = usePlanner();
   const [text, setText] = useState('');
-  const [cat, setCat] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   // "n" focuses the add bar (like ⌘N in the Mac app).
@@ -54,11 +49,6 @@ export function AddTaskBar({
     return () => window.removeEventListener('keydown', k);
   }, []);
 
-  useEffect(() => {
-    const saved = Number(localStorage.getItem(`planner.lastCategory.${area}`) || 0);
-    setCat(saved || null);
-  }, [area]);
-
   const submit = async () => {
     const t = text.trim();
     if (!t) return;
@@ -67,9 +57,8 @@ export function AddTaskBar({
       api.planner.addTask({
         title: t,
         date,
-        area,
-        categoryId: fixedCategoryId ?? cat,
-        goalId: goalId ?? null,
+        area: AREA,
+        projectId,
       }),
     );
   };
@@ -85,23 +74,12 @@ export function AddTaskBar({
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
       />
-      {fixedCategoryId == null && (
-        <CategoryPicker
-          area={area}
-          value={cat}
-          className="max-w-[9rem] border-transparent text-xs text-fg-muted"
-          onChange={(id) => {
-            setCat(id);
-            localStorage.setItem(`planner.lastCategory.${area}`, String(id ?? 0));
-          }}
-        />
-      )}
     </div>
   );
 }
 
 function TaskMenu({ task, onClose }: { task: PTask; onClose: () => void }) {
-  const { run, today, categoriesIn, openTask, selectedTaskId } = usePlanner();
+  const { run, today, openTask, selectedTaskId } = usePlanner();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && onClose();
@@ -133,17 +111,6 @@ function TaskMenu({ task, onClose }: { task: PTask; onClose: () => void }) {
         </>
       )}
       <div className="my-1 border-t border-line" />
-      <div className="px-3 py-1 text-xs font-semibold uppercase text-fg-subtle">Category</div>
-      <button className={item} onClick={() => act(api.planner.updateTask(task.id, { categoryId: null }))}>
-        {task.categoryId == null ? '✓ ' : ''}None
-      </button>
-      {categoriesIn(task.area).map((c) => (
-        <button key={c.id} className={item} onClick={() => act(api.planner.updateTask(task.id, { categoryId: c.id }))}>
-          {task.categoryId === c.id ? '✓ ' : ''}
-          <span style={{ color: c.color }}>●</span> {c.name}
-        </button>
-      ))}
-      <div className="my-1 border-t border-line" />
       <button
         className={cx(item, 'text-danger-text')}
         onClick={() => {
@@ -168,14 +135,11 @@ export function TaskRow({
   showArea?: boolean;
   pullToday?: boolean;
 }) {
-  const { run, category, today, openTask, selectedTaskId } = usePlanner();
+  const { run, today, openTask, selectedTaskId } = usePlanner();
   const [menu, setMenu] = useState(false);
-  const cat = category(task.categoryId);
-  const color = cat?.color ?? AREA_COLOR[task.area];
+  const color = AREA_COLOR.PERSONAL;
   const selected = selectedTaskId === task.id;
   const meta: React.ReactNode[] = [];
-  if (showArea) meta.push(<AreaBadge key="a" area={task.area} />);
-  if (cat) meta.push(<span key="c" style={{ color: cat.color }}>{cat.name}</span>);
   if (showDate && task.date)
     meta.push(
       <span key="d" className={task.isOverdue ? 'text-danger-text' : ''}>

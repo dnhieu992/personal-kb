@@ -4,14 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import {
   AREA_COLOR,
-  PGoal,
+  PProject,
   PRIORITY_LABEL,
   PTaskDetail,
   RecurrenceKind,
   MONDAY_FIRST,
   SHORT_DAYS,
   durationLabel,
-  goalPeriodLabel,
   hhmm,
   recurrenceSummary,
   shortDateTime,
@@ -19,7 +18,7 @@ import {
   weekdayOf,
 } from '../lib/planner';
 import { usePlanner } from './state';
-import { CategoryPicker, CheckBox, EditableTitle, MarkdownField, Segmented, Spinner, cx } from './ui';
+import { CheckBox, EditableTitle, MarkdownField, Segmented, Spinner, cx } from './ui';
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240];
 
@@ -47,9 +46,9 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
 const input = 'min-w-0 max-w-full input input-sm';
 
 export function Inspector() {
-  const { selectedTaskId: id, openTask, rev, run, today, category } = usePlanner();
+  const { selectedTaskId: id, openTask, rev, run, today } = usePlanner();
   const [t, setT] = useState<PTaskDetail | null>(null);
-  const [goals, setGoals] = useState<PGoal[]>([]);
+  const [projects, setProjects] = useState<PProject[]>([]);
   const [newItem, setNewItem] = useState('');
   const [link, setLink] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -67,16 +66,17 @@ export function Inspector() {
     };
   }, [id, rev, openTask]);
 
+
   useEffect(() => {
-    if (t) api.planner.goals(t.area, true).then(setGoals).catch(() => {});
-  }, [t?.area, rev]); // eslint-disable-line react-hooks/exhaustive-deps
+    api.planner.projects().then(setProjects).catch(() => {});
+  }, []);
 
   if (!id || !t || t.id !== id) {
     return id ? <div className="p-6 text-sm text-fg-subtle">Loading…</div> : null;
   }
 
   const patch = (body: Record<string, unknown>) => run(api.planner.updateTask(t.id, body));
-  const color = category(t.categoryId)?.color ?? AREA_COLOR[t.area];
+  const color = AREA_COLOR.PERSONAL;
   const rec = t.recurrence;
   const setRec = (kind: RecurrenceKind | null, weekdays = rec?.weekdays ?? 0, monthDay?: number) => {
     if (kind === 'weekly' && !weekdays) weekdays = 1 << weekdayOf(t.date ?? today);
@@ -141,8 +141,15 @@ export function Inspector() {
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         <div className="space-y-1">
-          <Field label="Category">
-            <CategoryPicker area={t.area} value={t.categoryId} onChange={(c) => patch({ categoryId: c })} />
+          <Field label="Project">
+            <select className={input} value={t.projectId ?? 0} onChange={(e) => patch({ projectId: Number(e.target.value) || null })}>
+              {!t.projectId && <option value={0}>—</option>}
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Priority">
             <Segmented
@@ -210,17 +217,6 @@ export function Inspector() {
               />
             )}
             {t.reminderAt && <span className="text-xs text-fg-subtle">via Telegram</span>}
-          </Field>
-          <Field label="Goal">
-            <select className={input} value={t.goalId ?? 0} onChange={(e) => patch({ goalId: Number(e.target.value) || null })}>
-              <option value={0}>None</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title} · {goalPeriodLabel(g)}
-                </option>
-              ))}
-              {t.goalId && !goals.some((g) => g.id === t.goalId) && <option value={t.goalId}>(finished goal)</option>}
-            </select>
           </Field>
           <Field label="Repeat">
             <select

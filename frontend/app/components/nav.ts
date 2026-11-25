@@ -17,11 +17,10 @@ export interface NavGroup {
 export const NAV: NavGroup[] = [
   { items: [{ href: '/', label: 'Home', icon: 'home', keywords: 'dashboard overview today' }] },
   {
-    label: 'Plan',
+    label: 'Projects',
     items: [
-      { href: '/planner', label: 'Planner', icon: 'planner', keywords: 'tasks todo kanban goals notes' },
-      { href: '/plan', label: 'Daily plan', icon: 'calendar', keywords: 'day schedule' },
-      { href: '/plan/lists', label: 'Lists', icon: 'list', keywords: 'long-term todo' },
+      { href: '/planner', label: 'List', icon: 'folder', keywords: 'projects tasks todo kanban board planner goals' },
+      { href: '/planner/report', label: 'Report', icon: 'chart', keywords: 'projects progress status report' },
     ],
   },
   {

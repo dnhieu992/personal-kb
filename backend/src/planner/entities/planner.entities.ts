@@ -31,6 +31,17 @@ export type RecurrenceKind = (typeof RECURRENCE_KINDS)[number];
 export const CORRECTION_KINDS = ['task', 'checklist', 'goal', 'noteTitle', 'text'] as const;
 export type CorrectionKind = (typeof CORRECTION_KINDS)[number];
 
+/** A personal project: the board/list of tasks lives under it (replaces goals + categories in the UI). */
+@Entity('planner_project')
+export class PlannerProject {
+  @ApiProperty() @PrimaryGeneratedColumn() id: number;
+  @ApiProperty() @Column({ length: 200 }) name: string;
+  @ApiPropertyOptional({ description: 'Markdown' }) @Column({ type: 'text', nullable: true }) description: string | null;
+  @ApiProperty() @Column({ type: 'int', default: 0 }) sort: number;
+  @ApiProperty() @CreateDateColumn() createdAt: Date;
+  @ApiProperty() @UpdateDateColumn() updatedAt: Date;
+}
+
 @Entity('planner_category')
 export class PlannerCategory {
   @ApiProperty() @PrimaryGeneratedColumn() id: number;
@@ -43,6 +54,7 @@ export class PlannerCategory {
 @Entity('planner_task')
 @Index(['area', 'date'])
 @Index(['recurrenceId', 'date'], { unique: true })
+@Index(['projectId'])
 export class PlannerTask {
   @ApiProperty() @PrimaryGeneratedColumn() id: number;
   @ApiProperty() @Column({ length: 500 }) title: string;
@@ -53,6 +65,7 @@ export class PlannerTask {
   @ApiPropertyOptional() @Column({ type: 'datetime', nullable: true }) doneAt: Date | null;
   @ApiProperty({ enum: AREAS }) @Column({ length: 10, default: 'PERSONAL' }) area: Area;
   @ApiPropertyOptional() @Column({ type: 'int', nullable: true }) categoryId: number | null;
+  @ApiPropertyOptional() @Column({ type: 'int', nullable: true }) projectId: number | null;
   @ApiProperty({ description: '0 none · 1 low · 2 medium · 3 high' })
   @Column({ type: 'int', default: 0 })
   priority: number;
@@ -134,6 +147,7 @@ export class PlannerRecurrence {
   /** Minutes after midnight for each instance's reminder. */
   @Column({ type: 'int', nullable: true }) reminderTime: number | null;
   @Column({ type: 'int', nullable: true }) goalId: number | null;
+  @Column({ type: 'int', nullable: true }) projectId: number | null;
 }
 
 @Entity('planner_note')

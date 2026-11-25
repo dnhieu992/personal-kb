@@ -9,8 +9,8 @@ import { activeHref, NAV } from './nav';
 import { ThemeSwitch } from './theme';
 import { cx } from './ui';
 
-/** Pages that are full-bleed apps with their own sidebar. The global one folds to a rail there. */
-const isAppPage = (p: string) => p.startsWith('/planner');
+/** Pages that are full-bleed apps with their own sidebar. The global one folds to a rail there. (None right now.) */
+const isAppPage = (_p: string) => false;
 
 function readPref(key: string): boolean | null {
   try {

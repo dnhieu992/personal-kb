@@ -10,6 +10,7 @@ import type {
   PGoalDetail,
   PlannerMeta,
   PNote,
+  PProject,
   PTask,
   PTaskDetail,
   RecurrenceKind,
@@ -679,6 +680,14 @@ export const api = {
   planner: {
     meta: () => request<PlannerMeta>('/planner/meta'),
 
+    projects: () => request<PProject[]>('/planner/projects'),
+    project: (id: number) => request<PProject>(`/planner/projects/${id}`),
+    addProject: (body: { name: string; description?: string | null }) =>
+      request<PProject>('/planner/projects', { method: 'POST', body: JSON.stringify(body) }),
+    updateProject: (id: number, body: { name?: string; description?: string | null }) =>
+      request<PProject>(`/planner/projects/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteProject: (id: number) => request<{ ok: boolean }>(`/planner/projects/${id}`, { method: 'DELETE' }),
+
     addCategory: (body: { name: string; color: string; area: Area }) =>
       request<PCategory>('/planner/categories', { method: 'POST', body: JSON.stringify(body) }),
     updateCategory: (id: number, body: Partial<Pick<PCategory, 'name' | 'color' | 'area'>>) =>
@@ -686,8 +695,9 @@ export const api = {
     deleteCategory: (id: number) =>
       request<{ ok: boolean }>(`/planner/categories/${id}`, { method: 'DELETE' }),
 
-    tasks: (p: { view: TaskView; area?: Area; categoryId?: number; goalId?: number; q?: string; anchor?: string }) => {
+    tasks: (p: { view: TaskView; area?: Area; categoryId?: number; goalId?: number; projectId?: number; q?: string; anchor?: string }) => {
       const q = new URLSearchParams({ view: p.view });
+      if (p.projectId) q.set('projectId', String(p.projectId));
       if (p.area) q.set('area', p.area);
       if (p.categoryId) q.set('categoryId', String(p.categoryId));
       if (p.goalId) q.set('goalId', String(p.goalId));
@@ -695,7 +705,7 @@ export const api = {
       if (p.anchor) q.set('anchor', p.anchor);
       return request<TaskListResponse>(`/planner/tasks?${q}`);
     },
-    board: (area: Area) => request<BoardResponse>(`/planner/board?area=${area}`),
+    board: (projectId: number) => request<BoardResponse>(`/planner/board?projectId=${projectId}`),
     task: (id: number) => request<PTaskDetail>(`/planner/tasks/${id}`),
     addTask: (body: {
       title: string;
@@ -703,6 +713,7 @@ export const api = {
       area: Area;
       categoryId?: number | null;
       goalId?: number | null;
+      projectId?: number | null;
       inProgress?: boolean;
     }) => request<PTask>('/planner/tasks', { method: 'POST', body: JSON.stringify(body) }),
     updateTask: (id: number, body: Record<string, unknown>) =>

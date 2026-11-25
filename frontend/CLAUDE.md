@@ -11,7 +11,7 @@ app/
 ├── layout.tsx, globals.css   # shell + Tailwind
 ├── knowledge/                # list, new, [id]/edit pages
 ├── plan/                     # daily planner + plan/lists (long-term todo lists)
-├── planner/                  # web port of the Planner Mac app (full-width client app)
+├── planner/                  # Projects: page.tsx = project cards, [id]/ = project board/list, report/ = progress & status
 ├── english/                  # English for IT course (page.tsx), placement test, lesson/[id] (theory · vocab · practice / quick check · listening = `listening.tsx`: sentence-by-sentence TTS player, questions, AI-graded summary), journal, review (weak points from your mistakes → focus page + auto-graded tests via `review/runner.tsx`, which reuses the lesson `ExerciseView`; saved words tested as multiple choice)
 │                             # english/games: hub + "Nối từ" (games/sentence: tap shuffled words into a sentence; data.ts = 6 worlds × 22 sentences with traps/alts, engine.ts = levels/tokenizing/checking) + "Ghép cặp" (games/match: pair matching); shared localStorage progress in games/progress.ts
 ├── diary/, tech-notes/       # thin pages over components/notebook/Notebook.tsx: split Markdown editor | live preview (full height), History dialog (by day, search, edit, delete), draft in localStorage; each has its own API store (api.diary / api.techNotes)
@@ -25,11 +25,13 @@ The planner pages poll `api.tasks.day()` while any task still has
 `coachStatus === 'PENDING'` — tasks are saved before the AI finishes correcting their
 English — and stop polling once everything has settled.
 
-`/planner` is one client page (`planner/page.tsx`) with its own context (`planner/state.tsx`):
-every mutation goes through `run()`, which bumps `rev` so all views re-fetch; it polls
-`meta.englishPending` while background English fixes are running. Types/date helpers are in
-`lib/planner.ts`, HTTP calls in `api.planner`. `components/AppShell.tsx` gives `/planner` the full
-width and folds the global sidebar to a rail there.
+`/planner` is now **Projects** (nav group "Projects": List + Report). Personal-only: the Work area,
+categories, goals, notes, stats and the planner's own sidebar are gone from the UI (tables still exist).
+A project (`planner_project`: name + description) owns its tasks via `planner_task.projectId`.
+`/planner/[id]` wraps the board/list in `PlannerProvider` (`planner/state.tsx`): every mutation goes
+through `run()`, which bumps `rev` so views re-fetch; it polls `meta.englishPending` while background
+English fixes run. Project status (not started / in progress / stalled = 14 days idle / done) and the
+8-week trend are computed in `PlannerService.listProjects()`. Types in `lib/planner.ts`, HTTP in `api.planner`.
 
 ## Design system
 

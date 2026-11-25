@@ -2,17 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { api } from '../lib/api';
-import {
-  AREA_ICON,
-  AREA_LABEL,
-  AREAS,
-  Area,
-  CATEGORY_PALETTE,
-  PRIORITY_COLOR,
-  PRIORITY_LABEL,
-} from '../lib/planner';
-import { usePlanner } from './state';
+import { PRIORITY_COLOR, PRIORITY_LABEL } from '../lib/planner';
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(' ');
@@ -74,11 +64,6 @@ export function PriorityFlag({ p }: { p: number }) {
   );
 }
 
-export function AreaBadge(_: { area: Area; className?: string }) {
-  // Personal-only planner: no area label to show.
-  return null;
-}
-
 export function EmptyState({ icon, text, children }: { icon: string; text: string; children?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-14 text-fg-subtle">
@@ -119,52 +104,6 @@ export function Segmented<T extends string | number | boolean>({
   );
 }
 
-export function AreaPicker({ value, onChange }: { value: Area; onChange: (a: Area) => void }) {
-  return (
-    <Segmented
-      value={value}
-      onChange={onChange}
-      options={AREAS.map((a) => ({ value: a, label: `${AREA_ICON[a]} ${AREA_LABEL[a]}` }))}
-    />
-  );
-}
-
-/** Category <select> for an area; "New category…" opens the editor and selects the result. */
-export function CategoryPicker({
-  area,
-  value,
-  onChange,
-  noneLabel = 'No category',
-  className,
-}: {
-  area: Area;
-  value: number | null;
-  onChange: (id: number | null) => void;
-  noneLabel?: string;
-  className?: string;
-}) {
-  const { categoriesIn, editCategory } = usePlanner();
-  return (
-    <select
-      className={cx('input input-sm', className)}
-      value={value ?? 0}
-      onChange={(e) => {
-        const v = Number(e.target.value);
-        if (v === -1) editCategory({ area, then: (id) => onChange(id) });
-        else onChange(v || null);
-      }}
-    >
-      <option value={0}>{noneLabel}</option>
-      {categoriesIn(area).map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-        </option>
-      ))}
-      <option value={-1}>New category…</option>
-    </select>
-  );
-}
-
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -183,74 +122,6 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
         {children}
       </div>
     </div>
-  );
-}
-
-export function CategoryEditor() {
-  const { categoryEditor: ed, closeCategoryEditor, run, go, meta } = usePlanner();
-  const [name, setName] = useState('');
-  const [area, setArea] = useState<Area>('PERSONAL');
-  const [color, setColor] = useState(CATEGORY_PALETTE[0]);
-
-  useEffect(() => {
-    if (!ed) return;
-    setName(ed.edit?.name ?? '');
-    setArea('PERSONAL');
-    setColor(ed.edit?.color ?? CATEGORY_PALETTE[(meta?.categories.length ?? 0) % CATEGORY_PALETTE.length]);
-  }, [ed, meta?.categories.length]);
-
-  if (!ed) return null;
-  const save = async () => {
-    const n = name.trim();
-    if (!n) return;
-    if (ed.edit) {
-      await run(api.planner.updateCategory(ed.edit.id, { name: n, color, area }));
-    } else {
-      const c = await run(api.planner.addCategory({ name: n, color, area }));
-      if (c) {
-        if (ed.then) ed.then(c.id);
-        else go({ kind: 'category', id: c.id });
-      }
-    }
-    closeCategoryEditor();
-  };
-  return (
-    <Modal title={ed.edit ? 'Edit category' : 'New category'} onClose={closeCategoryEditor}>
-      <div className="space-y-4">
-        <input
-          autoFocus
-          className="w-full input"
-          placeholder="Name (e.g. Trading, Health, Reading)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && save()}
-        />
-        <div className="flex flex-wrap gap-2">
-          {CATEGORY_PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={`Color ${c}`}
-              onClick={() => setColor(c)}
-              className="h-6 w-6 rounded-full"
-              style={{ background: c, outline: color === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }}
-            />
-          ))}
-        </div>
-        <div className="flex justify-end gap-2">
-          <button className="rounded-md px-3 py-1.5 text-sm text-fg-secondary hover:bg-muted" onClick={closeCategoryEditor}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary btn-sm disabled:opacity-40"
-            disabled={!name.trim()}
-            onClick={save}
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 

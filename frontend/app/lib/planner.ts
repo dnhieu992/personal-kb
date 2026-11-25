@@ -18,6 +18,33 @@ export const CATEGORY_PALETTE = [
 export const PRIORITY_LABEL = ['None', 'Low', 'Medium', 'High'];
 export const PRIORITY_COLOR = ['#94A3B8', '#3B82F6', '#F97316', '#EF4444'];
 
+export type ProjectStatus = 'not_started' | 'in_progress' | 'stalled' | 'done';
+export const PROJECT_STATUS: Record<ProjectStatus, { label: string; tone: string }> = {
+  not_started: { label: 'Not started', tone: 'bg-emphasis text-fg-secondary' },
+  in_progress: { label: 'In progress', tone: 'tone-blue' },
+  stalled: { label: 'Stalled', tone: 'tone-amber' },
+  done: { label: 'Done', tone: 'tone-green' },
+};
+
+export interface PProject {
+  id: number;
+  name: string;
+  description: string | null;
+  sort: number;
+  createdAt: string;
+  updatedAt: string;
+  total: number;
+  done: number;
+  doing: number;
+  todo: number;
+  overdue: number;
+  dueToday: number;
+  doneLast7: number;
+  lastActivity: string | null;
+  status: ProjectStatus;
+  weekly: { week: string; done: number }[];
+}
+
 export interface PCategory {
   id: number;
   name: string;
@@ -60,6 +87,7 @@ export interface PTask {
   result: string | null;
   reminderAt: string | null;
   goalId: number | null;
+  projectId: number | null;
   recurrenceId: number | null;
   inProgress: boolean;
   createdAt: string;

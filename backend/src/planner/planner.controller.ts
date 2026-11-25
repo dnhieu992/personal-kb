@@ -19,6 +19,7 @@ import {
   CreateCategoryDto,
   CreateGoalDto,
   CreateNoteDto,
+  CreateProjectDto,
   CreateTaskDto,
   DayNoteDto,
   EnglishCheckDto,
@@ -27,6 +28,7 @@ import {
   UpdateCategoryDto,
   UpdateGoalDto,
   UpdateNoteDto,
+  UpdateProjectDto,
   UpdateTaskDto,
 } from './dto/planner.dto';
 import { AREAS, Area } from './entities/planner.entities';
@@ -57,6 +59,34 @@ export class PlannerController {
     return this.s.meta();
   }
 
+  // ── Projects
+  @Get('projects')
+  @ApiOperation({ summary: 'Projects with task counts, status and an 8-week done trend' })
+  projects() {
+    return this.s.listProjects();
+  }
+
+  @Get('projects/:id')
+  project(@Param('id', ParseIntPipe) id: number) {
+    return this.s.getProject(id);
+  }
+
+  @Post('projects')
+  addProject(@Body() dto: CreateProjectDto) {
+    return this.s.addProject(dto);
+  }
+
+  @Patch('projects/:id')
+  updateProject(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProjectDto) {
+    return this.s.updateProject(id, dto);
+  }
+
+  @Delete('projects/:id')
+  @ApiOperation({ summary: 'Delete a project and all of its tasks' })
+  deleteProject(@Param('id', ParseIntPipe) id: number) {
+    return this.s.deleteProject(id);
+  }
+
   // ── Categories
   @Post('categories')
   addCategory(@Body() dto: CreateCategoryDto) {
@@ -82,6 +112,7 @@ export class PlannerController {
   @ApiQuery({ name: 'area', enum: AREAS, required: false })
   @ApiQuery({ name: 'categoryId', required: false })
   @ApiQuery({ name: 'goalId', required: false })
+  @ApiQuery({ name: 'projectId', required: false })
   @ApiQuery({ name: 'q', required: false })
   @ApiQuery({ name: 'anchor', required: false, description: 'A day inside the week/month to show' })
   listTasks(
@@ -89,6 +120,7 @@ export class PlannerController {
     @Query('area') a?: string,
     @Query('categoryId') categoryId?: string,
     @Query('goalId') goalId?: string,
+    @Query('projectId') projectId?: string,
     @Query('q') q?: string,
     @Query('anchor') anchor?: string,
   ) {
@@ -98,6 +130,7 @@ export class PlannerController {
       area: area(a),
       categoryId: optInt(categoryId),
       goalId: optInt(goalId),
+      projectId: optInt(projectId),
       q,
       anchor: isDayKey(anchor) ? anchor : undefined,
     });
@@ -105,9 +138,10 @@ export class PlannerController {
 
   @Get('board')
   @ApiOperation({ summary: 'Kanban columns for an area: backlog / doing / done (7 days)' })
-  @ApiQuery({ name: 'area', enum: AREAS })
-  board(@Query('area') a: string) {
-    return this.s.board(area(a) ?? 'WORK');
+  @ApiQuery({ name: 'area', enum: AREAS, required: false })
+  @ApiQuery({ name: 'projectId', required: false })
+  board(@Query('area') a?: string, @Query('projectId') projectId?: string) {
+    return this.s.board(area(a), optInt(projectId));
   }
 
   @Post('tasks')
