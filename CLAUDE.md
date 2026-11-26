@@ -1,5 +1,18 @@
 # Personal Knowledge Base — Claude Code guide
 
+> **v2 rewrite in progress** (`apps/`, `packages/`, pnpm workspace, Node 20) — see `docs/v2/README.md`.
+> New work goes into v2. v1 (`backend/`, `frontend/`, everything below this box) keeps running unchanged
+> until cut-over; only fix it, don't extend it.
+>
+> v2 hard rules: UUID v7 ids · one entity per file · schema changes only via migrations in
+> `apps/api/src/platform/database/migrations` · request/response types only in `packages/contracts` (zod) ·
+> `core/X` imports `core/Y` only through `core/Y/index.ts`; `platform/` never imports `core/`/`isolated/`
+> (checked by `pnpm depcruise`) · `isolated/` (english, diary) imports only `platform/`, owns its own tables, no FK
+> into core (ADR 0010) · domain logic as pure functions with tests · server state via TanStack Query,
+> no localStorage for data · AI only through `platform/ai` `AiGateway` (modules own their prompts) · semantic search
+> is optional (`QDRANT_URL`, ADR 0011) · ports 4200 (web) / 4201 (API, 127.0.0.1 only).
+> Checks: `pnpm typecheck && pnpm depcruise && pnpm test` (+ `pnpm --filter @pkb/api test:int` with `IT_DATABASE_URL`).
+
 Self-hosted knowledge base with semantic search + an AI chat assistant (RAG).
 Monorepo: a NestJS API and a Next.js web app, backed by MySQL and Qdrant.
 

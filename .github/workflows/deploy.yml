@@ -3,6 +3,8 @@ name: Build & Deploy
 on:
   push:
     branches: [master]
+    # v1 only rebuilds when v1 code changes (v2 has its own workflow: deploy-v2.yml)
+    paths: ['backend/**', 'frontend/**', 'docker-compose.prod.yml', '.github/workflows/deploy.yml']
   workflow_dispatch: # allow manual runs from the Actions tab
 
 env:

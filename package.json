@@ -1,0 +1,14 @@
+{
+  "name": "personal-kb",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "pnpm -r --filter ./packages/** build && pnpm -r --filter ./apps/** build",
+    "dev:api": "pnpm --filter @pkb/contracts build && pnpm --filter @pkb/api dev",
+    "dev:web": "pnpm --filter @pkb/web dev",
+    "typecheck": "pnpm --filter @pkb/contracts build && pnpm -r typecheck",
+    "test": "pnpm --filter @pkb/contracts build && pnpm -r test",
+    "depcruise": "pnpm --filter @pkb/api depcruise"
+  }
+}

@@ -1,0 +1,214 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Design tokens. RGB channels so Tailwind's opacity modifiers work.
+ * Names are semantic (what the color is FOR), mapped in tailwind.config.ts.
+ * Full reference + usage rules: frontend/DESIGN.md and the /design page.
+ * ────────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Surfaces — from the page background up */
+  --canvas: 248 248 250;       /* page background */
+  --surface: 255 255 255;      /* cards, panels, inputs */
+  --subtle: 244 245 247;       /* row hover, quiet fills */
+  --muted: 237 238 241;        /* chips, segmented track, tag bg */
+  --emphasis: 224 226 231;     /* progress tracks, pressed */
+
+  /* Lines */
+  --line: 231 232 236;
+  --line-strong: 211 213 220;
+
+  /* Text — five steps of emphasis */
+  --fg: 21 22 27;
+  --fg-secondary: 62 65 75;
+  --fg-muted: 102 106 118;
+  --fg-subtle: 143 147 158;
+  --fg-faint: 189 192 200;
+
+  /* Brand accent (indigo) */
+  --accent: 88 86 214;
+  --accent-hover: 72 70 194;
+  --accent-fg: 255 255 255;
+  --accent-soft: 238 238 253;
+  --accent-text: 74 72 198;
+
+  /* Status */
+  --danger: 220 38 38;
+  --danger-soft: 254 241 241;
+  --danger-text: 185 28 28;
+  --success: 22 163 74;
+  --success-soft: 236 252 242;
+  --success-text: 21 128 61;
+  --warning: 217 119 6;
+  --warning-soft: 255 247 230;
+  --warning-text: 167 80 8;
+  --info: 2 132 199;
+  --info-soft: 236 246 254;
+  --info-text: 3 105 161;
+
+  --shadow: 16 18 27;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --canvas: 14 14 17;
+  --surface: 23 23 27;
+  --subtle: 30 31 36;
+  --muted: 38 39 45;
+  --emphasis: 52 53 61;
+
+  --line: 40 41 48;
+  --line-strong: 60 62 72;
+
+  --fg: 236 237 241;
+  --fg-secondary: 199 201 209;
+  --fg-muted: 150 153 165;
+  --fg-subtle: 111 114 126;
+  --fg-faint: 76 78 89;
+
+  --accent: 108 106 236;
+  --accent-hover: 126 124 244;
+  --accent-fg: 255 255 255;
+  --accent-soft: 37 36 70;
+  --accent-text: 165 163 255;
+
+  --danger: 239 68 68;
+  --danger-soft: 58 22 25;
+  --danger-text: 252 165 165;
+  --success: 34 197 94;
+  --success-soft: 17 46 31;
+  --success-text: 134 239 172;
+  --warning: 245 158 11;
+  --warning-soft: 54 39 12;
+  --warning-text: 252 211 77;
+  --info: 56 189 248;
+  --info-soft: 13 41 58;
+  --info-text: 125 211 252;
+
+  --shadow: 0 0 0;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas text-sm text-fg;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  ::selection {
+    background: rgb(var(--accent) / 0.22);
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent) / 0.6);
+    outline-offset: 2px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: rgb(var(--accent));
+  }
+  h1, h2, h3 {
+    @apply tracking-tight;
+  }
+}
+
+@layer components {
+  /* Buttons ─ .btn + one variant (+ optional size) */
+  .btn {
+    @apply inline-flex h-9 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 text-sm font-medium transition-colors duration-100 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-sm { @apply h-8 gap-1 rounded-md px-2.5 text-[13px]; }
+  .btn-xs { @apply h-6 gap-1 rounded-md px-2 text-xs; }
+  .btn-lg { @apply h-10 px-5; }
+  .btn-icon { @apply w-9 px-0; }
+  .btn-icon.btn-sm { @apply w-8 px-0; }
+  .btn-icon.btn-xs { @apply w-6 px-0; }
+
+  .btn-primary { @apply bg-accent text-accent-fg shadow-xs hover:bg-accent-hover; }
+  .btn-secondary { @apply border border-line-strong bg-surface text-fg shadow-xs hover:bg-subtle; }
+  .btn-ghost { @apply text-fg-secondary hover:bg-muted hover:text-fg; }
+  .btn-soft { @apply bg-accent-soft text-accent-text hover:bg-accent/15; }
+  .btn-danger { @apply bg-danger text-white shadow-xs hover:bg-danger/90; }
+  .btn-danger-ghost { @apply text-danger-text hover:bg-danger-soft; }
+
+  /* Form controls */
+  .input {
+    @apply rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-fg shadow-xs outline-none transition placeholder:text-fg-subtle focus:border-accent focus:ring-[3px] focus:ring-accent/20 disabled:opacity-60;
+  }
+  .input-sm { @apply rounded-md px-2.5 py-1.5; }
+  .input-ghost { @apply border-transparent bg-transparent shadow-none hover:bg-subtle focus:bg-surface; }
+  .label { @apply mb-1.5 block text-[13px] font-medium text-fg-secondary; }
+  .hint { @apply mt-1 text-xs text-fg-muted; }
+
+  /* Containers */
+  .card { @apply rounded-xl border border-line bg-surface shadow-xs; }
+  .card-interactive { @apply transition hover:border-line-strong hover:shadow-sm; }
+  .popover { @apply animate-pop-in rounded-xl border border-line bg-surface p-1 shadow-lg; }
+  .menu-item { @apply flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-fg-secondary hover:bg-muted hover:text-fg; }
+
+  /* Text helpers */
+  .eyebrow { @apply text-2xs font-semibold uppercase tracking-[0.08em] text-fg-subtle; }
+  .section-title { @apply text-[15px] font-semibold text-fg; }
+  .link { @apply text-accent-text underline-offset-2 hover:underline; }
+  .kbd { @apply inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-line-strong bg-surface px-1 font-sans text-2xs font-medium text-fg-muted shadow-xs; }
+
+  /* Chips: .chip + a tone */
+  .chip { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium; }
+
+  /* Rendered Markdown */
+  .prose-kb { @apply leading-relaxed text-fg-secondary; }
+  .prose-kb h1 { @apply mb-2 mt-5 text-lg font-semibold text-fg; }
+  .prose-kb h2 { @apply mb-2 mt-4 text-base font-semibold text-fg; }
+  .prose-kb h3 { @apply mb-1 mt-3 text-sm font-semibold text-fg; }
+  .prose-kb > :first-child { @apply mt-0; }
+  .prose-kb p { @apply my-2; }
+  .prose-kb ul { @apply my-2 list-disc pl-5; }
+  .prose-kb ol { @apply my-2 list-decimal pl-5; }
+  .prose-kb li { @apply my-0.5; }
+  .prose-kb blockquote { @apply my-3 border-l-2 border-line-strong pl-3 text-fg-muted; }
+  .prose-kb code { @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.88em] text-fg; }
+  .prose-kb pre { @apply my-3 overflow-x-auto rounded-lg border border-line bg-subtle p-3 text-[13px]; }
+  .prose-kb pre code { @apply bg-transparent p-0; }
+  .prose-kb a { @apply text-accent-text underline underline-offset-2; }
+  .prose-kb hr { @apply my-4 border-line; }
+  .prose-kb table { @apply my-3 w-full text-left text-sm; }
+  .prose-kb th, .prose-kb td { @apply border-b border-line px-2 py-1; }
+  .prose-kb img { @apply my-3 max-h-[480px] max-w-full rounded-lg border border-line; }
+  .prose-kb s { @apply text-fg-muted; }
+  .prose-kb ul.contains-task-list { @apply list-none pl-1; }
+  .prose-kb .task-list-item input { @apply mr-1.5 align-middle accent-accent; }
+}
+
+/* Tones live outside @layer so dynamically built names (tone-${x}) are never purged. */
+/* Tones — paired bg/text for tags and badges, theme-aware */
+.tone-gray { background: rgb(var(--muted)); color: rgb(var(--fg-muted)); }
+.tone-accent { background: rgb(var(--accent-soft)); color: rgb(var(--accent-text)); }
+.tone-red { background: #fee2e2; color: #b91c1c; }
+.tone-orange { background: #ffedd5; color: #c2410c; }
+.tone-amber { background: #fef3c7; color: #a16207; }
+.tone-green { background: #dcfce7; color: #15803d; }
+.tone-teal { background: #ccfbf1; color: #0f766e; }
+.tone-sky { background: #e0f2fe; color: #0369a1; }
+.tone-blue { background: #dbeafe; color: #1d4ed8; }
+.tone-violet { background: #ede9fe; color: #6d28d9; }
+.tone-pink { background: #fce7f3; color: #be185d; }
+[data-theme='dark'] .tone-red { background: rgb(239 68 68 / 0.16); color: #fca5a5; }
+[data-theme='dark'] .tone-orange { background: rgb(249 115 22 / 0.16); color: #fdba74; }
+[data-theme='dark'] .tone-amber { background: rgb(245 158 11 / 0.16); color: #fcd34d; }
+[data-theme='dark'] .tone-green { background: rgb(34 197 94 / 0.16); color: #86efac; }
+[data-theme='dark'] .tone-teal { background: rgb(20 184 166 / 0.16); color: #5eead4; }
+[data-theme='dark'] .tone-sky { background: rgb(14 165 233 / 0.16); color: #7dd3fc; }
+[data-theme='dark'] .tone-blue { background: rgb(59 130 246 / 0.16); color: #93c5fd; }
+[data-theme='dark'] .tone-violet { background: rgb(139 92 246 / 0.18); color: #c4b5fd; }
+[data-theme='dark'] .tone-pink { background: rgb(236 72 153 / 0.16); color: #f9a8d4; }
+
+
+@layer utilities {
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: rgb(var(--emphasis)) transparent; }
+}

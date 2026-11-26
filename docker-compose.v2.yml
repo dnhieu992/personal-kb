@@ -1,0 +1,33 @@
+# v2 local dev infra: a throwaway MySQL 8 for personal_kb_v2 on host port 3308
+# (3306 = host MySQL, 3307 = v1 legacy mapping). Prod reuses the host MySQL instead.
+#   docker compose -f docker-compose.v2.yml up -d
+name: personal-kb-v2-dev
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: personal_kb_v2
+      MYSQL_USER: pkb
+      MYSQL_PASSWORD: pkbpass
+    ports:
+      - "127.0.0.1:3308:3306"
+    volumes:
+      - mysql_v2:/var/lib/mysql
+
+  # Phase 3 semantic search. Loopback only + API key (ARCHITECTURE S2: v1 exposed 6333 to the world).
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: dev-qdrant-key
+    ports:
+      - "127.0.0.1:6343:6333"
+    volumes:
+      - qdrant_v2:/qdrant/storage
+
+volumes:
+  mysql_v2:
+  qdrant_v2:

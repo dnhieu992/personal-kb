@@ -1,0 +1,11 @@
+# v2 workspace. The legacy backend/ + frontend/ (v1) are NOT part of it — they keep
+# their own npm lockfiles and deploy pipeline until the cut-over (docs/v2/SPEC.md §10).
+packages:
+  - apps/*
+  - packages/*
+
+# native deps of the embedding pipeline (@xenova/transformers → sharp, onnx protobufs)
+onlyBuiltDependencies:
+  - sharp
+  - protobufjs
+  - esbuild

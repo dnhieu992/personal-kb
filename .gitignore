@@ -29,3 +29,10 @@ npm-debug.log*
 # transformers.js model cache
 .cache/
 **/.cache/
+
+# v2 (apps/, packages/)
+apps/*/dist/
+apps/web/.next/
+packages/*/dist/
+apps/web/.env.local
+.storage/
