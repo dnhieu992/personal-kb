@@ -77,4 +77,12 @@ jobs:
           # Migrations first; if they fail the step fails and the running app is untouched.
           docker compose -f docker-compose.v2.prod.yml run --rm --no-deps api node dist/migrate.js
           docker compose -f docker-compose.v2.prod.yml up -d
+      - name: Sync v1 data → v2 (migrate-v1, idempotent)
+        # Runs while V1_DATABASE_URL is set in /opt/personal-kb-v2/api.env; remove it at cut-over to stop.
+        # v1 is the source of truth until then: rows that came from v1 are overwritten with v1's values.
+        env:
+          TAG: ${{ github.sha }}
+        run: |
+          docker compose -f docker-compose.v2.prod.yml run --rm --no-deps api \
+            sh -c 'if [ -n "$V1_DATABASE_URL" ]; then node dist/scripts/migrate-v1.js; else echo "V1_DATABASE_URL not set — skipping"; fi'
           docker image prune -f

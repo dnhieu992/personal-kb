@@ -72,6 +72,8 @@ rows). Game progress used to be doubled into localStorage (F4) — now server-on
    (shared Qdrant, new collection `pkb_v2_notes`; leave unset if RAM is tight — SPEC §10).
 4. Merge to `master` → `deploy-v2.yml` builds, runs `node dist/migrate.js`, starts the stack.
 5. Copy v1 data (core + English + diary): `docker compose -f docker-compose.v2.prod.yml run --rm --no-deps api node dist/scripts/migrate-v1.js --dry-run`, then without `--dry-run`. Re-run any time; it is idempotent.
+   **Every v2 deploy re-runs it** (after `up -d`) while `V1_DATABASE_URL` is set in `api.env`; v1 stays the source of
+   truth for rows that came from it, so edit those in v1 until cut-over. Remove `V1_DATABASE_URL` at cut-over.
 6. With Qdrant on, index existing notes once: `docker compose -f docker-compose.v2.prod.yml run --rm --no-deps api node dist/scripts/reindex-notes.js`
    (the running API's worker embeds them in the background).
 
@@ -86,5 +88,5 @@ Nightly at 03:30 (`BACKUP_CRON`, `APP_TZ`) and before every deploy's migration: 
 - v1 images stay as links to the old **public** bucket after ETL; copy them into the v2 bucket before deleting the old one.
 
 ## Cut-over (after Phase 2)
-Run `migrate-v1` one last time → switch v2 to 4000/4001 → stop v1 → keep `personal_kb` one month → delete
+Run `migrate-v1` one last time → remove `V1_DATABASE_URL` from `api.env` → switch v2 to 4000/4001 → stop v1 → keep `personal_kb` one month → delete
 `backend/`, `frontend/`, `deploy.yml`, `docker-compose.prod.yml`, `docker-compose.yml`.
