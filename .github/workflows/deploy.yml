@@ -1,11 +1,9 @@
 name: Build & Deploy
 
 on:
-  push:
-    branches: [master]
-    # v1 only rebuilds when v1 code changes (v2 has its own workflow: deploy-v2.yml)
-    paths: ['backend/**', 'frontend/**', 'docker-compose.prod.yml', '.github/workflows/deploy.yml']
-  workflow_dispatch: # allow manual runs from the Actions tab
+  # v1 was retired at the v2 cut-over (2026-11-27): no automatic deploys any more — v2 owns ports 4000/4001.
+  # Manual run only, e.g. to roll back (stop v2 first: docker compose -f docker-compose.v2.prod.yml down).
+  workflow_dispatch:
 
 env:
   IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/personal-kb

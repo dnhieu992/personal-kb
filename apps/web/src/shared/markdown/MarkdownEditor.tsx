@@ -21,8 +21,8 @@ export const MarkdownEditor = forwardRef<
 >(function MarkdownEditor({ value, onChange, placeholder, minRows = 10, toolbarExtras, onPasteFiles }, ref) {
   const [tab, setTab] = useState<'write' | 'preview'>('write');
   return (
-    <div className="rounded-md border border-line-strong">
-      <div className="flex items-center gap-1 border-b border-line bg-subtle px-2 py-1">
+    <div className="overflow-hidden rounded-xl border border-line-strong bg-surface">
+      <div className="flex flex-wrap items-center gap-1 border-b border-line bg-subtle px-2 py-1">
         {(['write', 'preview'] as const).map((t) => (
           <button
             key={t}
@@ -33,7 +33,7 @@ export const MarkdownEditor = forwardRef<
             {t}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-1">{toolbarExtras}</div>
+        <div className="ml-auto flex flex-wrap items-center gap-1">{toolbarExtras}</div>
       </div>
       {tab === 'write' ? (
         <Textarea

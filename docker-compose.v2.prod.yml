@@ -1,4 +1,5 @@
-# v2 production stack (runs in parallel with v1 until cut-over — docs/v2/SPEC.md §10).
+# v2 production stack — the live app since cut-over (2026-11-27); v1 is stopped. Public port 4000 (web),
+# API on 127.0.0.1:4001 only.
 # Secrets ONLY on the VPS: /opt/personal-kb-v2/api.env (DATABASE_URL → personal_kb_v2 on host MySQL,
 # AUTH_PASSWORD_HASH, SESSION_SECRET, COOKIE_SECURE, STORAGE_DRIVER=r2, R2_*, BACKUP_BUCKET,
 # CLAUDE_CODE_OAUTH_TOKEN, TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID, QDRANT_URL/QDRANT_API_KEY).
@@ -17,7 +18,7 @@ services:
     environment:
       - NODE_ENV=production
       - HOST=127.0.0.1
-      - PORT=4201
+      - PORT=4001
       - MIGRATE_ON_BOOT=false
     volumes:
       # TTS wav cache + MiniLM model (~90 MB): survive image updates
@@ -28,12 +29,12 @@ services:
   web:
     image: ghcr.io/dnhieu992/personal-kb-v2-web:${TAG:-latest}
     restart: unless-stopped
-    # Host network as well, so the proxy can reach the API on 127.0.0.1:4201.
+    # Host network as well, so the proxy can reach the API on 127.0.0.1:4001.
     network_mode: host
     mem_limit: 400m
     environment:
-      - API_URL=http://127.0.0.1:4201
-      - PORT=4200
+      - API_URL=http://127.0.0.1:4001
+      - PORT=4000
       - HOSTNAME=0.0.0.0
     depends_on:
       - api

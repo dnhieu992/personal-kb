@@ -13,12 +13,12 @@ export const Button = forwardRef<HTMLButtonElement, BtnProps>(function Button({ 
     <button
       ref={ref}
       className={cx(
-        'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition disabled:opacity-50 disabled:pointer-events-none',
-        size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-9 px-3.5 text-sm',
-        variant === 'primary' && 'bg-accent text-accent-fg hover:bg-accent-hover',
-        variant === 'outline' && 'border border-line-strong bg-surface text-fg hover:bg-subtle',
-        variant === 'ghost' && 'text-fg-secondary hover:bg-muted hover:text-fg',
-        variant === 'danger' && 'text-red-600 hover:bg-red-50',
+        'btn',
+        size === 'sm' && 'btn-sm',
+        variant === 'primary' && 'btn-primary',
+        variant === 'outline' && 'btn-secondary',
+        variant === 'ghost' && 'btn-ghost',
+        variant === 'danger' && 'btn-danger-ghost',
         className,
       )}
       {...p}
@@ -30,7 +30,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
   return (
     <input
       ref={ref}
-      className={cx('h-9 w-full rounded-md border border-line-strong bg-surface px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20', className)}
+      className={cx('input h-9 w-full py-0', className)}
       {...p}
     />
   );
@@ -39,7 +39,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
 export function Select({ className, ...p }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className={cx('h-9 rounded-md border border-line-strong bg-surface px-2 text-sm outline-none focus:border-accent', className)}
+      className={cx('input h-9 py-0 pl-2.5 pr-8', className)}
       {...p}
     />
   );
@@ -49,13 +49,13 @@ export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
   return (
     <textarea
       ref={ref}
-      className={cx('w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20', className)}
+      className={cx('input w-full', className)}
       {...p}
     />
   );
 });
 
-const PRIORITY_STYLE = ['bg-muted text-fg-secondary', 'bg-sky-100 text-sky-700', 'bg-amber-100 text-amber-800', 'bg-red-100 text-red-700'];
+const PRIORITY_STYLE = ['bg-muted text-fg-secondary', 'bg-info-soft text-info-text', 'bg-warning-soft text-warning-text', 'bg-danger-soft text-danger-text'];
 export function PriorityBadge({ value }: { value: number }) {
   return <span className={cx('rounded px-1.5 py-0.5 text-[11px] font-medium', PRIORITY_STYLE[value])}>{PRIORITIES[value]}</span>;
 }
@@ -96,7 +96,7 @@ export function Spinner() {
 
 export function formatDue(due: string | null, today: string): { label: string; tone: string } | null {
   if (!due) return null;
-  if (due < today) return { label: `overdue · ${due.slice(5)}`, tone: 'text-red-600' };
-  if (due === today) return { label: 'today', tone: 'text-amber-700' };
+  if (due < today) return { label: `overdue · ${due.slice(5)}`, tone: 'text-danger-text' };
+  if (due === today) return { label: 'today', tone: 'text-warning-text' };
   return { label: due.slice(5), tone: 'text-fg-muted' };
 }

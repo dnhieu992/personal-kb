@@ -180,7 +180,7 @@ function Checklist({ task }: { task: TaskDetail }) {
           <div key={c.id} className="group flex items-center gap-2">
             <input type="checkbox" checked={c.done} onChange={() => update.mutate({ id: c.id, input: { done: !c.done } })} className="accent-[rgb(var(--accent))]" />
             <span className={cx('flex-1 text-sm', c.done && 'text-fg-subtle line-through')}>{c.title}</span>
-            <button onClick={() => remove.mutate(c.id)} className="invisible text-xs text-fg-subtle hover:text-red-600 group-hover:visible">
+            <button onClick={() => remove.mutate(c.id)} className="invisible text-xs text-fg-subtle hover:text-danger-text group-hover:visible">
               remove
             </button>
           </div>

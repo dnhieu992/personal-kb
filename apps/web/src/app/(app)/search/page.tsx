@@ -30,20 +30,20 @@ function SearchView() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">Search</h1>
-        <div className="ml-auto flex rounded-md border border-line p-0.5 text-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="mr-auto text-2xl font-semibold">Search</h1>
+        <div className="flex rounded-lg bg-muted p-0.5 text-sm">
           {(['keyword', 'semantic'] as const).map((m) => (
-            <button key={m} onClick={() => go({ mode: m === 'keyword' ? '' : m })} className={`rounded px-2.5 py-1 ${mode === m ? 'bg-muted font-medium' : 'text-fg-muted hover:text-fg'}`}>
+            <button key={m} onClick={() => go({ mode: m === 'keyword' ? '' : m })} className={`whitespace-nowrap rounded-md px-2.5 py-1 ${mode === m ? 'bg-surface font-medium shadow-xs' : 'text-fg-muted hover:text-fg'}`}>
               {m === 'keyword' ? 'Keyword' : 'By meaning'}
             </button>
           ))}
         </div>
         <Link href={`/ask${q ? `?q=${encodeURIComponent(q)}` : ''}`} className="btn btn-secondary btn-sm">Ask your notes →</Link>
       </div>
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); go({ q: text.trim() }); }}>
+      <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); go({ q: text.trim() }); }}>
         <Input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="Search notes, tasks, file names…" />
-        <Select value={projectId} onChange={(e) => go({ projectId: e.target.value })}>
+        <Select value={projectId} onChange={(e) => go({ projectId: e.target.value })} className="sm:w-56">
           <option value="">All projects</option>
           {projects.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>

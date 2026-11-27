@@ -105,7 +105,7 @@ export function NoteEditor({ note, defaults }: { note?: NoteDetail; defaults?: {
         {taskId ? (
           <span className="flex items-center gap-2 rounded-md bg-muted px-2 py-1">
             Task: <strong className="font-medium">{taskTitle ?? 'task'}</strong>
-            <button className="text-xs text-fg-muted hover:text-red-600" onClick={() => setTaskId(null)} title="Detach from task">✕</button>
+            <button className="text-xs text-fg-muted hover:text-danger-text" onClick={() => setTaskId(null)} title="Detach from task">✕</button>
           </span>
         ) : (
           <label className="flex items-center gap-2">
@@ -133,7 +133,7 @@ export function NoteEditor({ note, defaults }: { note?: NoteDetail; defaults?: {
             }}
             onBlur={addTag}
             placeholder="add tag (bug-fix, architecture…)"
-            className="h-7 w-56 text-xs"
+            className="h-7 w-44 text-xs sm:w-56"
           />
         </div>
       </div>

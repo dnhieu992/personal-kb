@@ -38,10 +38,10 @@ export function NewTaskForm({ projectId: fixedProject, pinByDefault }: { project
 
   return (
     <form onSubmit={submit} className="rounded-lg border border-line bg-surface p-2">
-      <div className="flex gap-2">
-        <Input placeholder="Add a task…" value={title} onChange={(e) => setTitle(e.target.value)} className="border-0 focus:ring-0" />
+      <div className="flex flex-wrap gap-2">
+        <Input placeholder="Add a task…" value={title} onChange={(e) => setTitle(e.target.value)} className="basis-full border-0 shadow-none focus:ring-0 sm:min-w-[12rem] sm:basis-0 sm:flex-1" />
         {!fixedProject && (
-          <Select value={pid} onChange={(e) => setProjectId(e.target.value)} className="max-w-[12rem]">
+          <Select value={pid} onChange={(e) => setProjectId(e.target.value)} className="min-w-0 flex-1 sm:max-w-[12rem] sm:flex-none">
             {projects.data?.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}

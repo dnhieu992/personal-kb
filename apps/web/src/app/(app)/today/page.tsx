@@ -7,9 +7,9 @@ import { useToday } from '@/features/tasks/queries';
 import { Empty, Spinner } from '@/shared/ui/primitives';
 
 const SECTIONS: { key: 'overdue' | 'dueToday' | 'inProgress' | 'pinned'; title: string; tone: string }[] = [
-  { key: 'overdue', title: 'Overdue', tone: 'text-red-600' },
-  { key: 'dueToday', title: 'Due today', tone: 'text-amber-700' },
-  { key: 'inProgress', title: 'In progress', tone: 'text-violet-700' },
+  { key: 'overdue', title: 'Overdue', tone: 'text-danger-text' },
+  { key: 'dueToday', title: 'Due today', tone: 'text-warning-text' },
+  { key: 'inProgress', title: 'In progress', tone: 'text-accent-text' },
   { key: 'pinned', title: 'Pinned for today', tone: 'text-fg-secondary' },
 ];
 

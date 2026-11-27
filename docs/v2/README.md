@@ -62,7 +62,7 @@ app runs; AI endpoints answer 503.
 Theme preference, and the diary's unsaved-draft buffer (protects typing against a refresh; it is never a copy of DB
 rows). Game progress used to be doubled into localStorage (F4) — now server-only.
 
-## First deploy on the VPS (parallel run, ports 4200/4201)
+## First deploy on the VPS (done; was the parallel run on 4200/4201 — prod now uses 4000/4001)
 
 1. Create DB + user on the host MySQL: `CREATE DATABASE personal_kb_v2; GRANT ALL ON personal_kb_v2.* TO 'pkb'@'localhost';`
 2. Create a **private** R2 bucket for v2 + an API token; add a CORS rule: AllowedOrigins = the web origin, AllowedMethods = PUT, GET, AllowedHeaders = Content-Type.
@@ -87,6 +87,6 @@ Nightly at 03:30 (`BACKUP_CRON`, `APP_TZ`) and before every deploy's migration: 
 - v1 has **no auth** and binds `0.0.0.0:4001`; Qdrant publishes `6333`. Firewall both on the VPS now.
 - v1 images stay as links to the old **public** bucket after ETL; copy them into the v2 bucket before deleting the old one.
 
-## Cut-over (after Phase 2)
+## Cut-over (done 2026-11-27: final sync, V1_DATABASE_URL removed, v1 stopped, v2 moved to 4000/4001)
 Run `migrate-v1` one last time → remove `V1_DATABASE_URL` from `api.env` → switch v2 to 4000/4001 → stop v1 → keep `personal_kb` one month → delete
 `backend/`, `frontend/`, `deploy.yml`, `docker-compose.prod.yml`, `docker-compose.yml`.

@@ -29,9 +29,15 @@ function LoginForm() {
         }
       }}
     >
-      <h1 className="text-lg font-semibold">Personal KB</h1>
+      <div className="mb-2 flex flex-col items-center gap-3 text-center">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-lg font-bold text-accent-fg shadow-sm">K</span>
+        <div>
+          <h1 className="text-lg font-semibold">Personal KB</h1>
+          <p className="text-[13px] text-fg-muted">Sign in to continue</p>
+        </div>
+      </div>
       <Input type="password" autoFocus placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger-text">{error}</p>}
       <Button variant="primary" className="w-full" disabled={busy || !password}>
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
@@ -41,7 +47,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex min-h-screen items-center justify-center bg-canvas p-4">
       <Suspense>
         <LoginForm />
       </Suspense>

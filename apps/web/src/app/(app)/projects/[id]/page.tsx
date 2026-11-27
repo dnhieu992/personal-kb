@@ -35,8 +35,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+        <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
+          <h1 className="flex items-center gap-2 text-xl font-semibold sm:text-2xl">
             <ProjectDot color={p.color} /> {p.name}
             {p.archivedAt && <span className="text-sm font-normal text-fg-subtle">(archived)</span>}
           </h1>
@@ -55,18 +55,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         </Button>
       </header>
 
-      <div className="flex items-center gap-1 border-b border-line">
+      <div className="scrollbar-thin flex items-center gap-1 overflow-x-auto border-b border-line">
         {(['board', 'list', 'notes', 'recurring'] as View[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={cx('-mb-px border-b-2 px-3 py-2 text-sm capitalize', view === v ? 'border-accent font-medium' : 'border-transparent text-fg-muted hover:text-fg')}
+            className={cx('-mb-px shrink-0 border-b-2 px-3 py-2 text-sm capitalize', view === v ? 'border-accent font-medium' : 'border-transparent text-fg-muted hover:text-fg')}
           >
             {v}
           </button>
         ))}
         {(view === 'board' || view === 'list') && (
-          <label className="ml-auto flex items-center gap-1.5 text-xs text-fg-muted">
+          <label className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap pl-2 text-xs text-fg-muted">
             <input type="checkbox" checked={includeOldDone} onChange={(e) => setIncludeOldDone(e.target.checked)} className="accent-[rgb(var(--accent))]" />
             Show older done
           </label>
@@ -126,7 +126,7 @@ function Recurring({ projectId }: { projectId: string }) {
             <span className="font-medium">{r.title}</span>
             <span className="ml-2 text-fg-muted">↻ {describeRule(r.rule)}</span>
           </span>
-          <span className={cx('rounded px-1.5 py-0.5 text-xs', r.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-fg-muted')}>{r.status}</span>
+          <span className={cx('rounded px-1.5 py-0.5 text-xs', r.status === 'active' ? 'bg-success-soft text-success-text' : 'bg-muted text-fg-muted')}>{r.status}</span>
           {r.status === 'active' ? (
             <Button size="sm" onClick={() => upd.mutate({ id: r.id, input: { status: 'paused' } })}>Pause</Button>
           ) : (
