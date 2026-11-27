@@ -4,14 +4,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { authApi } from '@/features/auth/api';
-import { useProjects } from '@/features/projects/api';
 import { TaskDialogHost } from '@/features/tasks/components/TaskDialog';
 import { Icon, IconName } from '@/shared/ui/icons';
-import { cx, ProjectDot } from '@/shared/ui/primitives';
+import { cx } from '@/shared/ui/primitives';
 import { ThemeSwitch } from '@/shared/ui/theme';
 
 type NavItem = { href: string; label: string; icon: IconName; exact?: boolean };
-type NavGroup = { label?: string; items: NavItem[]; projects?: boolean };
+type NavGroup = { label?: string; items: NavItem[] };
 
 /** The app's information architecture — one place, read by the sidebar and the mobile drawer. */
 const NAV: NavGroup[] = [
@@ -23,9 +22,8 @@ const NAV: NavGroup[] = [
   },
   {
     label: 'Work',
-    projects: true,
     items: [
-      { href: '/projects', label: 'Projects', icon: 'folder', exact: true },
+      { href: '/projects', label: 'Projects', icon: 'folder' },
       { href: '/notes', label: 'Knowledge base', icon: 'book' },
       { href: '/ask', label: 'Ask AI', icon: 'sparkles' },
     ],
@@ -115,11 +113,9 @@ function Brand() {
 
 function Sidebar({ path, onClose }: { path: string; onClose?: () => void }) {
   const router = useRouter();
-  const projects = useProjects();
   const active = activeHref(path);
   const [q, setQ] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
-  const [showProjects, setShowProjects] = useState(true);
 
   useEffect(() => {
     if (onClose) return; // only the desktop sidebar owns ⌘K
@@ -172,38 +168,6 @@ function Sidebar({ path, onClose }: { path: string; onClose?: () => void }) {
               {g.items.map((it) => (
                 <li key={it.href}>
                   <NavLink item={it} on={active === it.href} />
-                  {g.projects && it.href === '/projects' && !!projects.data?.length && (
-                    <div className="mb-1">
-                      <button
-                        onClick={() => setShowProjects((v) => !v)}
-                        className="ml-[34px] mt-0.5 flex items-center gap-1 text-2xs font-medium text-fg-subtle hover:text-fg-muted"
-                      >
-                        <span className={cx('inline-block transition-transform', showProjects ? 'rotate-90' : '')}>›</span>
-                        {projects.data.length} active
-                      </button>
-                      {showProjects && (
-                        <ul className="ml-[22px] mt-0.5 space-y-px border-l border-line pl-2">
-                          {projects.data.map((p) => {
-                            const on = path === `/projects/${p.id}`;
-                            return (
-                              <li key={p.id}>
-                                <Link
-                                  href={`/projects/${p.id}`}
-                                  className={cx(
-                                    'flex h-7 items-center gap-2 rounded-md px-2 text-[13px] transition-colors',
-                                    on ? 'bg-accent-soft font-medium text-accent-text' : 'text-fg-secondary hover:bg-muted hover:text-fg',
-                                  )}
-                                >
-                                  <ProjectDot color={p.color} />
-                                  <span className="truncate">{p.name}</span>
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  )}
                 </li>
               ))}
             </ul>
