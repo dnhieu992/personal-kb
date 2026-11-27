@@ -1,10 +1,9 @@
-import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { LoginInput, Me, SESSION_COOKIE } from '@pkb/contracts';
 import type { CookieOptions, Request, Response } from 'express';
 import { ENV, Env } from '../config/config';
 import { ZodPipe } from '../http/zod.pipe';
-import { verifyPassword } from './password';
 import { Public } from './public.decorator';
 import { signSession } from './session';
 
@@ -20,10 +19,9 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   @HttpCode(200)
-  async login(@Body(new ZodPipe(LoginInput)) body: LoginInput, @Res({ passthrough: true }) res: Response): Promise<Me> {
-    if (!(await verifyPassword(body.password, this.env.AUTH_PASSWORD_HASH))) {
-      throw new UnauthorizedException('Wrong password');
-    }
+  // TEMPORARY: password check disabled — any password logs in until the login flow is reworked.
+  // To restore: `if (!(await verifyPassword(body.password, this.env.AUTH_PASSWORD_HASH))) throw new UnauthorizedException('Wrong password');`
+  async login(@Body(new ZodPipe(LoginInput)) _body: LoginInput, @Res({ passthrough: true }) res: Response): Promise<Me> {
     const exp = Date.now() + this.env.SESSION_DAYS * 86_400_000;
     res.cookie(SESSION_COOKIE, signSession(exp, this.env.SESSION_SECRET), { ...this.cookieOpts(), expires: new Date(exp) });
     return { authenticated: true, expiresAt: new Date(exp).toISOString() };
