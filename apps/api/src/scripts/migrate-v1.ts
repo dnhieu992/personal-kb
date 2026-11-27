@@ -296,7 +296,9 @@ async function main() {
       if (!rows.length) continue;
       const names = cols.map((r) => r.c as string).filter((c) => c in rows[0]);
       const pk = to === 'english_game_progress' ? 'key' : 'id';
-      const list = names.map((c) => `\`${c}\``).join(', ');
+      // v2 diary rows belong to a calendar day; v1 had none → the +07 day of createdAt (never overwritten).
+      const addDay = to === 'diary_entry' && cols.some((r) => r.c === 'entryDate') && !names.includes('entryDate');
+      const list = [...names, ...(addDay ? ['entryDate'] : [])].map((c) => `\`${c}\``).join(', ');
       const upd = names.filter((c) => c !== pk).map((c) => `\`${c}\` = VALUES(\`${c}\`)`).join(', ');
       for (const r of rows) {
         const values = names.map((c) => {
@@ -304,7 +306,8 @@ async function main() {
           if (c === 'id' && from === 'course_goal') return idFor('course_goal', v); // int → uuid
           return v !== null && typeof v === 'object' && !(v instanceof Date) ? JSON.stringify(v) : v;
         });
-        await v2.query(`INSERT INTO \`${to}\` (${list}) VALUES (${names.map(() => '?').join(', ')}) ON DUPLICATE KEY UPDATE ${upd}`, values);
+        if (addDay) values.push(new Date(new Date(r.createdAt as string | Date).getTime() + 7 * 3_600_000).toISOString().slice(0, 10));
+        await v2.query(`INSERT INTO \`${to}\` (${list}) VALUES (${values.map(() => '?').join(', ')}) ON DUPLICATE KEY UPDATE ${upd}`, values);
       }
       bump(to, rows.length);
     }

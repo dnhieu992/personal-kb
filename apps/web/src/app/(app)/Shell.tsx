@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { authApi } from '@/features/auth/api';
+import { Avatar } from '@/features/profile/Avatar';
+import { useProfile } from '@/features/profile/api';
 import { TaskDialogHost } from '@/features/tasks/components/TaskDialog';
 import { Icon, IconName } from '@/shared/ui/icons';
 import { cx } from '@/shared/ui/primitives';
@@ -38,10 +40,6 @@ const NAV: NavGroup[] = [
       { href: '/english/games', label: 'Games', icon: 'gamepad' },
       { href: '/english/placement', label: 'Placement test', icon: 'target' },
     ],
-  },
-  {
-    label: 'Personal',
-    items: [{ href: '/diary', label: 'Diary', icon: 'note' }],
   },
 ];
 const ALL = NAV.flatMap((g) => g.items);
@@ -175,22 +173,87 @@ function Sidebar({ path, onClose }: { path: string; onClose?: () => void }) {
         ))}
       </nav>
 
-      <div className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
-        <div className="flex-1">
-          <ThemeSwitch />
-        </div>
-        <button
-          onClick={async () => {
-            await authApi.logout();
-            router.replace('/login');
-          }}
-          className="btn btn-ghost btn-sm text-fg-muted"
-          title="Sign out"
-        >
-          <Icon name="lock" className="h-3.5 w-3.5" />
-          Sign out
-        </button>
+      <div className="shrink-0 border-t border-line p-2">
+        <UserMenu path={path} />
       </div>
+    </div>
+  );
+}
+
+/** Avatar + name at the bottom of the sidebar; the menu (My Notes, Profile, theme, sign out) opens on click. */
+function UserMenu({ path }: { path: string }) {
+  const router = useRouter();
+  const profile = useProfile();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const name = profile.data?.displayName ?? 'Me';
+  const url = profile.data?.avatarUrl ?? null;
+
+  useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const item = 'flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] text-fg-secondary transition-colors hover:bg-muted hover:text-fg';
+
+  return (
+    <div ref={ref} className="relative">
+      {open && (
+        <div className="absolute bottom-full left-0 right-0 z-50 mb-2 animate-pop-in rounded-xl border border-line bg-surface p-1.5 shadow-lg" role="menu">
+          <div className="flex items-center gap-3 px-2.5 py-2">
+            <Avatar name={name} url={url} size={36} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{name}</p>
+              {profile.data?.email && <p className="truncate text-xs text-fg-muted">{profile.data.email}</p>}
+            </div>
+          </div>
+          <div className="my-1 border-t border-line" />
+          <Link href="/my-notes" className={item} role="menuitem">
+            <Icon name="lock" className="h-4 w-4 text-fg-muted" /> My Notes
+          </Link>
+          <Link href="/profile" className={item} role="menuitem">
+            <Icon name="user" className="h-4 w-4 text-fg-muted" /> Profile
+          </Link>
+          <div className="my-1 border-t border-line" />
+          <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 text-[13px] text-fg-muted">
+            Theme
+            <div className="w-28">
+              <ThemeSwitch />
+            </div>
+          </div>
+          <button
+            className={item}
+            role="menuitem"
+            onClick={async () => {
+              await authApi.logout();
+              router.replace('/login');
+            }}
+          >
+            <Icon name="logout" className="h-4 w-4 text-fg-muted" /> Sign out
+          </button>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={cx('flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-muted', open && 'bg-muted')}
+      >
+        <Avatar name={name} url={url} size={32} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] font-medium text-fg">{name}</span>
+          {profile.data?.email && <span className="block truncate text-xs text-fg-muted">{profile.data.email}</span>}
+        </span>
+        <Icon name="chevron-down" className={cx('h-4 w-4 text-fg-subtle transition-transform', open ? '' : 'rotate-180')} />
+      </button>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-/** One diary note: what was written and when. */
+/** One private note ("My Notes"): what was written, the day it belongs to, and when. */
 @Entity('diary_entry')
 export class DiaryEntry {
   @PrimaryGeneratedColumn('uuid')
@@ -8,6 +8,10 @@ export class DiaryEntry {
 
   @Column({ type: 'mediumtext' })
   content: string;
+
+  /** Calendar day (YYYY-MM-DD in APP_TZ) the note belongs to — may be a past day. */
+  @Column({ type: 'date' })
+  entryDate: string;
 
   /*
    * Both stamps are set by DiaryService from the app clock, not by a MySQL

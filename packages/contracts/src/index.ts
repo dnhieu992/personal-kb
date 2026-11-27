@@ -8,3 +8,5 @@ export * from './task';
 export * from './note';
 export * from './search';
 export * from './english';
+export * from './my-notes';
+export * from './profile';

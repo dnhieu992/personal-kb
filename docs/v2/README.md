@@ -55,12 +55,15 @@ app runs; AI endpoints answer 503.
 - `core/` project · task · note (+ AI tools, indexing jobs) · search (keyword, semantic, ask) · overview
 - `isolated/english` — tables `english_*`, routes `/api/english/*`; never touches core tables. Core editors reach it
   only over HTTP (Check English → `/english/check`, `/english/mistakes`); cards keep their source as text + link.
-- `isolated/diary` — table `diary_entry`, routes `/api/diary`.
-- `platform/` config · database · auth · http · jobs · storage (+ `/api/uploads/images`) · ai (gateway) · vector · backup
+- `isolated/diary` — **My Notes** (`/my-notes`, opened from the avatar menu): private notes filed by day (`diary_entry.entryDate`),
+  behind a 6-digit passcode (`diary_lock`, scrypt hash). Entry routes need the `x-notes-token` the unlock returns; the
+  web keeps it in page memory only (relocks on leaving the page, reload, 30 min, or 1 min in a background tab).
+  Forgot the passcode: `node dist/scripts/reset-notes-passcode.js` (notes are kept).
+- `platform/` config · database · auth · profile (`/api/profile`, one row) · http · jobs · storage (+ `/api/uploads/images`) · ai (gateway) · vector · backup
 
 ### Deliberate exceptions to "no localStorage for data"
-Theme preference, and the diary's unsaved-draft buffer (protects typing against a refresh; it is never a copy of DB
-rows). Game progress used to be doubled into localStorage (F4) — now server-only.
+Theme preference only. (The diary's draft buffer was dropped when it became the passcode-locked My Notes — private
+text must not sit in localStorage.) Game progress used to be doubled into localStorage (F4) — now server-only.
 
 ## First deploy on the VPS (done; was the parallel run on 4200/4201 — prod now uses 4000/4001)
 

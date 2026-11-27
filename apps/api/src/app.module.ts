@@ -7,6 +7,7 @@ import { ProjectModule } from './core/project';
 import { SearchModule } from './core/search';
 import { TaskModule } from './core/task';
 import { DiaryModule } from './isolated/diary';
+import { ProfileModule } from './platform/profile/profile.module';
 import { EnglishModule } from './isolated/english';
 import { AiModule } from './platform/ai/ai.module';
 import { VectorModule } from './platform/vector/vector.module';
@@ -42,6 +43,7 @@ import { StorageModule } from './platform/storage/storage.module';
     // isolated — depend on platform/ only
     EnglishModule,
     DiaryModule,
+    ProfileModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: ProblemFilter }],

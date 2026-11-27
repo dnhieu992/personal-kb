@@ -136,5 +136,3 @@ export const RecordMistakesResult = z.object({ saved: z.number(), skipped: z.num
 export type RecordMistakesResult = z.infer<typeof RecordMistakesResult>;
 
 // ---- diary ----
-export const DiaryEntryInput = z.object({ content: z.string().trim().min(1).max(100_000) });
-export type DiaryEntryInput = z.infer<typeof DiaryEntryInput>;
